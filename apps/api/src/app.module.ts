@@ -12,6 +12,8 @@ import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './health/health.module';
 import { KycModule } from './kyc/kyc.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RentalsModule } from './rentals/rentals.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -39,6 +41,8 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     KycModule,
     NotificationsModule,
+    RentalsModule,
+    ReviewsModule,
     HealthModule,
   ],
   providers: [
