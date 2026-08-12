@@ -233,6 +233,61 @@ export class ChatService {
     return message;
   }
 
+  async appendSystemMessageForRental(
+    rentalId: string,
+    actorId: string,
+    content: string,
+  ) {
+    const rental = await this.prisma.rentalRequest.findUnique({
+      where: { id: rentalId },
+      select: {
+        id: true,
+        ownerId: true,
+        renterId: true,
+      },
+    });
+
+    if (!rental) {
+      throw new NotFoundException('Rental request not found');
+    }
+
+    const existingConversation = await this.prisma.conversation.findUnique({
+      where: { rentalId: rental.id },
+      select: {
+        id: true,
+      },
+    });
+
+    const conversationId = existingConversation
+      ? existingConversation.id
+      : (
+          await this.prisma.conversation.create({
+            data: {
+              rentalId: rental.id,
+              members: {
+                create: [...new Set([rental.ownerId, rental.renterId])].map(
+                  (userId) => ({
+                    userId,
+                  }),
+                ),
+              },
+            },
+            select: {
+              id: true,
+            },
+          })
+        ).id;
+
+    return this.prisma.message.create({
+      data: {
+        conversationId,
+        senderId: actorId,
+        messageType: MessageType.SYSTEM,
+        content,
+      },
+    });
+  }
+
   private detectOffPlatformSignals(content: string) {
     const signals: string[] = [];
 

@@ -23,6 +23,7 @@ import {
   VerificationStatus,
 } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { ChatService } from '../chat/chat.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -45,6 +46,7 @@ export class RentalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly chatService: ChatService,
     private readonly notificationsService: NotificationsService,
     private readonly riskService: RiskService,
   ) {}
@@ -206,6 +208,12 @@ export class RentalsService {
       beforeData: { status: rental.status },
       afterData: { status: updated.status },
     });
+
+    await this.chatService.appendSystemMessageForRental(
+      rental.id,
+      currentUser.id,
+      'Owner approved your request.',
+    );
 
     return updated;
   }
@@ -565,6 +573,14 @@ export class RentalsService {
       },
     );
 
+    if (bothSigned) {
+      await this.chatService.appendSystemMessageForRental(
+        rental.id,
+        currentUser.id,
+        'Contract signed.',
+      );
+    }
+
     return updated;
   }
 
@@ -720,6 +736,14 @@ export class RentalsService {
         referenceId: rental.id,
       },
     );
+
+    if (handover.type === HandoverType.RETURN) {
+      await this.chatService.appendSystemMessageForRental(
+        rental.id,
+        currentUser.id,
+        'Asset marked returned.',
+      );
+    }
 
     return updated;
   }
