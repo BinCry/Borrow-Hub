@@ -4,7 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NotificationType, RentalStatus, ReviewStatus } from '@prisma/client';
+import {
+  AnalyticsEventType,
+  NotificationType,
+  RentalStatus,
+  ReviewStatus,
+} from '@prisma/client';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
@@ -15,6 +21,7 @@ import { CreateReviewDto, ModerateReviewDto, UpdateReviewDto } from './reviews.d
 export class ReviewsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly analyticsService: AnalyticsService,
     private readonly notificationsService: NotificationsService,
     private readonly auditService: AuditService,
   ) {}
@@ -79,6 +86,18 @@ export class ReviewsService {
       content: `Bạn vừa nhận được một đánh giá mới cho giao dịch "${rental.asset.title}".`,
       referenceType: 'rental',
       referenceId: rental.id,
+    });
+
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.REVIEW_CREATED,
+      userId: currentUser.id,
+      entityType: 'review',
+      entityId: review.id,
+      metadata: {
+        rentalId,
+        revieweeId,
+        rating: review.rating,
+      },
     });
 
     await this.recalculateTrustScore(revieweeId);

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import {
+  AnalyticsEventType,
   AssetStatus,
   ContractStatus,
   DisputeEventType,
@@ -24,6 +25,7 @@ import {
   VerificationStatus,
 } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { ChatService } from '../chat/chat.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
@@ -48,6 +50,7 @@ export class RentalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
     private readonly chatService: ChatService,
     private readonly notificationsService: NotificationsService,
     private readonly riskService: RiskService,
@@ -149,6 +152,17 @@ export class RentalsService {
       assetEstimatedValue: asset.estimatedValue,
     });
 
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.RENTAL_REQUEST_CREATED,
+      userId: currentUser.id,
+      entityType: 'rental',
+      entityId: rental.id,
+      metadata: {
+        assetId: rental.assetId,
+        ownerId: rental.ownerId,
+      },
+    });
+
     return rental;
   }
 
@@ -216,6 +230,16 @@ export class RentalsService {
       currentUser.id,
       'Owner approved your request.',
     );
+
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.RENTAL_APPROVED,
+      userId: currentUser.id,
+      entityType: 'rental',
+      entityId: updated.id,
+      metadata: {
+        renterId: updated.renterId,
+      },
+    });
 
     return updated;
   }
@@ -489,6 +513,17 @@ export class RentalsService {
       },
     );
 
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.PAYMENT_COMPLETED,
+      userId: currentUser.id,
+      entityType: 'rental',
+      entityId: updated.id,
+      metadata: {
+        totalAmount: updated.totalAmount,
+        status: updated.status,
+      },
+    });
+
     return updated;
   }
 
@@ -582,6 +617,17 @@ export class RentalsService {
         'Contract signed.',
       );
     }
+
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.CONTRACT_SIGNED,
+      userId: currentUser.id,
+      entityType: 'rental_contract',
+      entityId: contract.id,
+      metadata: {
+        rentalId: rental.id,
+        bothSigned,
+      },
+    });
 
     return updated;
   }
@@ -704,6 +750,20 @@ export class RentalsService {
         'Asset marked returned.',
       );
     }
+
+    await this.analyticsService.track({
+      eventType:
+        handover.type === HandoverType.DELIVERY
+          ? AnalyticsEventType.HANDOVER_COMPLETED
+          : AnalyticsEventType.RETURN_COMPLETED,
+      userId: currentUser.id,
+      entityType: 'handover',
+      entityId: handover.id,
+      metadata: {
+        rentalId: rental.id,
+        type: handover.type,
+      },
+    });
 
     return updated;
   }
@@ -852,6 +912,18 @@ export class RentalsService {
         },
       });
 
+      await this.analyticsService.track({
+        eventType: AnalyticsEventType.HANDOVER_COMPLETED,
+        userId: currentUser.id,
+        entityType: 'handover',
+        entityId: session.handover.id,
+        metadata: {
+          rentalId: session.rental.id,
+          type: session.handover.type,
+          source: 'qr',
+        },
+      });
+
       return updated;
     } catch (error) {
       await this.prisma.handoverQrSession.update({
@@ -969,6 +1041,17 @@ export class RentalsService {
       afterData: {
         rentalId: rental.id,
         reason: 'RETURN_ISSUE',
+      },
+    });
+
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.DISPUTE_OPENED,
+      userId: currentUser.id,
+      entityType: 'dispute',
+      entityId: dispute.id,
+      metadata: {
+        rentalId: rental.id,
+        source: 'rentals.reportIssue',
       },
     });
 

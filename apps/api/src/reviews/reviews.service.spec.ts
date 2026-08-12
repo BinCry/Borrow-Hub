@@ -34,6 +34,10 @@ describe('ReviewsService', () => {
     createMany: jest.fn(),
   };
 
+  const analyticsService = {
+    track: jest.fn(),
+  };
+
   const auditService = {
     create: jest.fn(),
   };
@@ -44,6 +48,7 @@ describe('ReviewsService', () => {
     jest.clearAllMocks();
     service = new ReviewsService(
       prisma as never,
+      analyticsService as never,
       notificationsService as never,
       auditService as never,
     );

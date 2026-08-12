@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { AuditModule } from '../audit/audit.module';
 import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -7,7 +8,7 @@ import { RentalsController } from './rentals.controller';
 import { RentalsService } from './rentals.service';
 
 @Module({
-  imports: [AuditModule, NotificationsModule, RiskModule, ChatModule],
+  imports: [AnalyticsModule, AuditModule, NotificationsModule, RiskModule, ChatModule],
   controllers: [RentalsController],
   providers: [RentalsService],
   exports: [RentalsService],

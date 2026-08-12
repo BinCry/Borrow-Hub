@@ -257,6 +257,22 @@ enum NotificationType {
   SYSTEM
 }
 
+enum AnalyticsEventType {
+  USER_REGISTERED
+  KYC_STARTED
+  KYC_COMPLETED
+  SEARCH_PERFORMED
+  LISTING_VIEWED
+  RENTAL_REQUEST_CREATED
+  RENTAL_APPROVED
+  PAYMENT_COMPLETED
+  CONTRACT_SIGNED
+  HANDOVER_COMPLETED
+  RETURN_COMPLETED
+  REVIEW_CREATED
+  DISPUTE_OPENED
+}
+
 model User {
   id               String            @id @default(cuid())
   email            String            @unique
@@ -301,6 +317,7 @@ model User {
   writtenReviews   Review[]          @relation("Reviewer")
   receivedReviews  Review[]          @relation("Reviewee")
   generatedHandoverQrSessions HandoverQrSession[] @relation("HandoverQrGeneratedBy")
+  analyticsEvents  AnalyticsEvent[]
   notifications    Notification[]
   auditLogs        AuditLog[]
 }
@@ -947,6 +964,22 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+model AnalyticsEvent {
+  id         String             @id @default(cuid())
+  eventType  AnalyticsEventType @map("event_type")
+  userId     String?            @map("user_id")
+  entityType String?            @map("entity_type")
+  entityId   String?            @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime           @default(now()) @map("created_at")
+  user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@map("analytics_events")
 }
 
 model SystemConfig {

@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AnalyticsEventType,
   DisputeEventType,
   DisputeStatus,
   HandoverStatus,
@@ -16,6 +17,7 @@ import {
   RoleName,
 } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -44,6 +46,7 @@ export class DisputesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -154,6 +157,17 @@ export class DisputesService {
         rentalId: rental.id,
         status: dispute.status,
         reason: dispute.reason,
+      },
+    });
+
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.DISPUTE_OPENED,
+      userId: currentUser.id,
+      entityType: 'dispute',
+      entityId: dispute.id,
+      metadata: {
+        rentalId: rental.id,
+        source: 'disputes.create',
       },
     });
 

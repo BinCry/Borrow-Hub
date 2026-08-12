@@ -95,6 +95,10 @@ describe('RentalsService QR handover', () => {
     create: jest.fn(),
   };
 
+  const analyticsService = {
+    track: jest.fn(),
+  };
+
   const chatService = {
     appendSystemMessageForRental: jest.fn(),
   };
@@ -122,6 +126,7 @@ describe('RentalsService QR handover', () => {
     service = new RentalsService(
       prisma as never,
       auditService as never,
+      analyticsService as never,
       chatService as never,
       notificationsService as never,
       riskService as never,

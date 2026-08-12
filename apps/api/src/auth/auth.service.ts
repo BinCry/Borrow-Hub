@@ -8,11 +8,13 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import argon2 from 'argon2';
 import {
+  AnalyticsEventType,
   Prisma,
   RoleName,
   UserStatus,
   VerificationStatus,
 } from '@prisma/client';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { PrismaService } from '../database/prisma.service';
 import { LoginDto, RefreshTokenDto, RegisterDto } from './auth.dto';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
@@ -48,6 +50,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -105,6 +108,15 @@ export class AuthService {
     });
 
     const tokens = await this.issueTokens(user);
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.USER_REGISTERED,
+      userId: user.id,
+      entityType: 'user',
+      entityId: user.id,
+      metadata: {
+        verificationStatus: user.verification?.verificationStatus,
+      },
+    });
     return {
       user: this.serializeUser(user),
       tokens,

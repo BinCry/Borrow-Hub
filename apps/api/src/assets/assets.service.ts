@@ -1,4 +1,5 @@
 import {
+  AnalyticsEventType,
   AssetStatus,
   AvailabilityType,
   Prisma,
@@ -12,6 +13,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import {
   CreateAssetDto,
   ModerateAssetDto,
@@ -27,6 +29,7 @@ import { RiskService } from '../risk/risk.service';
 export class AssetsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly analyticsService: AnalyticsService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
     private readonly riskService: RiskService,
@@ -114,6 +117,22 @@ export class AssetsService {
       this.prisma.asset.count({ where }),
     ]);
 
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.SEARCH_PERFORMED,
+      userId: currentUser?.id ?? null,
+      entityType: 'asset_search',
+      metadata: {
+        keyword: query.keyword ?? null,
+        categoryId: query.categoryId ?? null,
+        city: query.city ?? null,
+        district: query.district ?? null,
+        hasDateRange: Boolean(query.startAt && query.endAt),
+        page,
+        limit,
+        total,
+      },
+    });
+
     return {
       data: items,
       pagination: {
@@ -163,6 +182,17 @@ export class AssetsService {
     if (asset.status !== AssetStatus.ACTIVE && !canViewPrivateAsset) {
       throw new NotFoundException('Asset not found');
     }
+
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.LISTING_VIEWED,
+      userId: currentUser?.id ?? null,
+      entityType: 'asset',
+      entityId: asset.id,
+      metadata: {
+        ownerId: asset.ownerId,
+        status: asset.status,
+      },
+    });
 
     return asset;
   }

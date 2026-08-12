@@ -1,5 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { FaceMatchStatus, NotificationType, VerificationStatus } from '@prisma/client';
+import {
+  AnalyticsEventType,
+  FaceMatchStatus,
+  NotificationType,
+  VerificationStatus,
+} from '@prisma/client';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
@@ -12,6 +18,7 @@ export class KycService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -21,8 +28,8 @@ export class KycService {
     });
   }
 
-  submit(userId: string, dto: SubmitKycDto) {
-    return this.prisma.userVerification.upsert({
+  async submit(userId: string, dto: SubmitKycDto) {
+    const verification = await this.prisma.userVerification.upsert({
       where: { userId },
       update: {
         provider: dto.provider ?? 'mock-kyc',
@@ -47,6 +54,19 @@ export class KycService {
         faceMatchStatus: FaceMatchStatus.REVIEW_REQUIRED,
       },
     });
+
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.KYC_STARTED,
+      userId,
+      entityType: 'user_verification',
+      entityId: verification.id,
+      metadata: {
+        documentType: verification.documentType,
+        provider: verification.provider,
+      },
+    });
+
+    return verification;
   }
 
   listRequests(query: KycReviewQueryDto) {
@@ -151,6 +171,18 @@ export class KycService {
         reviewNote: dto.reviewNote ?? null,
       },
     });
+
+    if (updated.verificationStatus === VerificationStatus.VERIFIED) {
+      await this.analyticsService.track({
+        eventType: AnalyticsEventType.KYC_COMPLETED,
+        userId,
+        entityType: 'user_verification',
+        entityId: updated.id,
+        metadata: {
+          reviewedBy: currentUser.id,
+        },
+      });
+    }
 
     return updated;
   }
