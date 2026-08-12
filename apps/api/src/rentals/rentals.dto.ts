@@ -139,6 +139,15 @@ export class ConfirmHandoverDto {
   notes?: string;
 }
 
+export class ConfirmHandoverQrDto {
+  @IsString()
+  token!: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
 export class ReportIssueDto {
   @IsString()
   @MaxLength(1000)

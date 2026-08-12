@@ -13,6 +13,7 @@ import {
   ApproveRentalDto,
   CancelRentalDto,
   ConfirmHandoverDto,
+  ConfirmHandoverQrDto,
   CreateRentalRequestDto,
   DeclineRentalDto,
   RecordPaymentDto,
@@ -118,6 +119,27 @@ export class RentalsController {
       currentUser,
       dto,
     );
+  }
+
+  @Post(':rentalId/handover/:handoverId/qr')
+  generateHandoverQr(
+    @Param('rentalId') rentalId: string,
+    @Param('handoverId') handoverId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.rentalsService.generateHandoverQr(
+      rentalId,
+      handoverId,
+      currentUser,
+    );
+  }
+
+  @Post('handover/qr/confirm')
+  confirmHandoverByQr(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: ConfirmHandoverQrDto,
+  ) {
+    return this.rentalsService.confirmHandoverByQr(currentUser, dto);
   }
 
   @Post(':rentalId/return-request')

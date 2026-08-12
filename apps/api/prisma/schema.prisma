@@ -300,6 +300,7 @@ model User {
   favoriteAssets   FavoriteAsset[]
   writtenReviews   Review[]          @relation("Reviewer")
   receivedReviews  Review[]          @relation("Reviewee")
+  generatedHandoverQrSessions HandoverQrSession[] @relation("HandoverQrGeneratedBy")
   notifications    Notification[]
   auditLogs        AuditLog[]
 }
@@ -523,6 +524,7 @@ model RentalRequest {
   conversation   Conversation?
   reviews        Review[]
   supportTickets SupportTicket[]
+  handoverQrSessions HandoverQrSession[]
 
   @@index([assetId])
   @@index([ownerId])
@@ -633,9 +635,30 @@ model Handover {
   rental      RentalRequest  @relation(fields: [rentalId], references: [id], onDelete: Cascade)
   items       HandoverItem[]
   evidences   Evidence[]
+  qrSessions  HandoverQrSession[]
 
   @@index([rentalId])
   @@map("handovers")
+}
+
+model HandoverQrSession {
+  id            String        @id @default(cuid())
+  rentalId      String        @map("rental_id")
+  handoverId    String        @map("handover_id")
+  generatedById String        @map("generated_by")
+  token         String        @unique
+  expiresAt     DateTime      @map("expires_at")
+  usedAt        DateTime?     @map("used_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  rental        RentalRequest @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  handover      Handover      @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+  generatedBy   User          @relation("HandoverQrGeneratedBy", fields: [generatedById], references: [id], onDelete: Restrict)
+
+  @@index([rentalId])
+  @@index([handoverId])
+  @@index([generatedById])
+  @@index([expiresAt, usedAt])
+  @@map("handover_qr_sessions")
 }
 
 model HandoverItem {

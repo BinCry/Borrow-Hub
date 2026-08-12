@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import {
   AssetStatus,
   ContractStatus,
@@ -32,6 +33,7 @@ import {
   ApproveRentalDto,
   CancelRentalDto,
   ConfirmHandoverDto,
+  ConfirmHandoverQrDto,
   CreateRentalRequestDto,
   DeclineRentalDto,
   RecordPaymentDto,
@@ -667,55 +669,13 @@ export class RentalsService {
     dto: ConfirmHandoverDto,
   ) {
     const rental = await this.findAccessibleRental(rentalId, currentUser);
-    const handover = await this.prisma.handover.findUnique({
-      where: { id: handoverId },
-    });
-
-    if (!handover || handover.rentalId !== rental.id) {
-      throw new NotFoundException('Handover session not found');
-    }
-
-    if (handover.type === HandoverType.DELIVERY) {
-      this.assertRenter(rental.renterId, currentUser);
-    } else {
-      this.assertOwner(rental.ownerId, currentUser);
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      await tx.handover.update({
-        where: { id: handover.id },
-        data: {
-          status: HandoverStatus.CONFIRMED,
-          confirmedAt: new Date(),
-          notes: dto.notes ?? handover.notes,
-        },
-      });
-
-      if (handover.type === HandoverType.DELIVERY) {
-        return tx.rentalRequest.update({
-          where: { id: rental.id },
-          data: { status: RentalStatus.ONGOING },
-          include: this.rentalInclude(),
-        });
-      }
-
-      const payout = rental.payout;
-      if (payout) {
-        await tx.payout.update({
-          where: { id: payout.id },
-          data: {
-            status: PayoutStatus.PAID,
-            paidAt: new Date(),
-          },
-        });
-      }
-
-      return tx.rentalRequest.update({
-        where: { id: rental.id },
-        data: { status: RentalStatus.COMPLETED },
-        include: this.rentalInclude(),
-      });
-    });
+    const handover = await this.findRentalHandover(rental.id, handoverId);
+    const updated = await this.finalizeHandoverConfirmation(
+      rental,
+      handover,
+      currentUser,
+      dto.notes,
+    );
 
     await this.notificationsService.createMany(
       [rental.ownerId, rental.renterId].filter((userId) => userId !== currentUser.id),
@@ -746,6 +706,162 @@ export class RentalsService {
     }
 
     return updated;
+  }
+
+  async generateHandoverQr(
+    rentalId: string,
+    handoverId: string,
+    currentUser: AuthenticatedUser,
+  ) {
+    const rental = await this.findAccessibleRental(rentalId, currentUser);
+    this.assertOwner(rental.ownerId, currentUser);
+    const handover = await this.findRentalHandover(rental.id, handoverId);
+
+    if (handover.type !== HandoverType.DELIVERY) {
+      throw new BadRequestException('QR handover is only supported for delivery');
+    }
+
+    if (handover.status !== HandoverStatus.PENDING) {
+      throw new ConflictException('Handover QR can only be generated for pending delivery');
+    }
+
+    const ttlMinutes = await this.getNumericConfig('handover_qr_ttl_minutes', 10);
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+    const token = randomBytes(24).toString('base64url');
+
+    await this.prisma.handoverQrSession.updateMany({
+      where: {
+        handoverId: handover.id,
+        usedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      data: {
+        expiresAt: new Date(),
+      },
+    });
+
+    const session = await this.prisma.handoverQrSession.create({
+      data: {
+        rentalId: rental.id,
+        handoverId: handover.id,
+        generatedById: currentUser.id,
+        token,
+        expiresAt,
+      },
+    });
+
+    await this.auditService.create({
+      actorId: currentUser.id,
+      action: 'handover.qr.generate',
+      entityType: 'handover_qr_session',
+      entityId: session.id,
+      afterData: {
+        rentalId: rental.id,
+        handoverId: handover.id,
+        expiresAt: session.expiresAt.toISOString(),
+      },
+    });
+
+    return {
+      handoverId: handover.id,
+      rentalId: rental.id,
+      token: session.token,
+      expiresAt: session.expiresAt,
+      qrPayload: `toolshare://handover/confirm?token=${session.token}`,
+    };
+  }
+
+  async confirmHandoverByQr(
+    currentUser: AuthenticatedUser,
+    dto: ConfirmHandoverQrDto,
+  ) {
+    const session = await this.prisma.handoverQrSession.findUnique({
+      where: { token: dto.token },
+      include: {
+        handover: true,
+        rental: {
+          include: this.rentalInclude(),
+        },
+      },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Handover QR session not found');
+    }
+
+    if (session.usedAt) {
+      throw new ConflictException('Handover QR has already been used');
+    }
+
+    if (session.expiresAt.getTime() <= Date.now()) {
+      throw new ConflictException('Handover QR has expired');
+    }
+
+    if (session.handover.type !== HandoverType.DELIVERY) {
+      throw new BadRequestException('Handover QR only supports delivery confirmation');
+    }
+
+    this.assertRenter(session.rental.renterId, currentUser);
+
+    const claim = await this.prisma.handoverQrSession.updateMany({
+      where: {
+        id: session.id,
+        usedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+    if (claim.count === 0) {
+      throw new ConflictException('Handover QR is no longer available');
+    }
+
+    try {
+      const updated = await this.finalizeHandoverConfirmation(
+        session.rental,
+        session.handover,
+        currentUser,
+        dto.notes,
+      );
+
+      await this.notificationsService.createMany(
+        [session.rental.ownerId].filter((userId) => userId !== currentUser.id),
+        {
+          type: NotificationType.HANDOVER_COMPLETED,
+          title: 'Bàn giao hoàn tất qua QR',
+          content: `Tài sản "${session.rental.asset.title}" đã được xác nhận bàn giao bằng QR.`,
+          referenceType: 'rental',
+          referenceId: session.rental.id,
+        },
+      );
+
+      await this.auditService.create({
+        actorId: currentUser.id,
+        action: 'handover.qr.confirm',
+        entityType: 'handover_qr_session',
+        entityId: session.id,
+        afterData: {
+          rentalId: session.rental.id,
+          handoverId: session.handover.id,
+        },
+      });
+
+      return updated;
+    } catch (error) {
+      await this.prisma.handoverQrSession.update({
+        where: { id: session.id },
+        data: {
+          usedAt: null,
+        },
+      });
+      throw error;
+    }
   }
 
   async requestReturn(rentalId: string, currentUser: AuthenticatedUser) {
@@ -903,6 +1019,67 @@ export class RentalsService {
     }
 
     return rental;
+  }
+
+  private async findRentalHandover(rentalId: string, handoverId: string) {
+    const handover = await this.prisma.handover.findUnique({
+      where: { id: handoverId },
+    });
+
+    if (!handover || handover.rentalId !== rentalId) {
+      throw new NotFoundException('Handover session not found');
+    }
+
+    return handover;
+  }
+
+  private async finalizeHandoverConfirmation(
+    rental: Awaited<ReturnType<RentalsService['findAccessibleRental']>>,
+    handover: Awaited<ReturnType<RentalsService['findRentalHandover']>>,
+    currentUser: AuthenticatedUser,
+    notes?: string,
+  ) {
+    if (handover.type === HandoverType.DELIVERY) {
+      this.assertRenter(rental.renterId, currentUser);
+    } else {
+      this.assertOwner(rental.ownerId, currentUser);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.handover.update({
+        where: { id: handover.id },
+        data: {
+          status: HandoverStatus.CONFIRMED,
+          confirmedAt: new Date(),
+          notes: notes ?? handover.notes,
+        },
+      });
+
+      if (handover.type === HandoverType.DELIVERY) {
+        return tx.rentalRequest.update({
+          where: { id: rental.id },
+          data: { status: RentalStatus.ONGOING },
+          include: this.rentalInclude(),
+        });
+      }
+
+      const payout = rental.payout;
+      if (payout) {
+        await tx.payout.update({
+          where: { id: payout.id },
+          data: {
+            status: PayoutStatus.PAID,
+            paidAt: new Date(),
+          },
+        });
+      }
+
+      return tx.rentalRequest.update({
+        where: { id: rental.id },
+        data: { status: RentalStatus.COMPLETED },
+        include: this.rentalInclude(),
+      });
+    });
   }
 
   private assertOwner(ownerId: string, currentUser: AuthenticatedUser) {
