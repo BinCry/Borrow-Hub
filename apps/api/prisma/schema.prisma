@@ -172,6 +172,26 @@ enum ReportStatus {
   CLOSED
 }
 
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RiskTargetType {
+  USER
+  ASSET
+  RENTAL
+  MESSAGE
+}
+
+enum RiskIncidentStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
 enum DisputeStatus {
   OPEN
   WAITING_RESPONSE
@@ -245,6 +265,9 @@ model User {
   sentMessages     Message[]         @relation("MessageSender")
   submittedReports Report[]         @relation("ReportReporter")
   assignedReports  Report[]         @relation("ReportAssignedTo")
+  createdRiskIncidents RiskIncident[] @relation("RiskIncidentCreatedBy")
+  resolvedRiskIncidents RiskIncident[] @relation("RiskIncidentResolvedBy")
+  createdProhibitedRules ProhibitedAssetRule[] @relation("ProhibitedAssetRuleCreatedBy")
   writtenReviews   Review[]          @relation("Reviewer")
   receivedReviews  Review[]          @relation("Reviewee")
   notifications    Notification[]
@@ -747,6 +770,48 @@ model Report {
   @@index([targetType, targetId])
   @@index([status])
   @@map("reports")
+}
+
+model ProhibitedAssetRule {
+  id           String   @id @default(cuid())
+  keyword      String
+  reason       String
+  categoryHint String?  @map("category_hint")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdById  String?  @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdBy    User?    @relation("ProhibitedAssetRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([isActive])
+  @@index([keyword])
+  @@map("prohibited_asset_rules")
+}
+
+model RiskIncident {
+  id                String             @id @default(cuid())
+  targetType        RiskTargetType     @map("target_type")
+  targetId          String             @map("target_id")
+  level             RiskLevel
+  title             String
+  reason            String
+  status            RiskIncidentStatus @default(OPEN)
+  resolutionSummary String?            @map("resolution_summary")
+  metadata          Json?
+  createdById       String?            @map("created_by")
+  resolvedById      String?            @map("resolved_by")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  resolvedAt        DateTime?          @map("resolved_at")
+  createdBy         User?              @relation("RiskIncidentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  resolvedBy        User?              @relation("RiskIncidentResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId])
+  @@index([level])
+  @@index([status])
+  @@index([createdById])
+  @@index([resolvedById])
+  @@map("risk_incidents")
 }
 
 model Notification {

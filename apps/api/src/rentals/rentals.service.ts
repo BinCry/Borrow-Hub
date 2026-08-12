@@ -26,6 +26,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RiskService } from '../risk/risk.service';
 import {
   ApproveRentalDto,
   CancelRentalDto,
@@ -45,6 +46,7 @@ export class RentalsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
+    private readonly riskService: RiskService,
   ) {}
 
   async create(currentUser: AuthenticatedUser, dto: CreateRentalRequestDto) {
@@ -132,6 +134,15 @@ export class RentalsService {
         status: rental.status,
         assetId: rental.assetId,
       },
+    });
+
+    await this.riskService.assessRentalCreation({
+      rentalId: rental.id,
+      renterId: currentUser.id,
+      ownerId: asset.ownerId,
+      assetId: asset.id,
+      assetTitle: asset.title,
+      assetEstimatedValue: asset.estimatedValue,
     });
 
     return rental;
@@ -368,6 +379,10 @@ export class RentalsService {
         ownerTrustPenalty: cancellationOutcome.ownerTrustPenalty,
       },
     });
+
+    if (isRenter) {
+      await this.riskService.assessCancellationPattern(rental.id, currentUser.id);
+    }
 
     return {
       ...result,

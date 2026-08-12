@@ -82,6 +82,9 @@ async function seedSystemConfigs() {
     ['owner_commission_percent', '10', 'Commission percentage withheld from owner payout'],
     ['late_fee_rate', '10000', 'Late fee charged per overdue hour in VND'],
     ['max_new_user_asset_value', '3000000', 'Maximum asset value a newly verified user can rent'],
+    ['risk_new_account_days', '30', 'Account age threshold in days for high-risk checks'],
+    ['risk_cancel_threshold', '3', 'Cancellation count threshold for renter risk checks'],
+    ['risk_cancel_lookback_days', '30', 'Lookback window in days for renter cancellation risk'],
     ['renter_cancel_full_refund_hours', '24', 'Renter receives full refund if cancelling before this many hours'],
     ['renter_cancel_partial_refund_percent', '50', 'Refund percentage when renter cancels close to start time'],
     ['owner_cancel_trust_penalty', '10', 'Trust score penalty applied when owner cancels a booking'],
@@ -133,6 +136,34 @@ async function seedCategories() {
         slug: category.slug,
         parentId: category.parentId,
         status: CategoryStatus.ACTIVE,
+      },
+    });
+  }
+}
+
+async function seedRiskRules() {
+  const rules = [
+    ['weapon', 'Potential weapon listing requires manual review', 'General'],
+    ['prescription', 'Prescription medicine listings are prohibited', 'Healthcare'],
+    ['counterfeit', 'Counterfeit goods are prohibited', 'General'],
+    ['cccd', 'Personal identity documents cannot be listed', 'Documents'],
+  ] as const;
+
+  for (const [keyword, reason, categoryHint] of rules) {
+    await prisma.prohibitedAssetRule.upsert({
+      where: { id: `seed-rule-${keyword}` },
+      update: {
+        keyword,
+        reason,
+        categoryHint,
+        isActive: true,
+      },
+      create: {
+        id: `seed-rule-${keyword}`,
+        keyword,
+        reason,
+        categoryHint,
+        isActive: true,
       },
     });
   }
@@ -356,6 +387,7 @@ async function main() {
   await seedRolesAndPermissions();
   await seedSystemConfigs();
   await seedCategories();
+  await seedRiskRules();
   await seedUsersAndAssets();
 }
 

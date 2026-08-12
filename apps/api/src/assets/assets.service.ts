@@ -21,6 +21,7 @@ import {
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RiskService } from '../risk/risk.service';
 
 @Injectable()
 export class AssetsService {
@@ -28,6 +29,7 @@ export class AssetsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
+    private readonly riskService: RiskService,
   ) {}
 
   async search(currentUser: AuthenticatedUser | null, query: SearchAssetsQueryDto) {
@@ -258,6 +260,16 @@ export class AssetsService {
       },
     });
 
+    await this.riskService.assessAssetSubmission({
+      assetId: asset.id,
+      ownerId: currentUser.id,
+      title: asset.title,
+      description: asset.description,
+      brand: asset.brand,
+      model: asset.model,
+      estimatedValue: asset.estimatedValue,
+    });
+
     return asset;
   }
 
@@ -380,6 +392,16 @@ export class AssetsService {
       entityId: assetId,
       beforeData: { status: asset.status, title: asset.title },
       afterData: { status: updated.status, title: updated.title },
+    });
+
+    await this.riskService.assessAssetSubmission({
+      assetId: updated.id,
+      ownerId: updated.ownerId,
+      title: updated.title,
+      description: updated.description,
+      brand: updated.brand,
+      model: updated.model,
+      estimatedValue: updated.estimatedValue,
     });
 
     return updated;
