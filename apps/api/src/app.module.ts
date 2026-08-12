@@ -10,6 +10,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { AuthGuard } from './common/guards/auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaModule } from './database/prisma.module';
+import { DisputesModule } from './disputes/disputes.module';
 import { HealthModule } from './health/health.module';
 import { KycModule } from './kyc/kyc.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -43,6 +44,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     KycModule,
     NotificationsModule,
+    DisputesModule,
     RentalsModule,
     ReviewsModule,
     HealthModule,

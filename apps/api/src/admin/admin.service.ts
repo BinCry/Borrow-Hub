@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DisputeStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
@@ -41,8 +42,16 @@ export class AdminService {
       this.prisma.rentalRequest.count({
         where: { status: 'COMPLETED' },
       }),
-      this.prisma.rentalRequest.count({
-        where: { status: 'DISPUTED' },
+      this.prisma.dispute.count({
+        where: {
+          status: {
+            in: [
+              DisputeStatus.OPEN,
+              DisputeStatus.WAITING_RESPONSE,
+              DisputeStatus.UNDER_REVIEW,
+            ],
+          },
+        },
       }),
       this.prisma.payment.aggregate({
         _sum: {
@@ -184,4 +193,3 @@ export class AdminService {
     });
   }
 }
-

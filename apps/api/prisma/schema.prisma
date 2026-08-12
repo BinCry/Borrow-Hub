@@ -145,6 +145,25 @@ enum ReviewStatus {
   HIDDEN
 }
 
+enum DisputeStatus {
+  OPEN
+  WAITING_RESPONSE
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+enum DisputeEventType {
+  OPENED
+  RESPONSE_ADDED
+  EVIDENCE_ATTACHED
+  ASSIGNED
+  STATUS_CHANGED
+  RESOLVED
+  NOTE
+}
+
 enum NotificationType {
   RENTAL_REQUEST_CREATED
   RENTAL_REQUEST_APPROVED
@@ -191,6 +210,10 @@ model User {
   payments         Payment[]         @relation("PaymentPayer")
   payouts          Payout[]          @relation("PayoutOwner")
   evidences        Evidence[]        @relation("EvidenceUploader")
+  openedDisputes   Dispute[]         @relation("DisputeOpenedBy")
+  assignedDisputes Dispute[]         @relation("DisputeAssignedTo")
+  disputeEvents    DisputeEvent[]    @relation("DisputeEventActor")
+  disputeEvidenceLinks DisputeEvidence[] @relation("DisputeEvidenceUploader")
   writtenReviews   Review[]          @relation("Reviewer")
   receivedReviews  Review[]          @relation("Reviewee")
   notifications    Notification[]
@@ -399,6 +422,7 @@ model RentalRequest {
   payout         Payout?
   handovers      Handover[]
   evidences      Evidence[]
+  disputes       Dispute[]
   reviews        Review[]
 
   @@index([assetId])
@@ -528,11 +552,71 @@ model Evidence {
   rental     RentalRequest @relation(fields: [rentalId], references: [id], onDelete: Cascade)
   handover   Handover?    @relation(fields: [handoverId], references: [id], onDelete: SetNull)
   uploader   User         @relation("EvidenceUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  disputeLinks DisputeEvidence[]
 
   @@index([rentalId])
   @@index([handoverId])
   @@index([uploadedBy])
   @@map("evidences")
+}
+
+model Dispute {
+  id                String            @id @default(cuid())
+  rentalId          String            @map("rental_id")
+  openedById        String            @map("opened_by")
+  assignedToId      String?           @map("assigned_to")
+  reason            String
+  description       String
+  status            DisputeStatus     @default(OPEN)
+  resolutionSummary String?           @map("resolution_summary")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  resolvedAt        DateTime?         @map("resolved_at")
+  rental            RentalRequest     @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  openedBy          User              @relation("DisputeOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  assignedTo        User?             @relation("DisputeAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  evidences         DisputeEvidence[]
+  events            DisputeEvent[]
+
+  @@index([rentalId])
+  @@index([openedById])
+  @@index([assignedToId])
+  @@index([status])
+  @@map("disputes")
+}
+
+model DisputeEvidence {
+  id           String   @id @default(cuid())
+  disputeId    String   @map("dispute_id")
+  uploadedById String   @map("uploaded_by")
+  evidenceId   String   @map("evidence_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  dispute      Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation("DisputeEvidenceUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  evidence     Evidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+
+  @@unique([disputeId, evidenceId])
+  @@index([disputeId])
+  @@index([uploadedById])
+  @@index([evidenceId])
+  @@map("dispute_evidences")
+}
+
+model DisputeEvent {
+  id        String           @id @default(cuid())
+  disputeId String           @map("dispute_id")
+  actorId   String?          @map("actor_id")
+  eventType DisputeEventType @map("event_type")
+  content   String
+  metadata  Json?
+  createdAt DateTime         @default(now()) @map("created_at")
+  dispute   Dispute          @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  actor     User?            @relation("DisputeEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([disputeId])
+  @@index([actorId])
+  @@index([eventType])
+  @@map("dispute_events")
 }
 
 model Review {
