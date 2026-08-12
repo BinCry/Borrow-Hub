@@ -29,9 +29,10 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Xác thực JWT: đăng ký, đăng nhập, refresh token, đăng xuất, `me`
 - Hồ sơ người dùng: cập nhật profile, địa chỉ, trust score
 - eKYC giả lập: submit hồ sơ, xem trạng thái xác minh
+- KYC review nội bộ: admin duyệt `VERIFIED / REJECTED / REQUIRES_REVIEW`
 - Danh mục tài sản: cây danh mục, CRUD cơ bản cho admin
 - Tài sản cho thuê: tạo listing, tìm kiếm, lọc, moderation
-- Quy trình thuê: tạo yêu cầu, duyệt/từ chối, thanh toán sandbox
+- Quy trình thuê: tạo yêu cầu, duyệt/từ chối, hủy đơn theo policy, thanh toán sandbox
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
 - Đánh giá sau thuê: review hai chiều, cập nhật điểm uy tín
@@ -67,9 +68,11 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `auth`: auth và token lifecycle
 - `users`: hồ sơ, địa chỉ, metadata người dùng
 - `kyc`: luồng eKYC mô phỏng
+  - Có thêm nhánh review nội bộ cho admin
 - `categories`: danh mục tài sản
 - `assets`: listing, moderation, tìm kiếm
 - `rentals`: booking, thanh toán, hợp đồng, handover
+  - Có cancellation policy + auto refund/block payout theo rule cấu hình
 - `reviews`: đánh giá sau giao dịch
 - `chat`: hội thoại theo đơn thuê
 - `disputes`: khiếu nại, evidence linkage, event timeline
@@ -158,6 +161,7 @@ pnpm prisma:seed
 6. Tạo handover delivery rồi confirm.
 7. Yêu cầu return, tạo handover return hoặc mở dispute.
 8. Tạo refund hoặc kiểm tra payout nếu cần xử lý tranh chấp.
+9. Thử hủy booking để kiểm tra flow cancellation policy.
 
 ## Tài khoản seed mẫu
 
