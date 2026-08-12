@@ -39,6 +39,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Chat theo rental: conversation giữa owner, renter và staff
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
 - Reports: report user, listing, review và chat message
+- Support ticket: lịch sử hỗ trợ, note nội bộ, phân công customer support
 - Finance: tra cứu payment, payout, refund và khóa payout khi có dispute
 - Risk engine: prohibited asset rules, risk incidents và manual review
 - Favorite/Wishlist: lưu tài sản yêu thích và xem danh sách wish list
@@ -81,6 +82,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `chat`: hội thoại theo đơn thuê
 - `disputes`: khiếu nại, evidence linkage, event timeline
 - `reports`: report moderation và support workflow
+- `support`: support ticket, lịch sử xử lý, assignment và note timeline
 - `finance`: payment, payout, refund, finance controls
 - `risk`: prohibited asset rules, risk incidents, manual-review workflow
 - `favorites`: add/remove favorite, xem wishlist
@@ -172,6 +174,7 @@ pnpm prisma:seed
 10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
 11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder.
 12. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
+13. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
 
 ## Tài khoản seed mẫu
 
