@@ -54,6 +54,10 @@ describe('ChatService', () => {
     createMany: jest.fn(),
   };
 
+  const chatTimelineService = {
+    appendSystemMessageForRental: jest.fn(),
+  };
+
   let service: ChatService;
 
   beforeEach(() => {
@@ -67,7 +71,11 @@ describe('ChatService', () => {
     prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) =>
       callback(prisma),
     );
-    service = new ChatService(prisma as never, notificationsService as never);
+    service = new ChatService(
+      prisma as never,
+      notificationsService as never,
+      chatTimelineService as never,
+    );
   });
 
   it('creates an image message when attachmentUrl is provided', async () => {
@@ -179,8 +187,8 @@ describe('ChatService', () => {
     expect(prisma.conversationMember.upsert).toHaveBeenCalled();
   });
 
-  it('appends a rental system message to an existing conversation', async () => {
-    prisma.message.create.mockResolvedValue({
+  it('delegates rental system messages to the timeline service', async () => {
+    chatTimelineService.appendSystemMessageForRental.mockResolvedValue({
       id: 'message-5',
       conversationId: conversation.id,
       senderId: 'owner-1',
@@ -194,54 +202,11 @@ describe('ChatService', () => {
       'Owner approved your request.',
     );
 
-    expect(prisma.message.create).toHaveBeenCalledWith({
-      data: {
-        conversationId: conversation.id,
-        senderId: 'owner-1',
-        messageType: MessageType.SYSTEM,
-        content: 'Owner approved your request.',
-      },
-    });
-    expect(result.id).toBe('message-5');
-  });
-
-  it('creates a conversation before appending a rental system message when needed', async () => {
-    prisma.conversation.findUnique.mockResolvedValueOnce(null);
-    prisma.conversation.create.mockResolvedValue({
-      id: 'conversation-2',
-    });
-    prisma.message.create.mockResolvedValue({
-      id: 'message-6',
-      conversationId: 'conversation-2',
-      senderId: 'owner-1',
-      messageType: MessageType.SYSTEM,
-      content: 'Contract signed.',
-    });
-
-    await service.appendSystemMessageForRental(
+    expect(chatTimelineService.appendSystemMessageForRental).toHaveBeenCalledWith(
       'rental-1',
       'owner-1',
-      'Contract signed.',
+      'Owner approved your request.',
     );
-
-    expect(prisma.conversation.create).toHaveBeenCalledWith({
-      data: {
-        rentalId: 'rental-1',
-        members: {
-          create: [{ userId: 'owner-1' }, { userId: renterUser.id }],
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-    expect(prisma.message.create).toHaveBeenCalledWith({
-      data: {
-        conversationId: 'conversation-2',
-        senderId: 'owner-1',
-        messageType: MessageType.SYSTEM,
-        content: 'Contract signed.',
-      },
-    });
+    expect(result.id).toBe('message-5');
   });
 });

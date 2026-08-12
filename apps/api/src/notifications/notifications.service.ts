@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Notification, NotificationType, RentalStatus } from '@prisma/client';
+import { ChatTimelineService } from '../chat/chat-timeline.service';
 import { PrismaService } from '../database/prisma.service';
 import { RunReminderJobsDto } from './notifications.dto';
 
@@ -13,7 +14,10 @@ type NotificationPayload = {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly chatTimelineService: ChatTimelineService,
+  ) {}
 
   async createMany(
     userIds: string[],
@@ -189,7 +193,7 @@ export class NotificationsService {
 
     let rentalTomorrowCount = 0;
     for (const rental of rentalsTomorrow) {
-      rentalTomorrowCount += await this.createManyUnique(
+      const createdCount = await this.createManyUnique(
         [rental.ownerId, rental.renterId],
         {
           type: NotificationType.RENTAL_TOMORROW,
@@ -200,6 +204,23 @@ export class NotificationsService {
         },
         dedupeWindowStart,
       );
+
+      rentalTomorrowCount += createdCount;
+
+      if (createdCount > 0) {
+        await this.chatTimelineService.appendSystemMessageForRental(
+          rental.id,
+          rental.ownerId,
+          'Rental begins tomorrow.',
+          {
+            dedupeWindowStart,
+            metadata: {
+              source: 'reminder_job',
+              reminderType: NotificationType.RENTAL_TOMORROW,
+            },
+          },
+        );
+      }
     }
 
     let returnReminderCount = 0;

@@ -8,6 +8,7 @@ import { MessageType, NotificationType, Prisma, RoleName } from '@prisma/client'
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ChatTimelineService } from './chat-timeline.service';
 import { ChatQueryDto, CreateConversationDto, SendMessageDto } from './chat.dto';
 
 const OFF_PLATFORM_WARNING =
@@ -18,6 +19,7 @@ export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly chatTimelineService: ChatTimelineService,
   ) {}
 
   async listMine(currentUser: AuthenticatedUser, query: ChatQueryDto) {
@@ -238,54 +240,11 @@ export class ChatService {
     actorId: string,
     content: string,
   ) {
-    const rental = await this.prisma.rentalRequest.findUnique({
-      where: { id: rentalId },
-      select: {
-        id: true,
-        ownerId: true,
-        renterId: true,
-      },
-    });
-
-    if (!rental) {
-      throw new NotFoundException('Rental request not found');
-    }
-
-    const existingConversation = await this.prisma.conversation.findUnique({
-      where: { rentalId: rental.id },
-      select: {
-        id: true,
-      },
-    });
-
-    const conversationId = existingConversation
-      ? existingConversation.id
-      : (
-          await this.prisma.conversation.create({
-            data: {
-              rentalId: rental.id,
-              members: {
-                create: [...new Set([rental.ownerId, rental.renterId])].map(
-                  (userId) => ({
-                    userId,
-                  }),
-                ),
-              },
-            },
-            select: {
-              id: true,
-            },
-          })
-        ).id;
-
-    return this.prisma.message.create({
-      data: {
-        conversationId,
-        senderId: actorId,
-        messageType: MessageType.SYSTEM,
-        content,
-      },
-    });
+    return this.chatTimelineService.appendSystemMessageForRental(
+      rentalId,
+      actorId,
+      content,
+    );
   }
 
   private detectOffPlatformSignals(content: string) {
