@@ -41,6 +41,8 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Reports: report user, listing, review và chat message
 - Finance: tra cứu payment, payout, refund và khóa payout khi có dispute
 - Risk engine: prohibited asset rules, risk incidents và manual review
+- Favorite/Wishlist: lưu tài sản yêu thích và xem danh sách wish list
+- Reminder batch: tạo notification cho rental tomorrow, return reminder, overdue, review reminder, availability match
 - Admin: dashboard, quản lý user, role, user nội bộ, system config, audit log
 - Notifications và audit log cho các action nhạy cảm
 
@@ -80,8 +82,10 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `reports`: report moderation và support workflow
 - `finance`: payment, payout, refund, finance controls
 - `risk`: prohibited asset rules, risk incidents, manual-review workflow
+- `favorites`: add/remove favorite, xem wishlist
 - `admin`: dashboard, quản trị user và config
 - `notifications`: hộp thông báo trong hệ thống
+  - Có thêm endpoint admin để chạy batch reminder nghiệp vụ
 - `audit`: ghi log cho hành vi nhạy cảm
 - `health`: endpoint health check
 
@@ -165,6 +169,7 @@ pnpm prisma:seed
 8. Tạo refund hoặc kiểm tra payout nếu cần xử lý tranh chấp.
 9. Thử hủy booking để kiểm tra flow cancellation policy.
 10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
+11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder.
 
 ## Tài khoản seed mẫu
 
