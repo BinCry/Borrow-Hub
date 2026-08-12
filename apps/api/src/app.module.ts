@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AdminModule } from './admin/admin.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AssetsModule } from './assets/assets.module';
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module';
       }),
     }),
     PrismaModule,
+    AdminModule,
     AuditModule,
     AuthModule,
     CategoriesModule,
