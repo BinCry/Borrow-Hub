@@ -77,7 +77,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `kyc`: luồng eKYC mô phỏng
   - Có thêm nhánh review nội bộ cho admin
 - `categories`: danh mục tài sản
-- `assets`: listing, moderation, tìm kiếm
+- `assets`: listing, moderation, tìm kiếm và public listing detail
 - `rentals`: booking, thanh toán, hợp đồng, handover
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
   - Có thêm QR handover short-lived, one-time, bound theo rental/handover
