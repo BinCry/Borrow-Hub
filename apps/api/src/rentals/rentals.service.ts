@@ -620,6 +620,15 @@ export class RentalsService {
         },
       });
 
+      if (rental.payout) {
+        await tx.payout.update({
+          where: { id: rental.payout.id },
+          data: {
+            status: PayoutStatus.BLOCKED,
+          },
+        });
+      }
+
       return tx.dispute.create({
         data: {
           rentalId: rental.id,

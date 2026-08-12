@@ -120,6 +120,15 @@ export class DisputesService {
         },
       });
 
+      if (rental.payout) {
+        await tx.payout.update({
+          where: { id: rental.payout.id },
+          data: {
+            status: 'BLOCKED',
+          },
+        });
+      }
+
       return created;
     });
 
@@ -564,6 +573,7 @@ export class DisputesService {
             },
           },
           handovers: true,
+          payout: true,
         },
       },
       openedBy: {
@@ -612,6 +622,7 @@ export class DisputesService {
       asset: true,
       owner: true,
       renter: true,
+      payout: true,
     } satisfies Prisma.RentalRequestInclude;
   }
 

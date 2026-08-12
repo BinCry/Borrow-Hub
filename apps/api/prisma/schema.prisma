@@ -113,6 +113,13 @@ enum PaymentStatus {
   PARTIALLY_REFUNDED
 }
 
+enum RefundStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
 enum PayoutStatus {
   PENDING
   SCHEDULED
@@ -506,10 +513,26 @@ model Payment {
   updatedAt             DateTime        @updatedAt @map("updated_at")
   rental                RentalRequest   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
   payer                 User            @relation("PaymentPayer", fields: [payerId], references: [id], onDelete: Restrict)
+  refunds               Refund[]
 
   @@index([rentalId])
   @@index([payerId])
   @@map("payments")
+}
+
+model Refund {
+  id          String       @id @default(cuid())
+  paymentId   String       @map("payment_id")
+  amount      Int
+  reason      String
+  status      RefundStatus @default(COMPLETED)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  completedAt DateTime?    @map("completed_at")
+  payment     Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([status])
+  @@map("refunds")
 }
 
 model Payout {
