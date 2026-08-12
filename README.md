@@ -37,7 +37,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
 - QR handover: owner tạo QR ngắn hạn, renter scan một lần để xác nhận bàn giao
 - Đánh giá sau thuê: review hai chiều, edit trong cửa sổ cấu hình, moderation cho staff
-- Chat theo rental: conversation giữa owner, renter và staff, hỗ trợ text/image/system warning và lifecycle timeline
+- Chat theo rental: conversation giữa owner, renter và staff, hỗ trợ text/image/system warning và lifecycle timeline (approve, contract signed, rental begins tomorrow, returned)
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
 - Reports: report user, listing, review và chat message
 - Support ticket: lịch sử hỗ trợ, note nội bộ, phân công customer support
@@ -84,6 +84,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `reviews`: đánh giá sau giao dịch
   - Có edit theo `review_edit_hours` và moderation hide/publish cho staff
 - `chat`: hội thoại theo đơn thuê, ảnh chat, cảnh báo trao đổi ngoài nền tảng và system message nghiệp vụ
+  - Timeline đã bao gồm approve, contract signed, rental begins tomorrow và asset returned
 - `disputes`: khiếu nại, evidence linkage, event timeline
 - `reports`: report moderation và support workflow
 - `support`: support ticket, lịch sử xử lý, assignment và note timeline
@@ -180,7 +181,7 @@ pnpm prisma:seed
 10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
 11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder.
 12. Gửi chat text/image, thử nhập số điện thoại hoặc email để kiểm tra system warning ngoài nền tảng.
-13. Approve rental, ký xong contract, hoàn tất return để kiểm tra system message tự sinh trong chat timeline.
+13. Approve rental, ký xong contract, chạy batch reminder sát ngày bắt đầu và hoàn tất return để kiểm tra system message tự sinh trong chat timeline.
 14. Tạo phiên delivery handover, generate QR rồi confirm bằng token để kiểm tra QR handover one-time.
 15. Kiểm tra `GET /analytics/events` và `GET /analytics/summary` sau khi chạy các flow đăng ký, KYC, search, rental, review, dispute.
 16. Kiểm tra `GET /admin/request-logs` và xác nhận response có `x-request-id`, status, latency, endpoint.
