@@ -35,6 +35,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Quy trình thuê: tạo yêu cầu, duyệt/từ chối, hủy đơn theo policy, thanh toán sandbox
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
+- QR handover: owner tạo QR ngắn hạn, renter scan một lần để xác nhận bàn giao
 - Đánh giá sau thuê: review hai chiều, edit trong cửa sổ cấu hình, moderation cho staff
 - Chat theo rental: conversation giữa owner, renter và staff, hỗ trợ text/image/system warning và lifecycle timeline
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
@@ -77,6 +78,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `assets`: listing, moderation, tìm kiếm
 - `rentals`: booking, thanh toán, hợp đồng, handover
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
+  - Có thêm QR handover short-lived, one-time, bound theo rental/handover
 - `reviews`: đánh giá sau giao dịch
   - Có edit theo `review_edit_hours` và moderation hide/publish cho staff
 - `chat`: hội thoại theo đơn thuê, ảnh chat, cảnh báo trao đổi ngoài nền tảng và system message nghiệp vụ
@@ -175,8 +177,9 @@ pnpm prisma:seed
 11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder.
 12. Gửi chat text/image, thử nhập số điện thoại hoặc email để kiểm tra system warning ngoài nền tảng.
 13. Approve rental, ký xong contract, hoàn tất return để kiểm tra system message tự sinh trong chat timeline.
-14. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
-15. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
+14. Tạo phiên delivery handover, generate QR rồi confirm bằng token để kiểm tra QR handover one-time.
+15. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
+16. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
 
 ## Tài khoản seed mẫu
 
