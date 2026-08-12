@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { Notification, NotificationType } from '@prisma/client';
+import { Notification, NotificationType, RentalStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { RunReminderJobsDto } from './notifications.dto';
 
 type NotificationPayload = {
   type: NotificationType;
@@ -28,6 +29,42 @@ export class NotificationsService {
         ...payload,
       })),
     });
+  }
+
+  async createManyUnique(
+    userIds: string[],
+    payload: NotificationPayload,
+    dedupeWindowStart: Date,
+  ): Promise<number> {
+    let createdCount = 0;
+
+    for (const userId of [...new Set(userIds)]) {
+      const existing = await this.prisma.notification.findFirst({
+        where: {
+          userId,
+          type: payload.type,
+          referenceType: payload.referenceType ?? null,
+          referenceId: payload.referenceId ?? null,
+          createdAt: {
+            gte: dedupeWindowStart,
+          },
+        },
+      });
+
+      if (existing) {
+        continue;
+      }
+
+      await this.prisma.notification.create({
+        data: {
+          userId,
+          ...payload,
+        },
+      });
+      createdCount += 1;
+    }
+
+    return createdCount;
   }
 
   findForUser(userId: string): Promise<Notification[]> {
@@ -65,5 +102,221 @@ export class NotificationsService {
 
     return { count: result.count };
   }
-}
 
+  async runReminderJobs(dto: RunReminderJobsDto) {
+    const referenceDate = dto.referenceDate
+      ? new Date(dto.referenceDate)
+      : new Date();
+    const next24Hours = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000);
+    const dedupeWindowStart = new Date(
+      referenceDate.getTime() - 24 * 60 * 60 * 1000,
+    );
+
+    const [
+      rentalsTomorrow,
+      returnReminders,
+      overdueRentals,
+      completedRentals,
+      weekendFavorites,
+    ] = await Promise.all([
+      this.prisma.rentalRequest.findMany({
+        where: {
+          status: {
+            in: [RentalStatus.CONFIRMED, RentalStatus.READY_FOR_HANDOVER],
+          },
+          startAt: {
+            gte: referenceDate,
+            lt: next24Hours,
+          },
+        },
+        include: {
+          asset: true,
+        },
+      }),
+      this.prisma.rentalRequest.findMany({
+        where: {
+          status: RentalStatus.ONGOING,
+          endAt: {
+            gte: referenceDate,
+            lt: next24Hours,
+          },
+        },
+        include: {
+          asset: true,
+        },
+      }),
+      this.prisma.rentalRequest.findMany({
+        where: {
+          status: {
+            in: [RentalStatus.ONGOING, RentalStatus.RETURN_PENDING],
+          },
+          endAt: {
+            lt: referenceDate,
+          },
+        },
+        include: {
+          asset: true,
+        },
+      }),
+      this.prisma.rentalRequest.findMany({
+        where: {
+          status: RentalStatus.COMPLETED,
+          updatedAt: {
+            gte: new Date(referenceDate.getTime() - 7 * 24 * 60 * 60 * 1000),
+          },
+        },
+        include: {
+          asset: true,
+          reviews: true,
+        },
+      }),
+      this.prisma.favoriteAsset.findMany({
+        where: {
+          asset: {
+            status: 'ACTIVE',
+          },
+        },
+        include: {
+          asset: {
+            include: {
+              rentalRequests: true,
+            },
+          },
+          user: true,
+        },
+      }),
+    ]);
+
+    let rentalTomorrowCount = 0;
+    for (const rental of rentalsTomorrow) {
+      rentalTomorrowCount += await this.createManyUnique(
+        [rental.ownerId, rental.renterId],
+        {
+          type: NotificationType.RENTAL_TOMORROW,
+          title: 'Đơn thuê sắp bắt đầu',
+          content: `Đơn thuê "${rental.asset.title}" sẽ bắt đầu trong vòng 24 giờ tới.`,
+          referenceType: 'rental',
+          referenceId: rental.id,
+        },
+        dedupeWindowStart,
+      );
+    }
+
+    let returnReminderCount = 0;
+    for (const rental of returnReminders) {
+      returnReminderCount += await this.createManyUnique(
+        [rental.ownerId, rental.renterId],
+        {
+          type: NotificationType.RETURN_REMINDER,
+          title: 'Nhắc nhở hoàn trả',
+          content: `Đơn thuê "${rental.asset.title}" sắp đến hạn hoàn trả trong vòng 24 giờ tới.`,
+          referenceType: 'rental',
+          referenceId: rental.id,
+        },
+        dedupeWindowStart,
+      );
+    }
+
+    let overdueCount = 0;
+    for (const rental of overdueRentals) {
+      if (rental.status !== RentalStatus.OVERDUE) {
+        await this.prisma.rentalRequest.update({
+          where: { id: rental.id },
+          data: { status: RentalStatus.OVERDUE },
+        });
+      }
+
+      overdueCount += await this.createManyUnique(
+        [rental.ownerId, rental.renterId],
+        {
+          type: NotificationType.RENTAL_OVERDUE,
+          title: 'Đơn thuê đã quá hạn',
+          content: `Đơn thuê "${rental.asset.title}" hiện đang quá hạn.`,
+          referenceType: 'rental',
+          referenceId: rental.id,
+        },
+        dedupeWindowStart,
+      );
+    }
+
+    let reviewReminderCount = 0;
+    for (const rental of completedRentals) {
+      const reviewerIds = new Set(rental.reviews.map((review) => review.reviewerId));
+      const missingReviewUsers = [rental.ownerId, rental.renterId].filter(
+        (userId) => !reviewerIds.has(userId),
+      );
+
+      if (missingReviewUsers.length === 0) {
+        continue;
+      }
+
+      reviewReminderCount += await this.createManyUnique(
+        missingReviewUsers,
+        {
+          type: NotificationType.REVIEW_REMINDER,
+          title: 'Nhắc nhở đánh giá giao dịch',
+          content: `Bạn vẫn chưa để lại đánh giá cho giao dịch "${rental.asset.title}".`,
+          referenceType: 'rental',
+          referenceId: rental.id,
+        },
+        dedupeWindowStart,
+      );
+    }
+
+    const weekendWindow = this.getUpcomingWeekendWindow(referenceDate);
+    let availabilityMatchCount = 0;
+    const activeWeekendStatuses: RentalStatus[] = [
+      RentalStatus.CONFIRMED,
+      RentalStatus.READY_FOR_HANDOVER,
+      RentalStatus.ONGOING,
+    ];
+    for (const favorite of weekendFavorites) {
+      const hasWeekendBooking = favorite.asset.rentalRequests.some((rental) =>
+        activeWeekendStatuses.includes(rental.status) &&
+        rental.startAt < weekendWindow.end &&
+        rental.endAt > weekendWindow.start,
+      );
+
+      if (hasWeekendBooking) {
+        continue;
+      }
+
+      availabilityMatchCount += await this.createManyUnique(
+        [favorite.userId],
+        {
+          type: NotificationType.AVAILABILITY_MATCH,
+          title: 'Tài sản yêu thích đang rảnh cuối tuần',
+          content: `Tài sản "${favorite.asset.title}" trong wishlist của bạn hiện có vẻ đang rảnh vào cuối tuần tới.`,
+          referenceType: 'asset',
+          referenceId: favorite.assetId,
+        },
+        dedupeWindowStart,
+      );
+    }
+
+    return {
+      referenceDate: referenceDate.toISOString(),
+      rentalTomorrowCount,
+      returnReminderCount,
+      overdueCount,
+      reviewReminderCount,
+      availabilityMatchCount,
+    };
+  }
+
+  private getUpcomingWeekendWindow(referenceDate: Date) {
+    const day = referenceDate.getDay();
+    const daysUntilSaturday = (6 - day + 7) % 7;
+    const saturday = new Date(referenceDate);
+    saturday.setHours(0, 0, 0, 0);
+    saturday.setDate(saturday.getDate() + daysUntilSaturday);
+
+    const monday = new Date(saturday);
+    monday.setDate(monday.getDate() + 2);
+
+    return {
+      start: saturday,
+      end: monday,
+    };
+  }
+}

@@ -381,6 +381,20 @@ async function seedUsersAndAssets() {
       },
     });
   }
+
+  await prisma.favoriteAsset.upsert({
+    where: {
+      userId_assetId: {
+        userId: demoRenter.id,
+        assetId: asset.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: demoRenter.id,
+      assetId: asset.id,
+    },
+  });
 }
 
 async function main() {

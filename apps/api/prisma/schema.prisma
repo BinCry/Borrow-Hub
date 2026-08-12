@@ -225,6 +225,10 @@ enum NotificationType {
   RETURN_REQUESTED
   RETURN_COMPLETED
   REVIEW_REMINDER
+  RENTAL_TOMORROW
+  RETURN_REMINDER
+  RENTAL_OVERDUE
+  AVAILABILITY_MATCH
   PAYOUT_COMPLETED
   ASSET_MODERATED
   KYC_UPDATED
@@ -268,6 +272,7 @@ model User {
   createdRiskIncidents RiskIncident[] @relation("RiskIncidentCreatedBy")
   resolvedRiskIncidents RiskIncident[] @relation("RiskIncidentResolvedBy")
   createdProhibitedRules ProhibitedAssetRule[] @relation("ProhibitedAssetRuleCreatedBy")
+  favoriteAssets   FavoriteAsset[]
   writtenReviews   Review[]          @relation("Reviewer")
   receivedReviews  Review[]          @relation("Reviewee")
   notifications    Notification[]
@@ -400,12 +405,25 @@ model Asset {
   accessories         AssetAccessory[]
   availability        AssetAvailability[]
   rentalRequests      RentalRequest[]
+  favoritedBy         FavoriteAsset[]
 
   @@index([categoryId])
   @@index([ownerId])
   @@index([status])
   @@index([city, district])
   @@map("assets")
+}
+
+model FavoriteAsset {
+  userId    String   @map("user_id")
+  assetId   String   @map("asset_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([userId, assetId])
+  @@index([assetId])
+  @@map("favorite_assets")
 }
 
 model AssetImage {
