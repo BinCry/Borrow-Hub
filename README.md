@@ -36,7 +36,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
 - Đánh giá sau thuê: review hai chiều, edit trong cửa sổ cấu hình, moderation cho staff
-- Chat theo rental: conversation giữa owner, renter và staff, hỗ trợ text/image/system warning
+- Chat theo rental: conversation giữa owner, renter và staff, hỗ trợ text/image/system warning và lifecycle timeline
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
 - Reports: report user, listing, review và chat message
 - Support ticket: lịch sử hỗ trợ, note nội bộ, phân công customer support
@@ -79,7 +79,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
 - `reviews`: đánh giá sau giao dịch
   - Có edit theo `review_edit_hours` và moderation hide/publish cho staff
-- `chat`: hội thoại theo đơn thuê, ảnh chat và cảnh báo trao đổi ngoài nền tảng
+- `chat`: hội thoại theo đơn thuê, ảnh chat, cảnh báo trao đổi ngoài nền tảng và system message nghiệp vụ
 - `disputes`: khiếu nại, evidence linkage, event timeline
 - `reports`: report moderation và support workflow
 - `support`: support ticket, lịch sử xử lý, assignment và note timeline
@@ -174,8 +174,9 @@ pnpm prisma:seed
 10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
 11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder.
 12. Gửi chat text/image, thử nhập số điện thoại hoặc email để kiểm tra system warning ngoài nền tảng.
-13. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
-14. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
+13. Approve rental, ký xong contract, hoàn tất return để kiểm tra system message tự sinh trong chat timeline.
+14. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
+15. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
 
 ## Tài khoản seed mẫu
 
