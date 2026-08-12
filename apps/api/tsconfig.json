@@ -2,9 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "incremental": true
+    "incremental": true,
+    "types": ["node", "jest"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "prisma/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
-
