@@ -46,6 +46,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Favorite/Wishlist: lưu tài sản yêu thích và xem danh sách wish list
 - Reminder batch: tạo notification cho rental tomorrow, return reminder, overdue, review reminder, availability match
 - Analytics: tracking funnel sự kiện nghiệp vụ chính và endpoint summary cho admin
+- Request logs: tracing request ID, user ID, endpoint, status và latency cho vận hành
 - Admin: dashboard, quản lý user, role, user nội bộ, system config, audit log
 - Notifications và audit log cho các action nhạy cảm
 
@@ -90,6 +91,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `risk`: prohibited asset rules, risk incidents, manual-review workflow
 - `favorites`: add/remove favorite, xem wishlist
 - `analytics`: tracking event nghiệp vụ và funnel summary cho admin
+- `request-logs`: request tracing an toàn, không lưu password/OTP/token
 - `admin`: dashboard, quản trị user và config
 - `notifications`: hộp thông báo trong hệ thống
   - Có thêm endpoint admin để chạy batch reminder nghiệp vụ
@@ -181,8 +183,9 @@ pnpm prisma:seed
 13. Approve rental, ký xong contract, hoàn tất return để kiểm tra system message tự sinh trong chat timeline.
 14. Tạo phiên delivery handover, generate QR rồi confirm bằng token để kiểm tra QR handover one-time.
 15. Kiểm tra `GET /analytics/events` và `GET /analytics/summary` sau khi chạy các flow đăng ký, KYC, search, rental, review, dispute.
-16. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
-17. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
+16. Kiểm tra `GET /admin/request-logs` và xác nhận response có `x-request-id`, status, latency, endpoint.
+17. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
+18. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
 
 ## Tài khoản seed mẫu
 
