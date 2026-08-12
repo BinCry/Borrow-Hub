@@ -35,6 +35,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
 - Đánh giá sau thuê: review hai chiều, cập nhật điểm uy tín
+- Chat theo rental: conversation giữa owner, renter và staff
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
 - Admin: dashboard, quản lý user, system config, audit log
 - Notifications và audit log cho các action nhạy cảm
@@ -68,6 +69,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `assets`: listing, moderation, tìm kiếm
 - `rentals`: booking, thanh toán, hợp đồng, handover
 - `reviews`: đánh giá sau giao dịch
+- `chat`: hội thoại theo đơn thuê
 - `disputes`: khiếu nại, evidence linkage, event timeline
 - `admin`: dashboard, quản trị user và config
 - `notifications`: hộp thông báo trong hệ thống
