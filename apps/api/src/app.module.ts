@@ -21,6 +21,7 @@ import { ReportsModule } from './reports/reports.module';
 import { RentalsModule } from './rentals/rentals.module';
 import { RiskModule } from './risk/risk.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { SupportModule } from './support/support.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -57,6 +58,7 @@ import { UsersModule } from './users/users.module';
     RentalsModule,
     RiskModule,
     ReviewsModule,
+    SupportModule,
     HealthModule,
   ],
   providers: [
