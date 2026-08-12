@@ -40,6 +40,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
 - Reports: report user, listing, review và chat message
 - Finance: tra cứu payment, payout, refund và khóa payout khi có dispute
+- Risk engine: prohibited asset rules, risk incidents và manual review
 - Admin: dashboard, quản lý user, role, user nội bộ, system config, audit log
 - Notifications và audit log cho các action nhạy cảm
 
@@ -78,6 +79,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `disputes`: khiếu nại, evidence linkage, event timeline
 - `reports`: report moderation và support workflow
 - `finance`: payment, payout, refund, finance controls
+- `risk`: prohibited asset rules, risk incidents, manual-review workflow
 - `admin`: dashboard, quản trị user và config
 - `notifications`: hộp thông báo trong hệ thống
 - `audit`: ghi log cho hành vi nhạy cảm
@@ -162,6 +164,7 @@ pnpm prisma:seed
 7. Yêu cầu return, tạo handover return hoặc mở dispute.
 8. Tạo refund hoặc kiểm tra payout nếu cần xử lý tranh chấp.
 9. Thử hủy booking để kiểm tra flow cancellation policy.
+10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
 
 ## Tài khoản seed mẫu
 
