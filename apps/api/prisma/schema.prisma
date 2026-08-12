@@ -150,6 +150,21 @@ enum MessageType {
   SYSTEM
 }
 
+enum ReportTargetType {
+  USER
+  ASSET
+  REVIEW
+  CHAT_MESSAGE
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
 enum DisputeStatus {
   OPEN
   WAITING_RESPONSE
@@ -221,6 +236,8 @@ model User {
   disputeEvidenceLinks DisputeEvidence[] @relation("DisputeEvidenceUploader")
   conversationMemberships ConversationMember[]
   sentMessages     Message[]         @relation("MessageSender")
+  submittedReports Report[]         @relation("ReportReporter")
+  assignedReports  Report[]         @relation("ReportAssignedTo")
   writtenReviews   Review[]          @relation("Reviewer")
   receivedReviews  Review[]          @relation("Reviewee")
   notifications    Notification[]
@@ -684,6 +701,29 @@ model Message {
   @@index([conversationId, createdAt])
   @@index([senderId])
   @@map("messages")
+}
+
+model Report {
+  id                String           @id @default(cuid())
+  reporterId        String           @map("reporter_id")
+  targetType        ReportTargetType @map("target_type")
+  targetId          String           @map("target_id")
+  reason            String
+  description       String
+  status            ReportStatus     @default(OPEN)
+  assignedToId      String?          @map("assigned_to")
+  resolutionSummary String?          @map("resolution_summary")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  resolvedAt        DateTime?        @map("resolved_at")
+  reporter          User             @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  assignedTo        User?            @relation("ReportAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([reporterId])
+  @@index([assignedToId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("reports")
 }
 
 model Notification {

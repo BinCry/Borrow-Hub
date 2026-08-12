@@ -1,13 +1,20 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DisputeStatus } from '@prisma/client';
+import argon2 from 'argon2';
+import { DisputeStatus, RoleName, UserStatus, VerificationStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
-import { UpdateSystemConfigDto, UpdateUserStatusDto } from './admin.dto';
+import {
+  CreateInternalUserDto,
+  UpdateSystemConfigDto,
+  UpdateUserRolesDto,
+  UpdateUserStatusDto,
+} from './admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -104,6 +111,19 @@ export class AdminService {
     });
   }
 
+  listRoles() {
+    return this.prisma.role.findMany({
+      include: {
+        rolePermissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
+      orderBy: [{ name: 'asc' }],
+    });
+  }
+
   async updateUserStatus(
     userId: string,
     dto: UpdateUserStatusDto,
@@ -136,6 +156,164 @@ export class AdminService {
     });
 
     return updated;
+  }
+
+  async updateUserRoles(
+    userId: string,
+    dto: UpdateUserRolesDto,
+    actor: AuthenticatedUser,
+  ) {
+    if (actor.id === userId && !dto.roles.includes(RoleName.SUPER_ADMIN)) {
+      throw new BadRequestException('You cannot remove your own super admin role');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const normalizedRoles = [...new Set(dto.roles)];
+    const roleRecords = await this.prisma.role.findMany({
+      where: {
+        name: {
+          in: normalizedRoles,
+        },
+      },
+    });
+
+    if (roleRecords.length !== normalizedRoles.length) {
+      throw new BadRequestException('One or more roles are invalid');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.userRole.deleteMany({
+        where: {
+          userId,
+        },
+      });
+
+      await tx.userRole.createMany({
+        data: roleRecords.map((role) => ({
+          userId,
+          roleId: role.id,
+        })),
+      });
+
+      return tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        include: {
+          verification: true,
+          userRoles: {
+            include: {
+              role: true,
+            },
+          },
+        },
+      });
+    });
+
+    await this.auditService.create({
+      actorId: actor.id,
+      action: 'admin.user-roles.update',
+      entityType: 'user',
+      entityId: userId,
+      beforeData: {
+        roles: existingUser.userRoles.map((userRole) => userRole.role.name),
+      },
+      afterData: {
+        roles: updated.userRoles.map((userRole) => userRole.role.name),
+      },
+    });
+
+    return updated;
+  }
+
+  async createInternalUser(dto: CreateInternalUserDto, actor: AuthenticatedUser) {
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email: dto.email }, { phone: dto.phone }],
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email or phone already exists');
+    }
+
+    const normalizedRoles = [...new Set(dto.roles)];
+    if (normalizedRoles.includes(RoleName.USER) && normalizedRoles.length === 1) {
+      throw new BadRequestException('Internal user must include at least one staff role');
+    }
+
+    const roleRecords = await this.prisma.role.findMany({
+      where: {
+        name: {
+          in: normalizedRoles,
+        },
+      },
+    });
+
+    if (roleRecords.length !== normalizedRoles.length) {
+      throw new BadRequestException('One or more roles are invalid');
+    }
+
+    const passwordHash = await argon2.hash(dto.password, {
+      type: argon2.argon2id,
+    });
+
+    const created = await this.prisma.user.create({
+      data: {
+        fullName: dto.fullName,
+        email: dto.email,
+        phone: dto.phone,
+        passwordHash,
+        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
+        status: UserStatus.ACTIVE,
+        emailVerifiedAt: new Date(),
+        phoneVerifiedAt: new Date(),
+        userRoles: {
+          create: roleRecords.map((role) => ({
+            roleId: role.id,
+          })),
+        },
+        verification: {
+          create: {
+            provider: 'internal-admin',
+            verificationStatus: VerificationStatus.VERIFIED,
+          },
+        },
+      },
+      include: {
+        verification: true,
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    await this.auditService.create({
+      actorId: actor.id,
+      action: 'admin.internal-user.create',
+      entityType: 'user',
+      entityId: created.id,
+      afterData: {
+        email: created.email,
+        roles: created.userRoles.map((userRole) => userRole.role.name),
+      },
+    });
+
+    return created;
   }
 
   listSystemConfigs() {

@@ -1,9 +1,14 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { RoleName } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
-import { UpdateSystemConfigDto, UpdateUserStatusDto } from './admin.dto';
+import {
+  CreateInternalUserDto,
+  UpdateSystemConfigDto,
+  UpdateUserRolesDto,
+  UpdateUserStatusDto,
+} from './admin.dto';
 import { AdminService } from './admin.service';
 
 @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
@@ -21,6 +26,11 @@ export class AdminController {
     return this.adminService.listUsers();
   }
 
+  @Get('roles')
+  listRoles() {
+    return this.adminService.listRoles();
+  }
+
   @Patch('users/:userId/status')
   updateUserStatus(
     @Param('userId') userId: string,
@@ -28,6 +38,25 @@ export class AdminController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.adminService.updateUserStatus(userId, dto, actor);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN)
+  @Patch('users/:userId/roles')
+  updateUserRoles(
+    @Param('userId') userId: string,
+    @Body() dto: UpdateUserRolesDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.adminService.updateUserRoles(userId, dto, actor);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN)
+  @Post('internal-users')
+  createInternalUser(
+    @Body() dto: CreateInternalUserDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.adminService.createInternalUser(dto, actor);
   }
 
   @Get('system-configs')
@@ -49,4 +78,3 @@ export class AdminController {
     return this.adminService.getAuditLogs();
   }
 }
-
