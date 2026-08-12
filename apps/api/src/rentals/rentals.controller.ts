@@ -11,6 +11,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import {
   ApproveRentalDto,
+  CancelRentalDto,
   ConfirmHandoverDto,
   CreateRentalRequestDto,
   DeclineRentalDto,
@@ -66,6 +67,15 @@ export class RentalsController {
     @Body() dto: DeclineRentalDto,
   ) {
     return this.rentalsService.decline(rentalId, currentUser, dto);
+  }
+
+  @Post(':rentalId/cancel')
+  cancel(
+    @Param('rentalId') rentalId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: CancelRentalDto,
+  ) {
+    return this.rentalsService.cancel(rentalId, currentUser, dto);
   }
 
   @Post(':rentalId/pay')
@@ -127,4 +137,3 @@ export class RentalsController {
     return this.rentalsService.reportIssue(rentalId, currentUser, dto);
   }
 }
-

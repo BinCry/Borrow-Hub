@@ -82,6 +82,9 @@ async function seedSystemConfigs() {
     ['owner_commission_percent', '10', 'Commission percentage withheld from owner payout'],
     ['late_fee_rate', '10000', 'Late fee charged per overdue hour in VND'],
     ['max_new_user_asset_value', '3000000', 'Maximum asset value a newly verified user can rent'],
+    ['renter_cancel_full_refund_hours', '24', 'Renter receives full refund if cancelling before this many hours'],
+    ['renter_cancel_partial_refund_percent', '50', 'Refund percentage when renter cancels close to start time'],
+    ['owner_cancel_trust_penalty', '10', 'Trust score penalty applied when owner cancels a booking'],
     ['review_edit_hours', '24', 'How long a review remains editable'],
     ['contract_version', 'v1', 'Current rental contract version'],
   ] as const;

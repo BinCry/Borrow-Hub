@@ -46,6 +46,13 @@ export class DeclineRentalDto {
   reason?: string;
 }
 
+export class CancelRentalDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
 export class RecordPaymentDto {
   @IsOptional()
   @IsString()
@@ -147,4 +154,3 @@ export class RentalListQueryDto {
   @IsString()
   role?: 'owner' | 'renter';
 }
-

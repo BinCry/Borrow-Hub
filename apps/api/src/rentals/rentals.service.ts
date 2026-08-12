@@ -28,6 +28,7 @@ import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   ApproveRentalDto,
+  CancelRentalDto,
   ConfirmHandoverDto,
   CreateRentalRequestDto,
   DeclineRentalDto,
@@ -225,6 +226,153 @@ export class RentalsService {
     });
 
     return updated;
+  }
+
+  async cancel(
+    rentalId: string,
+    currentUser: AuthenticatedUser,
+    dto: CancelRentalDto,
+  ) {
+    const rental = await this.findAccessibleRental(rentalId, currentUser);
+
+    const isOwner = rental.ownerId === currentUser.id;
+    const isRenter = rental.renterId === currentUser.id;
+
+    if (!isOwner && !isRenter && !this.isStaff(currentUser)) {
+      throw new ForbiddenException('You cannot cancel this rental');
+    }
+
+    this.assertStatus(rental.status, [
+      RentalStatus.PENDING_OWNER,
+      RentalStatus.AWAITING_PAYMENT,
+      RentalStatus.AWAITING_SIGNATURE,
+      RentalStatus.CONFIRMED,
+      RentalStatus.READY_FOR_HANDOVER,
+    ]);
+
+    const cancellationOutcome = await this.computeCancellationOutcome(
+      rental,
+      currentUser,
+    );
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      let refundSummary:
+        | {
+            refundId: string;
+            amount: number;
+            status: PaymentStatus;
+          }
+        | undefined;
+
+      if (rental.payments.length > 0 && cancellationOutcome.refundAmount > 0) {
+        const payment = rental.payments[0];
+        const refund = await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            amount: cancellationOutcome.refundAmount,
+            reason:
+              dto.reason ??
+              (isOwner ? 'Owner cancellation policy refund' : 'Renter cancellation policy refund'),
+            status: 'COMPLETED',
+            completedAt: new Date(),
+          },
+        });
+
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status:
+              cancellationOutcome.refundAmount >= payment.amount
+                ? PaymentStatus.REFUNDED
+                : PaymentStatus.PARTIALLY_REFUNDED,
+          },
+        });
+
+        refundSummary = {
+          refundId: refund.id,
+          amount: refund.amount,
+          status:
+            cancellationOutcome.refundAmount >= payment.amount
+              ? PaymentStatus.REFUNDED
+              : PaymentStatus.PARTIALLY_REFUNDED,
+        };
+      }
+
+      if (rental.payout) {
+        await tx.payout.update({
+          where: { id: rental.payout.id },
+          data: {
+            status: cancellationOutcome.payoutStatus,
+          },
+        });
+      }
+
+      if (rental.contract) {
+        await tx.rentalContract.update({
+          where: { id: rental.contract.id },
+          data: {
+            status: ContractStatus.CANCELLED,
+          },
+        });
+      }
+
+      if (cancellationOutcome.ownerTrustPenalty > 0) {
+        await tx.user.update({
+          where: { id: rental.ownerId },
+          data: {
+            trustScore: {
+              decrement: cancellationOutcome.ownerTrustPenalty,
+            },
+          },
+        });
+      }
+
+      const updatedRental = await tx.rentalRequest.update({
+        where: { id: rental.id },
+        data: {
+          status: RentalStatus.CANCELLED,
+          message: dto.reason ?? rental.message,
+        },
+        include: this.rentalInclude(),
+      });
+
+      return {
+        rental: updatedRental,
+        refundSummary,
+      };
+    });
+
+    await this.notificationsService.createMany(
+      [rental.ownerId, rental.renterId].filter((userId) => userId !== currentUser.id),
+      {
+        type: NotificationType.SYSTEM,
+        title: 'Đơn thuê đã bị hủy',
+        content: `${currentUser.fullName} đã hủy đơn thuê "${rental.asset.title}".`,
+        referenceType: 'rental',
+        referenceId: rental.id,
+      },
+    );
+
+    await this.auditService.create({
+      actorId: currentUser.id,
+      action: 'rental.cancel',
+      entityType: 'rental',
+      entityId: rental.id,
+      beforeData: {
+        status: rental.status,
+      },
+      afterData: {
+        status: RentalStatus.CANCELLED,
+        refundAmount: cancellationOutcome.refundAmount,
+        payoutStatus: cancellationOutcome.payoutStatus,
+        ownerTrustPenalty: cancellationOutcome.ownerTrustPenalty,
+      },
+    });
+
+    return {
+      ...result,
+      policy: cancellationOutcome.policy,
+    };
   }
 
   async recordPayment(
@@ -802,6 +950,79 @@ export class RentalsService {
     return config ? Number(config.value) : fallback;
   }
 
+  private async computeCancellationOutcome(
+    rental: Awaited<ReturnType<RentalsService['findAccessibleRental']>>,
+    currentUser: AuthenticatedUser,
+  ) {
+    const payment = rental.payments[0];
+    const now = new Date();
+    const hoursUntilStart =
+      (rental.startAt.getTime() - now.getTime()) / (60 * 60 * 1000);
+    const isOwner = rental.ownerId === currentUser.id;
+
+    if (isOwner) {
+      const ownerTrustPenalty = await this.getNumericConfig(
+        'owner_cancel_trust_penalty',
+        10,
+      );
+
+      return {
+        refundAmount: payment?.amount ?? 0,
+        payoutStatus: PayoutStatus.CANCELLED,
+        ownerTrustPenalty,
+        policy: {
+          actor: 'owner',
+          hoursUntilStart,
+          refundPercent: payment ? 100 : 0,
+          rule: 'Owner cancellation triggers renter refund and owner trust penalty',
+        },
+      };
+    }
+
+    const fullRefundHours = await this.getNumericConfig(
+      'renter_cancel_full_refund_hours',
+      24,
+    );
+    const partialRefundPercent = await this.getNumericConfig(
+      'renter_cancel_partial_refund_percent',
+      50,
+    );
+
+    if (!payment) {
+      return {
+        refundAmount: 0,
+        payoutStatus: PayoutStatus.CANCELLED,
+        ownerTrustPenalty: 0,
+        policy: {
+          actor: 'renter',
+          hoursUntilStart,
+          refundPercent: 0,
+          rule: 'No payment recorded yet',
+        },
+      };
+    }
+
+    const refundPercent =
+      hoursUntilStart >= fullRefundHours ? 100 : partialRefundPercent;
+    const refundAmount = Math.round((payment.amount * refundPercent) / 100);
+
+    return {
+      refundAmount,
+      payoutStatus:
+        refundPercent === 100 ? PayoutStatus.CANCELLED : PayoutStatus.BLOCKED,
+      ownerTrustPenalty: 0,
+      policy: {
+        actor: 'renter',
+        hoursUntilStart,
+        refundPercent,
+        rule:
+          refundPercent === 100
+            ? `Renter cancelled at least ${fullRefundHours} hours before start`
+            : 'Renter cancelled close to start time so only partial refund applies',
+      },
+    };
+  }
+
   private async generateContractNumber() {
     const now = new Date();
     const yyyy = now.getUTCFullYear();
@@ -877,7 +1098,12 @@ export class RentalsService {
           signatures: true,
         },
       },
-      payments: true,
+      payments: {
+        include: {
+          refunds: true,
+        },
+        orderBy: [{ createdAt: 'asc' as const }],
+      },
       payout: true,
       handovers: {
         include: {

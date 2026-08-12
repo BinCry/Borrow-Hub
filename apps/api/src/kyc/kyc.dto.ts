@@ -1,4 +1,5 @@
-import { IsOptional, IsString } from 'class-validator';
+import { FaceMatchStatus, VerificationStatus } from '@prisma/client';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class SubmitKycDto {
   @IsOptional()
@@ -16,3 +17,22 @@ export class SubmitKycDto {
   documentNumber!: string;
 }
 
+export class KycReviewQueryDto {
+  @IsOptional()
+  @IsEnum(VerificationStatus)
+  status?: VerificationStatus;
+}
+
+export class ReviewKycDto {
+  @IsEnum(VerificationStatus)
+  verificationStatus!: VerificationStatus;
+
+  @IsOptional()
+  @IsEnum(FaceMatchStatus)
+  faceMatchStatus?: FaceMatchStatus;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reviewNote?: string;
+}
