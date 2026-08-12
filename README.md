@@ -35,7 +35,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Quy trình thuê: tạo yêu cầu, duyệt/từ chối, hủy đơn theo policy, thanh toán sandbox
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
-- Đánh giá sau thuê: review hai chiều, cập nhật điểm uy tín
+- Đánh giá sau thuê: review hai chiều, edit trong cửa sổ cấu hình, moderation cho staff
 - Chat theo rental: conversation giữa owner, renter và staff
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
 - Reports: report user, listing, review và chat message
@@ -77,6 +77,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `rentals`: booking, thanh toán, hợp đồng, handover
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
 - `reviews`: đánh giá sau giao dịch
+  - Có edit theo `review_edit_hours` và moderation hide/publish cho staff
 - `chat`: hội thoại theo đơn thuê
 - `disputes`: khiếu nại, evidence linkage, event timeline
 - `reports`: report moderation và support workflow
@@ -170,6 +171,7 @@ pnpm prisma:seed
 9. Thử hủy booking để kiểm tra flow cancellation policy.
 10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
 11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder.
+12. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
 
 ## Tài khoản seed mẫu
 
