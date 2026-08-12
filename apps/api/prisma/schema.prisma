@@ -318,6 +318,7 @@ model User {
   receivedReviews  Review[]          @relation("Reviewee")
   generatedHandoverQrSessions HandoverQrSession[] @relation("HandoverQrGeneratedBy")
   analyticsEvents  AnalyticsEvent[]
+  requestLogs      RequestLog[]
   notifications    Notification[]
   auditLogs        AuditLog[]
 }
@@ -980,6 +981,26 @@ model AnalyticsEvent {
   @@index([userId, createdAt])
   @@index([entityType, entityId])
   @@map("analytics_events")
+}
+
+model RequestLog {
+  id         String   @id @default(cuid())
+  requestId  String   @map("request_id")
+  userId     String?  @map("user_id")
+  method     String
+  endpoint   String
+  statusCode Int      @map("status_code")
+  latencyMs  Int      @map("latency_ms")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([userId, createdAt])
+  @@index([statusCode, createdAt])
+  @@index([endpoint, createdAt])
+  @@map("request_logs")
 }
 
 model SystemConfig {

@@ -12,5 +12,5 @@ export type AuthenticatedUser = {
 
 export type AuthenticatedRequest = Request & {
   user?: AuthenticatedUser;
+  requestId?: string;
 };
-

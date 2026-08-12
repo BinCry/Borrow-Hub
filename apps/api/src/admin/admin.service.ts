@@ -9,18 +9,21 @@ import { DisputeStatus, RoleName, UserStatus, VerificationStatus } from '@prisma
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
+import { RequestLogsService } from '../request-logs/request-logs.service';
 import {
   CreateInternalUserDto,
   UpdateSystemConfigDto,
   UpdateUserRolesDto,
   UpdateUserStatusDto,
 } from './admin.dto';
+import { RequestLogQueryDto } from '../request-logs/request-logs.dto';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly requestLogsService: RequestLogsService,
   ) {}
 
   async getDashboard() {
@@ -369,5 +372,9 @@ export class AdminService {
       orderBy: [{ createdAt: 'desc' }],
       take: 200,
     });
+  }
+
+  getRequestLogs(query: RequestLogQueryDto) {
+    return this.requestLogsService.list(query);
   }
 }

@@ -19,6 +19,7 @@ import { HealthModule } from './health/health.module';
 import { KycModule } from './kyc/kyc.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
+import { RequestLogsModule } from './request-logs/request-logs.module';
 import { RentalsModule } from './rentals/rentals.module';
 import { RiskModule } from './risk/risk.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -56,6 +57,7 @@ import { UsersModule } from './users/users.module';
     KycModule,
     NotificationsModule,
     ReportsModule,
+    RequestLogsModule,
     DisputesModule,
     RentalsModule,
     RiskModule,

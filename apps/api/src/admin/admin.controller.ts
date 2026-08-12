@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { RoleName } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
+import { RequestLogQueryDto } from '../request-logs/request-logs.dto';
 import {
   CreateInternalUserDto,
   UpdateSystemConfigDto,
@@ -76,5 +77,10 @@ export class AdminController {
   @Get('audit-logs')
   getAuditLogs() {
     return this.adminService.getAuditLogs();
+  }
+
+  @Get('request-logs')
+  getRequestLogs(@Query() query: RequestLogQueryDto) {
+    return this.adminService.getRequestLogs(query);
   }
 }
