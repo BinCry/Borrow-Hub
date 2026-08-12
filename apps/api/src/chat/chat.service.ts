@@ -1,13 +1,17 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NotificationType, Prisma, RoleName } from '@prisma/client';
+import { MessageType, NotificationType, Prisma, RoleName } from '@prisma/client';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatQueryDto, CreateConversationDto, SendMessageDto } from './chat.dto';
+
+const OFF_PLATFORM_WARNING =
+  'Giao dịch ngoài ToolShare sẽ không được hỗ trợ bởi quy trình tranh chấp của nền tảng.';
 
 @Injectable()
 export class ChatService {
@@ -151,21 +155,66 @@ export class ChatService {
       });
     }
 
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        senderId: currentUser.id,
-        content: dto.content,
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
+    const messageType = dto.messageType ?? MessageType.TEXT;
+    if (messageType === MessageType.SYSTEM) {
+      throw new ForbiddenException('Users cannot send system messages');
+    }
+
+    const content = dto.content?.trim() ?? '';
+    const attachmentUrl = dto.attachmentUrl?.trim() || null;
+
+    if (messageType === MessageType.TEXT && !content) {
+      throw new BadRequestException('Text messages require content');
+    }
+
+    if (messageType === MessageType.IMAGE && !attachmentUrl) {
+      throw new BadRequestException('Image messages require attachmentUrl');
+    }
+
+    const offPlatformSignals =
+      messageType === MessageType.TEXT
+        ? this.detectOffPlatformSignals(content)
+        : [];
+
+    const message = await this.prisma.$transaction(async (tx) => {
+      const createdMessage = await tx.message.create({
+        data: {
+          conversationId: conversation.id,
+          senderId: currentUser.id,
+          messageType,
+          content,
+          attachmentUrl,
+          metadata: offPlatformSignals.length
+            ? ({ offPlatformSignals } as Prisma.InputJsonValue)
+            : undefined,
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+            },
           },
         },
-      },
+      });
+
+      if (offPlatformSignals.length > 0) {
+        await tx.message.create({
+          data: {
+            conversationId: conversation.id,
+            senderId: currentUser.id,
+            messageType: MessageType.SYSTEM,
+            content: OFF_PLATFORM_WARNING,
+            metadata: {
+              source: 'off_platform_detection',
+              signals: offPlatformSignals,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      }
+
+      return createdMessage;
     });
 
     await this.notificationsService.createMany(
@@ -182,6 +231,24 @@ export class ChatService {
     );
 
     return message;
+  }
+
+  private detectOffPlatformSignals(content: string) {
+    const signals: string[] = [];
+
+    if (/(?:\+?84|0)(?:\d[\s.-]?){8,10}/.test(content)) {
+      signals.push('PHONE');
+    }
+
+    if (/\bhttps?:\/\/[^\s]+|\bwww\.[^\s]+/i.test(content)) {
+      signals.push('URL');
+    }
+
+    if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(content)) {
+      signals.push('EMAIL');
+    }
+
+    return signals;
   }
 
   private async findAccessibleConversation(

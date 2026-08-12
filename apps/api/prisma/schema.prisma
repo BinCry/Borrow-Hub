@@ -154,6 +154,7 @@ enum ReviewStatus {
 
 enum MessageType {
   TEXT
+  IMAGE
   SYSTEM
 }
 
@@ -784,6 +785,8 @@ model Message {
   senderId       String       @map("sender_id")
   messageType    MessageType  @default(TEXT) @map("message_type")
   content        String
+  attachmentUrl  String?      @map("attachment_url")
+  metadata       Json?
   createdAt      DateTime     @default(now()) @map("created_at")
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Restrict)
