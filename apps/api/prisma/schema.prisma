@@ -145,6 +145,11 @@ enum ReviewStatus {
   HIDDEN
 }
 
+enum MessageType {
+  TEXT
+  SYSTEM
+}
+
 enum DisputeStatus {
   OPEN
   WAITING_RESPONSE
@@ -214,6 +219,8 @@ model User {
   assignedDisputes Dispute[]         @relation("DisputeAssignedTo")
   disputeEvents    DisputeEvent[]    @relation("DisputeEventActor")
   disputeEvidenceLinks DisputeEvidence[] @relation("DisputeEvidenceUploader")
+  conversationMemberships ConversationMember[]
+  sentMessages     Message[]         @relation("MessageSender")
   writtenReviews   Review[]          @relation("Reviewer")
   receivedReviews  Review[]          @relation("Reviewee")
   notifications    Notification[]
@@ -423,6 +430,7 @@ model RentalRequest {
   handovers      Handover[]
   evidences      Evidence[]
   disputes       Dispute[]
+  conversation   Conversation?
   reviews        Review[]
 
   @@index([assetId])
@@ -636,6 +644,46 @@ model Review {
   @@unique([rentalId, reviewerId])
   @@index([revieweeId])
   @@map("reviews")
+}
+
+model Conversation {
+  id        String               @id @default(cuid())
+  rentalId  String               @unique @map("rental_id")
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+  rental    RentalRequest        @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  members   ConversationMember[]
+  messages  Message[]
+
+  @@index([createdAt])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  conversationId String       @map("conversation_id")
+  userId         String       @map("user_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String       @map("conversation_id")
+  senderId       String       @map("sender_id")
+  messageType    MessageType  @default(TEXT) @map("message_type")
+  content        String
+  createdAt      DateTime     @default(now()) @map("created_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
 }
 
 model Notification {

@@ -7,6 +7,7 @@ import { AssetsModule } from './assets/assets.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
+import { ChatModule } from './chat/chat.module';
 import { AuthGuard } from './common/guards/auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaModule } from './database/prisma.module';
@@ -40,6 +41,7 @@ import { UsersModule } from './users/users.module';
     AuditModule,
     AuthModule,
     CategoriesModule,
+    ChatModule,
     AssetsModule,
     UsersModule,
     KycModule,
