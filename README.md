@@ -37,7 +37,9 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Đánh giá sau thuê: review hai chiều, cập nhật điểm uy tín
 - Chat theo rental: conversation giữa owner, renter và staff
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
-- Admin: dashboard, quản lý user, system config, audit log
+- Reports: report user, listing, review và chat message
+- Finance: tra cứu payment, payout, refund và khóa payout khi có dispute
+- Admin: dashboard, quản lý user, role, user nội bộ, system config, audit log
 - Notifications và audit log cho các action nhạy cảm
 
 ## Cấu trúc repo
@@ -71,6 +73,8 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `reviews`: đánh giá sau giao dịch
 - `chat`: hội thoại theo đơn thuê
 - `disputes`: khiếu nại, evidence linkage, event timeline
+- `reports`: report moderation và support workflow
+- `finance`: payment, payout, refund, finance controls
 - `admin`: dashboard, quản trị user và config
 - `notifications`: hộp thông báo trong hệ thống
 - `audit`: ghi log cho hành vi nhạy cảm
@@ -153,6 +157,7 @@ pnpm prisma:seed
 5. Ký hợp đồng cả hai phía.
 6. Tạo handover delivery rồi confirm.
 7. Yêu cầu return, tạo handover return hoặc mở dispute.
+8. Tạo refund hoặc kiểm tra payout nếu cần xử lý tranh chấp.
 
 ## Tài khoản seed mẫu
 
