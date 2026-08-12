@@ -1,0 +1,600 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum VerificationStatus {
+  NOT_STARTED
+  PENDING
+  VERIFIED
+  REJECTED
+  REQUIRES_REVIEW
+}
+
+enum FaceMatchStatus {
+  NOT_AVAILABLE
+  MATCHED
+  NOT_MATCHED
+  REVIEW_REQUIRED
+}
+
+enum RoleName {
+  USER
+  MODERATOR
+  CUSTOMER_SUPPORT
+  DISPUTE_OFFICER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssetCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  WORN
+}
+
+enum AssetStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  PAUSED
+  REJECTED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum AvailabilityType {
+  AVAILABLE
+  BLOCKED
+}
+
+enum RentalStatus {
+  PENDING_OWNER
+  APPROVED
+  AWAITING_PAYMENT
+  AWAITING_SIGNATURE
+  CONFIRMED
+  READY_FOR_HANDOVER
+  ONGOING
+  RETURN_PENDING
+  COMPLETED
+  DECLINED
+  CANCELLED
+  EXPIRED
+  DISPUTED
+  OVERDUE
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_SIGNATURE
+  ACTIVE
+  CANCELLED
+  SUPERSEDED
+}
+
+enum SignatureMethod {
+  OTP
+  IN_APP
+  PIN
+  ELECTRONIC_PROVIDER
+}
+
+enum PaymentProvider {
+  SANDBOX
+  BANK_TRANSFER
+  QR
+  E_WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  SCHEDULED
+  PAID
+  BLOCKED
+  CANCELLED
+}
+
+enum HandoverType {
+  DELIVERY
+  RETURN
+}
+
+enum HandoverStatus {
+  PENDING
+  CONFIRMED
+  ISSUE_REPORTED
+}
+
+enum EvidenceType {
+  PHOTO
+  VIDEO
+  DOCUMENT
+  REPAIR_QUOTE
+  OTHER
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+enum NotificationType {
+  RENTAL_REQUEST_CREATED
+  RENTAL_REQUEST_APPROVED
+  RENTAL_REQUEST_DECLINED
+  PAYMENT_SUCCESS
+  CONTRACT_READY
+  SIGNATURE_REQUIRED
+  CONTRACT_SIGNED
+  RENTAL_CONFIRMED
+  HANDOVER_READY
+  HANDOVER_COMPLETED
+  RETURN_REQUESTED
+  RETURN_COMPLETED
+  REVIEW_REMINDER
+  PAYOUT_COMPLETED
+  ASSET_MODERATED
+  KYC_UPDATED
+  SYSTEM
+}
+
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  phone            String            @unique
+  passwordHash     String            @map("password_hash")
+  refreshTokenHash String?           @map("refresh_token_hash")
+  fullName         String            @map("full_name")
+  avatarUrl        String?           @map("avatar_url")
+  dateOfBirth      DateTime?         @map("date_of_birth")
+  emailVerifiedAt  DateTime?         @map("email_verified_at")
+  phoneVerifiedAt  DateTime?         @map("phone_verified_at")
+  status           UserStatus        @default(ACTIVE)
+  trustScore       Int               @default(0) @map("trust_score")
+  lastLoginAt      DateTime?         @map("last_login_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  addresses        UserAddress[]
+  verification     UserVerification?
+  userRoles        UserRole[]
+  ownedAssets      Asset[]           @relation("AssetOwner")
+  rentalsAsOwner   RentalRequest[]   @relation("RentalOwner")
+  rentalsAsRenter  RentalRequest[]   @relation("RentalRenter")
+  contractSigns    ContractSignature[]
+  payments         Payment[]         @relation("PaymentPayer")
+  payouts          Payout[]          @relation("PayoutOwner")
+  evidences        Evidence[]        @relation("EvidenceUploader")
+  writtenReviews   Review[]          @relation("Reviewer")
+  receivedReviews  Review[]          @relation("Reviewee")
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+}
+
+model UserAddress {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  label       String
+  city        String
+  district    String
+  ward        String?
+  addressLine String   @map("address_line")
+  latitude    Float?
+  longitude   Float?
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_addresses")
+}
+
+model UserVerification {
+  id                   String             @id @default(cuid())
+  userId               String             @unique @map("user_id")
+  provider             String
+  providerReference    String?            @map("provider_reference")
+  verificationStatus   VerificationStatus @default(NOT_STARTED) @map("verification_status")
+  documentType         String?            @map("document_type")
+  maskedDocumentNumber String?            @map("masked_document_number")
+  nameVerified         Boolean            @default(false) @map("name_verified")
+  dateOfBirthVerified  Boolean            @default(false) @map("date_of_birth_verified")
+  faceMatchStatus      FaceMatchStatus    @default(NOT_AVAILABLE) @map("face_match_status")
+  verifiedAt           DateTime?          @map("verified_at")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([verificationStatus])
+  @@map("user_verifications")
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  name            RoleName         @unique
+  description     String?
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  description     String?
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Category {
+  id        String         @id @default(cuid())
+  parentId  String?        @map("parent_id")
+  name      String
+  slug      String         @unique
+  status    CategoryStatus @default(ACTIVE)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  parent    Category?      @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[]     @relation("CategoryTree")
+  assets    Asset[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Asset {
+  id                  String             @id @default(cuid())
+  ownerId             String             @map("owner_id")
+  categoryId          String             @map("category_id")
+  title               String
+  description         String
+  brand               String?
+  model               String?
+  serialNumber        String?            @map("serial_number")
+  condition           AssetCondition
+  estimatedValue      Int                @map("estimated_value")
+  pricePerDay         Int                @map("price_per_day")
+  minimumDurationDays Int                @map("minimum_duration_days")
+  maximumDurationDays Int                @map("maximum_duration_days")
+  city                String
+  district            String
+  ward                String?
+  latitude            Float?
+  longitude           Float?
+  meetingPoint        String?            @map("meeting_point")
+  deliveryOptions     Json?              @map("delivery_options")
+  usageInstructions   String?            @map("usage_instructions")
+  cancellationPolicy  String?            @map("cancellation_policy")
+  status              AssetStatus        @default(DRAFT)
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  owner               User               @relation("AssetOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  category            Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images              AssetImage[]
+  accessories         AssetAccessory[]
+  availability        AssetAvailability[]
+  rentalRequests      RentalRequest[]
+
+  @@index([categoryId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([city, district])
+  @@map("assets")
+}
+
+model AssetImage {
+  id        String   @id @default(cuid())
+  assetId    String   @map("asset_id")
+  url       String
+  fileKey   String?  @map("file_key")
+  metadata  Json?
+  sortOrder Int      @default(0) @map("sort_order")
+  isCover   Boolean  @default(false) @map("is_cover")
+  createdAt DateTime @default(now()) @map("created_at")
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@map("asset_images")
+}
+
+model AssetAccessory {
+  id          String   @id @default(cuid())
+  assetId     String   @map("asset_id")
+  name        String
+  quantity    Int      @default(1)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@map("asset_accessories")
+}
+
+model AssetAvailability {
+  id               String           @id @default(cuid())
+  assetId          String           @map("asset_id")
+  startAt          DateTime         @map("start_at")
+  endAt            DateTime         @map("end_at")
+  availabilityType AvailabilityType @default(BLOCKED) @map("availability_type")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  asset            Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([startAt, endAt])
+  @@map("asset_availability")
+}
+
+model RentalRequest {
+  id             String         @id @default(cuid())
+  assetId        String         @map("asset_id")
+  ownerId        String         @map("owner_id")
+  renterId       String         @map("renter_id")
+  startAt        DateTime       @map("start_at")
+  endAt          DateTime       @map("end_at")
+  deliveryMethod String?        @map("delivery_method")
+  message        String?
+  currency       String         @default("VND")
+  rentalFee      Int            @map("rental_fee")
+  serviceFee     Int            @map("service_fee")
+  deliveryFee    Int            @default(0) @map("delivery_fee")
+  lateFee        Int            @default(0) @map("late_fee")
+  totalAmount    Int            @map("total_amount")
+  status         RentalStatus   @default(PENDING_OWNER)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  asset          Asset          @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  owner          User           @relation("RentalOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  renter         User           @relation("RentalRenter", fields: [renterId], references: [id], onDelete: Restrict)
+  contract       RentalContract?
+  payments       Payment[]
+  payout         Payout?
+  handovers      Handover[]
+  evidences      Evidence[]
+  reviews        Review[]
+
+  @@index([assetId])
+  @@index([ownerId])
+  @@index([renterId])
+  @@index([status])
+  @@index([startAt, endAt])
+  @@map("rental_requests")
+}
+
+model RentalContract {
+  id             String           @id @default(cuid())
+  rentalId        String           @unique @map("rental_id")
+  contractNumber String           @unique @map("contract_number")
+  version        Int              @default(1)
+  contentUrl     String?          @map("content_url")
+  contentHash    String           @map("content_hash")
+  snapshot       Json
+  status         ContractStatus   @default(PENDING_SIGNATURE)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  activatedAt    DateTime?        @map("activated_at")
+  rental         RentalRequest    @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  signatures     ContractSignature[]
+
+  @@map("rental_contracts")
+}
+
+model ContractSignature {
+  id                 String          @id @default(cuid())
+  contractId         String          @map("contract_id")
+  userId             String          @map("user_id")
+  signatureMethod    SignatureMethod @map("signature_method")
+  signedAt           DateTime        @default(now()) @map("signed_at")
+  ipAddress          String?         @map("ip_address")
+  deviceInfo         String?         @map("device_info")
+  signatureReference String?         @map("signature_reference")
+  contract           RentalContract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  user               User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([contractId, userId])
+  @@index([userId])
+  @@map("contract_signatures")
+}
+
+model Payment {
+  id                    String          @id @default(cuid())
+  rentalId              String          @map("rental_id")
+  payerId               String          @map("payer_id")
+  provider              PaymentProvider
+  providerTransactionId String          @unique @map("provider_transaction_id")
+  amount                Int
+  currency              String          @default("VND")
+  status                PaymentStatus   @default(PENDING)
+  paidAt                DateTime?       @map("paid_at")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  rental                RentalRequest   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  payer                 User            @relation("PaymentPayer", fields: [payerId], references: [id], onDelete: Restrict)
+
+  @@index([rentalId])
+  @@index([payerId])
+  @@map("payments")
+}
+
+model Payout {
+  id               String        @id @default(cuid())
+  rentalId         String        @unique @map("rental_id")
+  ownerId          String        @map("owner_id")
+  grossAmount      Int           @map("gross_amount")
+  commissionAmount Int           @map("commission_amount")
+  netAmount        Int           @map("net_amount")
+  status           PayoutStatus  @default(PENDING)
+  scheduledAt      DateTime?     @map("scheduled_at")
+  paidAt           DateTime?     @map("paid_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  rental           RentalRequest @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  owner            User          @relation("PayoutOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("payouts")
+}
+
+model Handover {
+  id          String         @id @default(cuid())
+  rentalId     String         @map("rental_id")
+  type        HandoverType
+  status      HandoverStatus @default(PENDING)
+  notes       String?
+  initiatedAt DateTime       @default(now()) @map("initiated_at")
+  confirmedAt DateTime?      @map("confirmed_at")
+  rental      RentalRequest  @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  items       HandoverItem[]
+  evidences   Evidence[]
+
+  @@index([rentalId])
+  @@map("handovers")
+}
+
+model HandoverItem {
+  id               String   @id @default(cuid())
+  handoverId       String   @map("handover_id")
+  accessoryName    String   @map("accessory_name")
+  expectedQuantity Int      @default(1) @map("expected_quantity")
+  actualQuantity   Int      @default(1) @map("actual_quantity")
+  condition        String?
+  note             String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  handover         Handover @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+
+  @@index([handoverId])
+  @@map("handover_items")
+}
+
+model Evidence {
+  id         String       @id @default(cuid())
+  rentalId    String       @map("rental_id")
+  handoverId  String?      @map("handover_id")
+  uploadedBy String       @map("uploaded_by")
+  type       EvidenceType
+  fileUrl    String       @map("file_url")
+  fileKey    String?      @map("file_key")
+  metadata   Json?
+  fileHash   String?      @map("file_hash")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  rental     RentalRequest @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  handover   Handover?    @relation(fields: [handoverId], references: [id], onDelete: SetNull)
+  uploader   User         @relation("EvidenceUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([rentalId])
+  @@index([handoverId])
+  @@index([uploadedBy])
+  @@map("evidences")
+}
+
+model Review {
+  id         String       @id @default(cuid())
+  rentalId    String       @map("rental_id")
+  reviewerId String       @map("reviewer_id")
+  revieweeId String       @map("reviewee_id")
+  rating     Int
+  comment    String?
+  status     ReviewStatus @default(PUBLISHED)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  rental     RentalRequest @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  reviewer   User         @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  reviewee   User         @relation("Reviewee", fields: [revieweeId], references: [id], onDelete: Restrict)
+
+  @@unique([rentalId, reviewerId])
+  @@index([revieweeId])
+  @@map("reviews")
+}
+
+model Notification {
+  id            String           @id @default(cuid())
+  userId        String           @map("user_id")
+  type          NotificationType
+  title         String
+  content       String
+  referenceType String?          @map("reference_type")
+  referenceId   String?          @map("reference_id")
+  readAt        DateTime?        @map("read_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("system_configs")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?  @map("actor_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  beforeData Json?    @map("before_data")
+  afterData  Json?    @map("after_data")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

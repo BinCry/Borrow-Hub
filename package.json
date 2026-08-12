@@ -1,0 +1,29 @@
+{
+  "name": "toolshare",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter toolshare-api build",
+    "start": "pnpm --filter toolshare-api start",
+    "start:dev": "pnpm --filter toolshare-api start:dev",
+    "lint": "pnpm --filter toolshare-api lint",
+    "test": "pnpm --filter toolshare-api test",
+    "test:e2e": "pnpm --filter toolshare-api test:e2e",
+    "prisma:generate": "pnpm --filter toolshare-api prisma:generate",
+    "prisma:migrate": "pnpm --filter toolshare-api prisma:migrate",
+    "prisma:seed": "pnpm --filter toolshare-api prisma:seed"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "prisma",
+      "unrs-resolver"
+    ]
+  }
+}
