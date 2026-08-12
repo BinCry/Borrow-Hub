@@ -35,16 +35,24 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     if (isPublic) {
+      const token = this.extractBearerToken(request);
+      if (token) {
+        try {
+          await this.attachAuthenticatedUser(request, token);
+        } catch {
+          // Public routes stay accessible even when an optional bearer token is invalid.
+        }
+      }
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.extractBearerToken(request);
 
     if (!token) {
@@ -52,47 +60,7 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-        token,
-        {
-          secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        },
-      );
-
-      if (payload.type !== 'access') {
-        throw new UnauthorizedException('Invalid token type');
-      }
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        include: {
-          userRoles: {
-            include: {
-              role: true,
-            },
-          },
-          verification: true,
-        },
-      });
-
-      if (
-        !user ||
-        user.status === UserStatus.BANNED ||
-        user.status === UserStatus.DELETED
-      ) {
-        throw new UnauthorizedException('Account is unavailable');
-      }
-
-      request.user = {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        status: user.status,
-        roles: user.userRoles.map((userRole) => userRole.role.name),
-        verificationStatus:
-          user.verification?.verificationStatus ??
-          VerificationStatus.NOT_STARTED,
-      };
+      await this.attachAuthenticatedUser(request, token);
       return true;
     } catch (error) {
       if (error instanceof UnauthorizedException) {
@@ -101,6 +69,50 @@ export class AuthGuard implements CanActivate {
 
       throw new UnauthorizedException('Invalid or expired access token');
     }
+  }
+
+  private async attachAuthenticatedUser(
+    request: AuthenticatedRequest,
+    token: string,
+  ) {
+    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
+      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+    });
+
+    if (payload.type !== 'access') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+        verification: true,
+      },
+    });
+
+    if (
+      !user ||
+      user.status === UserStatus.BANNED ||
+      user.status === UserStatus.DELETED
+    ) {
+      throw new UnauthorizedException('Account is unavailable');
+    }
+
+    request.user = {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      status: user.status,
+      roles: user.userRoles.map((userRole) => userRole.role.name),
+      verificationStatus:
+        user.verification?.verificationStatus ??
+        VerificationStatus.NOT_STARTED,
+    };
   }
 
   private extractBearerToken(request: AuthenticatedRequest): string | null {

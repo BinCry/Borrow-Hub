@@ -26,8 +26,11 @@ export class AssetsController {
 
   @Public()
   @Get()
-  search(@Query() query: SearchAssetsQueryDto) {
-    return this.assetsService.search(null, query);
+  search(
+    @Query() query: SearchAssetsQueryDto,
+    @CurrentUser() currentUser?: AuthenticatedUser,
+  ) {
+    return this.assetsService.search(currentUser ?? null, query);
   }
 
   @Get('my')
@@ -35,12 +38,13 @@ export class AssetsController {
     return this.assetsService.listMine(currentUser);
   }
 
+  @Public()
   @Get(':assetId')
   getById(
     @Param('assetId') assetId: string,
-    @CurrentUser() currentUser: AuthenticatedUser,
+    @CurrentUser() currentUser?: AuthenticatedUser,
   ) {
-    return this.assetsService.getById(assetId, currentUser);
+    return this.assetsService.getById(assetId, currentUser ?? null);
   }
 
   @Post()
@@ -70,4 +74,3 @@ export class AssetsController {
     return this.assetsService.moderate(assetId, currentUser, dto);
   }
 }
-
