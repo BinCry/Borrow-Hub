@@ -14,6 +14,8 @@ type NotificationPayload = {
 
 @Injectable()
 export class NotificationsService {
+  private static readonly HOUR_IN_MS = 60 * 60 * 1000;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly chatTimelineService: ChatTimelineService,
@@ -115,6 +117,7 @@ export class NotificationsService {
     const dedupeWindowStart = new Date(
       referenceDate.getTime() - 24 * 60 * 60 * 1000,
     );
+    const lateFeeRate = await this.getNumericConfig('late_fee_rate', 0);
 
     const [
       rentalsTomorrow,
@@ -240,10 +243,19 @@ export class NotificationsService {
 
     let overdueCount = 0;
     for (const rental of overdueRentals) {
-      if (rental.status !== RentalStatus.OVERDUE) {
+      const lateFee = this.calculateLateFee(
+        rental.endAt,
+        referenceDate,
+        lateFeeRate,
+      );
+
+      if (rental.status !== RentalStatus.OVERDUE || rental.lateFee !== lateFee) {
         await this.prisma.rentalRequest.update({
           where: { id: rental.id },
-          data: { status: RentalStatus.OVERDUE },
+          data: {
+            status: RentalStatus.OVERDUE,
+            lateFee,
+          },
         });
       }
 
@@ -252,7 +264,7 @@ export class NotificationsService {
         {
           type: NotificationType.RENTAL_OVERDUE,
           title: 'Đơn thuê đã quá hạn',
-          content: `Đơn thuê "${rental.asset.title}" hiện đang quá hạn.`,
+          content: this.buildOverdueContent(rental.asset.title, lateFee),
           referenceType: 'rental',
           referenceId: rental.id,
         },
@@ -339,5 +351,41 @@ export class NotificationsService {
       start: saturday,
       end: monday,
     };
+  }
+
+  private async getNumericConfig(key: string, fallback: number) {
+    const config = await this.prisma.systemConfig.findUnique({
+      where: { key },
+    });
+
+    return config ? Number(config.value) : fallback;
+  }
+
+  private calculateLateFee(
+    endAt: Date,
+    referenceDate: Date,
+    lateFeeRate: number,
+  ) {
+    if (lateFeeRate <= 0) {
+      return 0;
+    }
+
+    const overdueHours = Math.max(
+      1,
+      Math.ceil(
+        (referenceDate.getTime() - endAt.getTime()) /
+          NotificationsService.HOUR_IN_MS,
+      ),
+    );
+
+    return overdueHours * lateFeeRate;
+  }
+
+  private buildOverdueContent(assetTitle: string, lateFee: number) {
+    if (lateFee <= 0) {
+      return `Đơn thuê "${assetTitle}" hiện đang quá hạn.`;
+    }
+
+    return `Đơn thuê "${assetTitle}" hiện đang quá hạn. Phí trễ tạm tính hiện tại là ${lateFee} VND.`;
   }
 }
