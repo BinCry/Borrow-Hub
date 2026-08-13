@@ -34,11 +34,11 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Tài sản cho thuê: tạo listing, tìm kiếm, lọc, moderation kèm lý do xử lý cho owner
 - Quy trình thuê: tạo yêu cầu, duyệt/từ chối, hủy đơn theo policy, thanh toán sandbox, tự động tính late fee khi quá hạn
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
-- Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
+- Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận, upload standalone evidence cho dispute/damage report
 - QR handover: owner tạo QR ngắn hạn, renter scan một lần để xác nhận bàn giao
 - Đánh giá sau thuê: review hai chiều, edit trong cửa sổ cấu hình, moderation cho staff
 - Chat theo rental: conversation giữa owner, renter và staff, hỗ trợ text/image/system warning và lifecycle timeline (approve, contract signed, rental begins tomorrow, returned)
-- Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái, hỗ trợ nhánh asset not returned
+- Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái, hỗ trợ nhánh asset not returned, damage report và tự mở lại payout flow khi dispute return được đóng
 - Reports: report user, listing, review và chat message; moderator có thể cảnh báo user, ẩn listing, review hoặc chat message khi report hợp lệ
 - Support ticket: lịch sử hỗ trợ, note nội bộ, phân công customer support
 - Finance: tra cứu payment, payout, refund, khóa payout khi có dispute và thông báo khi payout hoàn tất
@@ -84,6 +84,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
   - Có overdue late fee theo `late_fee_rate` trong `SystemConfig`
   - Có endpoint owner báo `asset not returned` để mở dispute và khóa payout
+  - Có endpoint upload standalone evidence và damage report kèm estimate/evidenceIds
   - Có `HANDOVER_READY` khi owner bắt đầu delivery handover
   - Có thêm QR handover short-lived, one-time, bound theo rental/handover
 - `reviews`: đánh giá sau giao dịch
@@ -91,6 +92,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `chat`: hội thoại theo đơn thuê, ảnh chat, cảnh báo trao đổi ngoài nền tảng và system message nghiệp vụ
   - Timeline đã bao gồm approve, contract signed, rental begins tomorrow và asset returned
 - `disputes`: khiếu nại, evidence linkage, event timeline
+  - Có thêm renter accept damage report và tự gỡ `BLOCKED -> PENDING` cho payout khi dispute return khép lại
 - `reports`: report moderation, support workflow và moderation action lên target bị report
 - `support`: support ticket, lịch sử xử lý, assignment và note timeline
 - `finance`: payment, payout, refund, finance controls
@@ -194,7 +196,9 @@ pnpm prisma:seed
 16. Kiểm tra `GET /admin/request-logs` và xác nhận response có `x-request-id`, status, latency, endpoint.
 17. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
 18. Tạo report cho user/listing/review/chat message rồi resolve với `action` phù hợp để kiểm tra warning, ẩn nội dung và audit log moderation.
-19. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
+19. Upload standalone evidence cho rental rồi dùng `report-issue` với `repairEstimate`, `damageItems`, `evidenceIds` để kiểm tra damage report timeline.
+20. Dùng renter gọi `POST /disputes/:disputeId/accept-damage-report` hoặc để staff đóng dispute return rồi xác nhận payout được mở lại từ `BLOCKED` sang `PENDING`.
+21. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
 
 ## Tài khoản seed mẫu
 
