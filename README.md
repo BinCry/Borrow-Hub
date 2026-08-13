@@ -49,6 +49,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Analytics: tracking funnel sự kiện nghiệp vụ chính và endpoint summary cho admin
 - Request logs: tracing request ID, user ID, endpoint, status và latency cho vận hành
 - Admin: dashboard, quản lý user, role, user nội bộ, system config, audit log
+  - Dashboard đã có thêm marketplace KPI, finance KPI, risk overview và trust KPI
 - Notifications và audit log cho các action nhạy cảm, bao gồm payment success, contract ready và signature required
 
 ## Cấu trúc repo
@@ -102,6 +103,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `analytics`: tracking event nghiệp vụ và funnel summary cho admin
 - `request-logs`: request tracing an toàn, không lưu password/OTP/token
 - `admin`: dashboard, quản trị user và config
+  - `GET /admin/dashboard` trả thêm refund, blocked payout, fraud reports, suspicious accounts, take rate, dispute rate, damage report rate, late return rate, fake listing rate
 - `notifications`: hộp thông báo trong hệ thống
   - Có thêm endpoint admin để chạy batch reminder nghiệp vụ
   - Luồng payment hiện phát đủ `PAYMENT_SUCCESS`, `CONTRACT_READY`, `SIGNATURE_REQUIRED`
@@ -199,6 +201,7 @@ pnpm prisma:seed
 19. Upload standalone evidence cho rental rồi dùng `report-issue` với `repairEstimate`, `damageItems`, `evidenceIds` để kiểm tra damage report timeline.
 20. Dùng renter gọi `POST /disputes/:disputeId/accept-damage-report` hoặc để staff đóng dispute return rồi xác nhận payout được mở lại từ `BLOCKED` sang `PENDING`.
 21. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
+22. Gọi `GET /admin/dashboard` để kiểm tra thêm các KPI: cancellation rate, take rate, refund amount, blocked payout, fraud reports, suspicious accounts và trust KPI.
 
 ## Tài khoản seed mẫu
 
