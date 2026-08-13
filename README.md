@@ -28,6 +28,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 
 - Xác thực JWT: đăng ký, đăng nhập, refresh token, đăng xuất, `me`
 - Hồ sơ người dùng: cập nhật profile, địa chỉ, trust score
+  - Trust score hiện được tính lại tập trung từ KYC, review, completed rental, open dispute, overdue rental và user risk incident
 - eKYC giả lập: submit hồ sơ, xem trạng thái xác minh
 - KYC review nội bộ: admin duyệt `VERIFIED / REJECTED / REQUIRES_REVIEW`
 - Danh mục tài sản: cây danh mục, CRUD cơ bản cho admin
@@ -94,6 +95,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
   - Timeline đã bao gồm approve, contract signed, rental begins tomorrow và asset returned
 - `disputes`: khiếu nại, evidence linkage, event timeline
   - Có thêm renter accept damage report và tự gỡ `BLOCKED -> PENDING` cho payout khi dispute return khép lại
+- `trust-score`: service dùng chung để chuẩn hóa cách tính trust score giữa KYC, review, dispute và moderation
 - `reports`: report moderation, support workflow và moderation action lên target bị report
 - `support`: support ticket, lịch sử xử lý, assignment và note timeline
 - `finance`: payment, payout, refund, finance controls
@@ -202,6 +204,7 @@ pnpm prisma:seed
 20. Dùng renter gọi `POST /disputes/:disputeId/accept-damage-report` hoặc để staff đóng dispute return rồi xác nhận payout được mở lại từ `BLOCKED` sang `PENDING`.
 21. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
 22. Gọi `GET /admin/dashboard` để kiểm tra thêm các KPI: cancellation rate, take rate, refund amount, blocked payout, fraud reports, suspicious accounts và trust KPI.
+23. Duyệt KYC, tạo review, mở/đóng dispute rồi kiểm tra `trustScore` ở profile user để xác nhận trust score thay đổi theo vòng đời nghiệp vụ.
 
 ## Tài khoản seed mẫu
 
