@@ -23,6 +23,10 @@ describe('AssetsService', () => {
     track: jest.fn(),
   };
 
+  const configService = {
+    get: jest.fn().mockReturnValue('http://localhost:3000'),
+  };
+
   const auditService = {
     create: jest.fn(),
   };
@@ -54,6 +58,7 @@ describe('AssetsService', () => {
 
     service = new AssetsService(
       prisma as never,
+      configService as never,
       analyticsService as never,
       auditService as never,
       notificationsService as never,
@@ -72,6 +77,9 @@ describe('AssetsService', () => {
       title: 'Listing bị từ chối',
       content:
         'Tài sản "Canon R6" đã được cập nhật sang trạng thái REJECTED. Lý do: Thiếu ảnh chứng minh serial và mô tả chưa đủ rõ.',
+      metadata: {
+        assetId: 'asset-1',
+      },
       referenceType: 'asset',
       referenceId: 'asset-1',
     });
@@ -101,6 +109,9 @@ describe('AssetsService', () => {
       type: 'ASSET_MODERATED',
       title: 'Listing đã được duyệt',
       content: 'Tài sản "Canon R6" đã được cập nhật sang trạng thái ACTIVE.',
+      metadata: {
+        assetId: 'asset-1',
+      },
       referenceType: 'asset',
       referenceId: 'asset-1',
     });

@@ -231,6 +231,36 @@ export class AuthService {
     return this.serializeUser(user);
   }
 
+  async validateAccessToken(token: string): Promise<AuthenticatedUser> {
+    try {
+      const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
+        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      });
+
+      if (payload.type !== 'access') {
+        throw new UnauthorizedException('Invalid token type');
+      }
+
+      const foundUser = await findUserWithRelations(this.prisma, payload.sub);
+
+      if (
+        !foundUser ||
+        foundUser.status === UserStatus.BANNED ||
+        foundUser.status === UserStatus.DELETED
+      ) {
+        throw new UnauthorizedException('Account is unavailable');
+      }
+
+      return this.serializeUser(foundUser) as AuthenticatedUser;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      throw new UnauthorizedException('Invalid or expired access token');
+    }
+  }
+
   private async issueTokens(user: PersistedUserWithRelations) {
     const roles = user.userRoles.map((userRole) => userRole.role.name);
     const accessTokenPayload: TokenPayload = {

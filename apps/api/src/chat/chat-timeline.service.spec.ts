@@ -16,6 +16,10 @@ describe('ChatTimelineService', () => {
     },
   };
 
+  const chatEventsService = {
+    emitMessageCreated: jest.fn(),
+  };
+
   let service: ChatTimelineService;
 
   beforeEach(() => {
@@ -28,7 +32,10 @@ describe('ChatTimelineService', () => {
     prisma.conversation.findUnique.mockResolvedValue({
       id: 'conversation-1',
     });
-    service = new ChatTimelineService(prisma as never);
+    service = new ChatTimelineService(
+      prisma as never,
+      chatEventsService as never,
+    );
   });
 
   it('appends a rental system message to an existing conversation', async () => {
@@ -54,7 +61,23 @@ describe('ChatTimelineService', () => {
         content: 'Owner approved your request.',
         metadata: undefined,
       },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
     });
+    expect(chatEventsService.emitMessageCreated).toHaveBeenCalledWith(
+      'conversation-1',
+      expect.objectContaining({
+        id: 'message-5',
+      }),
+      ['owner-1', 'renter-1'],
+    );
     expect(result.id).toBe('message-5');
   });
 
@@ -96,6 +119,15 @@ describe('ChatTimelineService', () => {
         content: 'Contract signed.',
         metadata: undefined,
       },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
     });
   });
 
@@ -133,6 +165,7 @@ describe('ChatTimelineService', () => {
       },
     });
     expect(prisma.message.create).not.toHaveBeenCalled();
+    expect(chatEventsService.emitMessageCreated).not.toHaveBeenCalled();
     expect(result).toBe(existingMessage);
   });
 });

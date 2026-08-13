@@ -182,6 +182,10 @@ describe('RentalsService recordPayment', () => {
       type: 'PAYMENT_SUCCESS',
       title: 'Thanh toán thành công',
       content: 'Thanh toán cho đơn thuê "Canon R6" đã được ghi nhận thành công.',
+      metadata: {
+        rentalId: rental.id,
+        assetId: rental.assetId,
+      },
       referenceType: 'rental',
       referenceId: rental.id,
     });
@@ -192,6 +196,10 @@ describe('RentalsService recordPayment', () => {
         type: 'CONTRACT_READY',
         title: 'Hợp đồng điện tử đã sẵn sàng',
         content: 'Đơn thuê "Canon R6" đang chờ hai bên ký hợp đồng.',
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         referenceType: 'rental',
         referenceId: rental.id,
       },
@@ -203,6 +211,10 @@ describe('RentalsService recordPayment', () => {
         type: 'SIGNATURE_REQUIRED',
         title: 'Cần ký hợp đồng điện tử',
         content: 'Đơn thuê "Canon R6" đang chờ chữ ký của các bên liên quan.',
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         referenceType: 'rental',
         referenceId: rental.id,
       },

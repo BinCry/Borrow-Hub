@@ -33,3 +33,8 @@ export class ChatQueryDto {
   @IsString()
   rentalId?: string;
 }
+
+export class SendSocketMessageDto extends SendMessageDto {
+  @IsString()
+  conversationId!: string;
+}

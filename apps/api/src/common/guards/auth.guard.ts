@@ -4,34 +4,18 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import {
-  RoleName,
-  UserStatus,
-  VerificationStatus,
-} from '@prisma/client';
 import { Reflector } from '@nestjs/core';
-import { PrismaService } from '../../database/prisma.service';
+import { AuthService } from '../../auth/auth.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import type {
   AuthenticatedRequest,
 } from '../interfaces/authenticated-request.interface';
 
-type AccessTokenPayload = {
-  sub: string;
-  email: string;
-  roles: RoleName[];
-  type: 'access' | 'refresh';
-};
-
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -75,44 +59,7 @@ export class AuthGuard implements CanActivate {
     request: AuthenticatedRequest,
     token: string,
   ) {
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-    });
-
-    if (payload.type !== 'access') {
-      throw new UnauthorizedException('Invalid token type');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
-        verification: true,
-      },
-    });
-
-    if (
-      !user ||
-      user.status === UserStatus.BANNED ||
-      user.status === UserStatus.DELETED
-    ) {
-      throw new UnauthorizedException('Account is unavailable');
-    }
-
-    request.user = {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      status: user.status,
-      roles: user.userRoles.map((userRole) => userRole.role.name),
-      verificationStatus:
-        user.verification?.verificationStatus ??
-        VerificationStatus.NOT_STARTED,
-    };
+    request.user = await this.authService.validateAccessToken(token);
   }
 
   private extractBearerToken(request: AuthenticatedRequest): string | null {

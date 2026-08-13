@@ -134,6 +134,10 @@ export class RentalsService {
       type: NotificationType.RENTAL_REQUEST_CREATED,
       title: 'Yêu cầu thuê mới',
       content: `${currentUser.fullName} vừa gửi yêu cầu thuê "${asset.title}".`,
+      metadata: {
+        rentalId: rental.id,
+        assetId: rental.assetId,
+      },
       referenceType: 'rental',
       referenceId: rental.id,
     });
@@ -196,6 +200,13 @@ export class RentalsService {
     return rental;
   }
 
+  async getPaymentIntent(rentalId: string, currentUser: AuthenticatedUser) {
+    const rental = await this.findAccessibleRental(rentalId, currentUser);
+    this.assertRenter(rental.renterId, currentUser);
+
+    return this.buildPaymentIntent(rental);
+  }
+
   async approve(
     rentalId: string,
     currentUser: AuthenticatedUser,
@@ -216,6 +227,10 @@ export class RentalsService {
 
     await this.notificationsService.createMany([rental.renterId], {
       type: NotificationType.RENTAL_REQUEST_APPROVED,
+      metadata: {
+        rentalId: rental.id,
+        assetId: rental.assetId,
+      },
       title: 'Yêu cầu thuê đã được chấp nhận',
       content: `Chủ tài sản đã chấp nhận yêu cầu thuê "${rental.asset.title}".`,
       referenceType: 'rental',
@@ -270,6 +285,10 @@ export class RentalsService {
 
     await this.notificationsService.createMany([rental.renterId], {
       type: NotificationType.RENTAL_REQUEST_DECLINED,
+      metadata: {
+        rentalId: rental.id,
+        assetId: rental.assetId,
+      },
       title: 'Yêu cầu thuê bị từ chối',
       content: `Chủ tài sản đã từ chối yêu cầu thuê "${rental.asset.title}".`,
       referenceType: 'rental',
@@ -397,6 +416,10 @@ export class RentalsService {
       [rental.ownerId, rental.renterId].filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.SYSTEM,
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         title: 'Đơn thuê đã bị hủy',
         content: `${currentUser.fullName} đã hủy đơn thuê "${rental.asset.title}".`,
         referenceType: 'rental',
@@ -438,6 +461,11 @@ export class RentalsService {
     const rental = await this.findAccessibleRental(rentalId, currentUser);
     this.assertRenter(rental.renterId, currentUser);
     this.assertStatus(rental.status, [RentalStatus.AWAITING_PAYMENT]);
+    const paymentIntent = this.buildPaymentIntent(rental);
+
+    if (!paymentIntent.isPayable) {
+      throw new ConflictException('Rental does not require payment');
+    }
 
     const contractNumber = await this.generateContractNumber();
     const contractSnapshot = this.buildContractSnapshot(rental);
@@ -452,7 +480,7 @@ export class RentalsService {
           providerTransactionId:
             dto.providerTransactionId ??
             `sandbox-${rental.id}-${Date.now().toString()}`,
-          amount: rental.totalAmount,
+          amount: paymentIntent.amountDue,
           status: PaymentStatus.SUCCESS,
           paidAt: new Date(),
         },
@@ -512,6 +540,10 @@ export class RentalsService {
       [rental.renterId],
       {
         type: NotificationType.PAYMENT_SUCCESS,
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         title: 'Thanh toán thành công',
         content: `Thanh toán cho đơn thuê "${rental.asset.title}" đã được ghi nhận thành công.`,
         referenceType: 'rental',
@@ -523,6 +555,10 @@ export class RentalsService {
       [rental.ownerId, rental.renterId],
       {
         type: NotificationType.CONTRACT_READY,
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         title: 'Hợp đồng điện tử đã sẵn sàng',
         content: `Đơn thuê "${rental.asset.title}" đang chờ hai bên ký hợp đồng.`,
         referenceType: 'rental',
@@ -534,6 +570,10 @@ export class RentalsService {
       [rental.ownerId, rental.renterId],
       {
         type: NotificationType.SIGNATURE_REQUIRED,
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         title: 'Cần ký hợp đồng điện tử',
         content: `Đơn thuê "${rental.asset.title}" đang chờ chữ ký của các bên liên quan.`,
         referenceType: 'rental',
@@ -629,6 +669,10 @@ export class RentalsService {
         type: bothSigned
           ? NotificationType.RENTAL_CONFIRMED
           : NotificationType.CONTRACT_SIGNED,
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         title: bothSigned ? 'Đơn thuê đã được xác nhận' : 'Hợp đồng đã có chữ ký mới',
         content: bothSigned
           ? `Hai bên đã ký xong hợp đồng cho "${rental.asset.title}".`
@@ -736,6 +780,10 @@ export class RentalsService {
     if (dto.type === HandoverType.DELIVERY) {
       await this.notificationsService.createMany([rental.renterId], {
         type: NotificationType.HANDOVER_READY,
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         title: 'Phiên bàn giao đã sẵn sàng',
         content: `Chủ tài sản đã bắt đầu phiên bàn giao cho "${rental.asset.title}". Vui lòng kiểm tra và xác nhận khi nhận tài sản.`,
         referenceType: 'rental',
@@ -768,6 +816,10 @@ export class RentalsService {
           handover.type === HandoverType.DELIVERY
             ? NotificationType.HANDOVER_COMPLETED
             : NotificationType.RETURN_COMPLETED,
+        metadata: {
+          rentalId: rental.id,
+          assetId: rental.assetId,
+        },
         title:
           handover.type === HandoverType.DELIVERY
             ? 'Bàn giao hoàn tất'
@@ -932,6 +984,10 @@ export class RentalsService {
         [session.rental.ownerId].filter((userId) => userId !== currentUser.id),
         {
           type: NotificationType.HANDOVER_COMPLETED,
+          metadata: {
+            rentalId: session.rental.id,
+            assetId: session.rental.assetId,
+          },
           title: 'Bàn giao hoàn tất qua QR',
           content: `Tài sản "${session.rental.asset.title}" đã được xác nhận bàn giao bằng QR.`,
           referenceType: 'rental',
@@ -989,6 +1045,10 @@ export class RentalsService {
 
     await this.notificationsService.createMany([rental.ownerId], {
       type: NotificationType.RETURN_REQUESTED,
+      metadata: {
+        rentalId: rental.id,
+        assetId: rental.assetId,
+      },
       title: 'Người thuê yêu cầu hoàn trả',
       content: `Người thuê đã yêu cầu hoàn trả tài sản "${rental.asset.title}".`,
       referenceType: 'rental',
@@ -1283,6 +1343,11 @@ export class RentalsService {
 
     await this.notificationsService.createMany([rental.renterId], {
       type: NotificationType.SYSTEM,
+      metadata: {
+        disputeId: dispute.id,
+        rentalId: rental.id,
+        assetId: rental.assetId,
+      },
       title: options.renterNotificationTitle,
       content: options.renterNotificationContent,
       referenceType: 'dispute',
@@ -1694,6 +1759,38 @@ export class RentalsService {
         deliveryFee: rental.deliveryFee,
         totalAmount: rental.totalAmount,
       },
+    };
+  }
+
+  private buildPaymentIntent(
+    rental: Awaited<ReturnType<RentalsService['findAccessibleRental']>>,
+  ) {
+    const completedPaymentStatuses: PaymentStatus[] = [
+      PaymentStatus.SUCCESS,
+      PaymentStatus.PARTIALLY_REFUNDED,
+      PaymentStatus.REFUNDED,
+    ];
+    const hasCompletedPayment = rental.payments.some((payment) =>
+      completedPaymentStatuses.includes(payment.status),
+    );
+    const amountDue =
+      rental.status === RentalStatus.AWAITING_PAYMENT && !hasCompletedPayment
+        ? rental.totalAmount
+        : 0;
+
+    return {
+      rentalId: rental.id,
+      assetId: rental.assetId,
+      status: rental.status,
+      paymentProvider: PaymentProvider.SANDBOX,
+      currency: rental.currency,
+      amountDue,
+      totalAmount: rental.totalAmount,
+      rentalFee: rental.rentalFee,
+      serviceFee: rental.serviceFee,
+      deliveryFee: rental.deliveryFee,
+      lateFee: rental.lateFee,
+      isPayable: amountDue > 0,
     };
   }
 

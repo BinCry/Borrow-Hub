@@ -24,9 +24,11 @@ describe('RentalsService asset not returned', () => {
 
   const rental = {
     id: 'rental-1',
+    assetId: 'asset-1',
     ownerId: ownerUser.id,
     renterId: renterUser.id,
     asset: {
+      id: 'asset-1',
       title: 'Canon R6',
       images: [],
     },
@@ -203,6 +205,11 @@ describe('RentalsService asset not returned', () => {
       title: 'Chủ tài sản báo chưa nhận lại tài sản',
       content:
         'Chủ tài sản đã đánh dấu "Canon R6" là chưa được hoàn trả và mở dispute xử lý.',
+      metadata: {
+        disputeId: 'dispute-1',
+        rentalId: rental.id,
+        assetId: rental.assetId,
+      },
       referenceType: 'dispute',
       referenceId: 'dispute-1',
     });

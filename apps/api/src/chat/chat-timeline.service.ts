@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { MessageType, Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { ChatEventsService } from './chat-events.service';
 
 type AppendRentalSystemMessageOptions = {
   dedupeWindowStart?: Date;
@@ -9,7 +10,10 @@ type AppendRentalSystemMessageOptions = {
 
 @Injectable()
 export class ChatTimelineService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly chatEventsService: ChatEventsService,
+  ) {}
 
   async appendSystemMessageForRental(
     rentalId: string,
@@ -75,7 +79,7 @@ export class ChatTimelineService {
       }
     }
 
-    return this.prisma.message.create({
+    const message = await this.prisma.message.create({
       data: {
         conversationId,
         senderId: actorId,
@@ -83,6 +87,22 @@ export class ChatTimelineService {
         content,
         metadata: options?.metadata,
       },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
     });
+
+    this.chatEventsService.emitMessageCreated(conversationId, message, [
+      rental.ownerId,
+      rental.renterId,
+    ]);
+
+    return message;
   }
 }

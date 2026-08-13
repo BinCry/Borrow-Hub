@@ -957,6 +957,7 @@ model Notification {
   type          NotificationType
   title         String
   content       String
+  metadata      Json?
   referenceType String?          @map("reference_type")
   referenceId   String?          @map("reference_id")
   readAt        DateTime?        @map("read_at")

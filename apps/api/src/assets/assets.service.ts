@@ -15,6 +15,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
+import { mkdir, writeFile } from 'fs/promises';
+import { dirname, extname, resolve } from 'path';
 import { PrismaService } from '../database/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
@@ -70,10 +74,26 @@ type EnrichedSearchAsset = SearchAssetRecord & {
   distanceKm: number | null;
 };
 
+type UploadedAssetImageFile = {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+};
+
+const SUPPORTED_ASSET_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+]);
+
 @Injectable()
 export class AssetsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
     private readonly analyticsService: AnalyticsService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
@@ -263,6 +283,35 @@ export class AssetsService {
       },
       orderBy: [{ createdAt: 'desc' }],
     });
+  }
+
+  async uploadImage(
+    currentUser: AuthenticatedUser,
+    file: UploadedAssetImageFile | null,
+  ) {
+    if (!file) {
+      throw new BadRequestException('An image file is required');
+    }
+
+    if (!SUPPORTED_ASSET_IMAGE_MIME_TYPES.has(file.mimetype)) {
+      throw new BadRequestException('Unsupported image format');
+    }
+
+    if (!file.buffer?.length) {
+      throw new BadRequestException('Uploaded image is empty');
+    }
+
+    const fileKey = this.buildAssetUploadFileKey(currentUser.id, file);
+    const uploadsRoot = resolve(__dirname, '..', '..', 'uploads');
+    const outputPath = resolve(uploadsRoot, fileKey);
+
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, file.buffer);
+
+    return {
+      url: this.buildPublicUploadUrl(fileKey),
+      fileKey,
+    };
   }
 
   async create(currentUser: AuthenticatedUser, dto: CreateAssetDto) {
@@ -523,6 +572,9 @@ export class AssetsService {
       type: 'ASSET_MODERATED',
       title: this.buildModerationTitle(dto.status),
       content: this.buildModerationContent(asset.title, dto.status, dto.reason),
+      metadata: {
+        assetId: asset.id,
+      },
       referenceType: 'asset',
       referenceId: asset.id,
     });
@@ -857,6 +909,39 @@ export class AssetsService {
 
   private toRadians(value: number) {
     return (value * Math.PI) / 180;
+  }
+
+  private buildAssetUploadFileKey(
+    userId: string,
+    file: UploadedAssetImageFile,
+  ) {
+    const extension =
+      this.resolveImageExtension(file.mimetype) ||
+      extname(file.originalname).toLowerCase() ||
+      '.jpg';
+
+    return `assets/${userId}/${Date.now()}-${randomUUID()}${extension}`;
+  }
+
+  private resolveImageExtension(mimetype: string) {
+    switch (mimetype) {
+      case 'image/png':
+        return '.png';
+      case 'image/webp':
+        return '.webp';
+      case 'image/heic':
+        return '.heic';
+      case 'image/heif':
+        return '.heif';
+      case 'image/jpeg':
+      default:
+        return '.jpg';
+    }
+  }
+
+  private buildPublicUploadUrl(fileKey: string) {
+    const appUrl = this.configService.get<string>('APP_URL') ?? 'http://localhost:3000';
+    return `${appUrl.replace(/\/+$/, '')}/uploads/${fileKey.replace(/\\/g, '/')}`;
   }
 
   private normalizeDeliveryOptions(deliveryOptions: Prisma.JsonValue | null) {

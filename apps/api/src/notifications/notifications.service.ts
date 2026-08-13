@@ -1,16 +1,21 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { Notification, NotificationType, RentalStatus } from '@prisma/client';
+import { NotificationType, Prisma, RentalStatus } from '@prisma/client';
 import { ChatTimelineService } from '../chat/chat-timeline.service';
 import { PrismaService } from '../database/prisma.service';
 import { RunReminderJobsDto } from './notifications.dto';
+
+type NotificationMetadata = Record<string, string | number | boolean | null>;
 
 type NotificationPayload = {
   type: NotificationType;
   title: string;
   content: string;
+  metadata?: NotificationMetadata;
   referenceType?: string;
   referenceId?: string;
 };
+
+type NotificationRecord = Prisma.NotificationGetPayload<Record<string, never>>;
 
 @Injectable()
 export class NotificationsService {
@@ -29,10 +34,13 @@ export class NotificationsService {
       return;
     }
 
+    const normalizedPayload = this.normalizePayload(payload);
+
     await this.prisma.notification.createMany({
       data: userIds.map((userId) => ({
         userId,
-        ...payload,
+        ...normalizedPayload,
+        metadata: normalizedPayload.metadata as Prisma.InputJsonValue | undefined,
       })),
     });
   }
@@ -43,14 +51,15 @@ export class NotificationsService {
     dedupeWindowStart: Date,
   ): Promise<number> {
     let createdCount = 0;
+    const normalizedPayload = this.normalizePayload(payload);
 
     for (const userId of [...new Set(userIds)]) {
       const existing = await this.prisma.notification.findFirst({
         where: {
           userId,
-          type: payload.type,
-          referenceType: payload.referenceType ?? null,
-          referenceId: payload.referenceId ?? null,
+          type: normalizedPayload.type,
+          referenceType: normalizedPayload.referenceType ?? null,
+          referenceId: normalizedPayload.referenceId ?? null,
           createdAt: {
             gte: dedupeWindowStart,
           },
@@ -64,7 +73,9 @@ export class NotificationsService {
       await this.prisma.notification.create({
         data: {
           userId,
-          ...payload,
+          ...normalizedPayload,
+          metadata:
+            normalizedPayload.metadata as Prisma.InputJsonValue | undefined,
         },
       });
       createdCount += 1;
@@ -73,14 +84,18 @@ export class NotificationsService {
     return createdCount;
   }
 
-  findForUser(userId: string): Promise<Notification[]> {
-    return this.prisma.notification.findMany({
+  async findForUser(userId: string) {
+    const notifications = await this.prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+
+    return notifications.map((notification) =>
+      this.serializeNotification(notification),
+    );
   }
 
-  async markAsRead(userId: string, notificationId: string): Promise<Notification> {
+  async markAsRead(userId: string, notificationId: string) {
     const notification = await this.prisma.notification.findUnique({
       where: { id: notificationId },
     });
@@ -89,10 +104,12 @@ export class NotificationsService {
       throw new ForbiddenException('Notification not found');
     }
 
-    return this.prisma.notification.update({
+    const updated = await this.prisma.notification.update({
       where: { id: notificationId },
       data: { readAt: new Date() },
     });
+
+    return this.serializeNotification(updated);
   }
 
   async markAllAsRead(userId: string): Promise<{ count: number }> {
@@ -202,6 +219,10 @@ export class NotificationsService {
           type: NotificationType.RENTAL_TOMORROW,
           title: 'Đơn thuê sắp bắt đầu',
           content: `Đơn thuê "${rental.asset.title}" sẽ bắt đầu trong vòng 24 giờ tới.`,
+          metadata: {
+            rentalId: rental.id,
+            assetId: rental.assetId,
+          },
           referenceType: 'rental',
           referenceId: rental.id,
         },
@@ -234,6 +255,10 @@ export class NotificationsService {
           type: NotificationType.RETURN_REMINDER,
           title: 'Nhắc nhở hoàn trả',
           content: `Đơn thuê "${rental.asset.title}" sắp đến hạn hoàn trả trong vòng 24 giờ tới.`,
+          metadata: {
+            rentalId: rental.id,
+            assetId: rental.assetId,
+          },
           referenceType: 'rental',
           referenceId: rental.id,
         },
@@ -265,6 +290,10 @@ export class NotificationsService {
           type: NotificationType.RENTAL_OVERDUE,
           title: 'Đơn thuê đã quá hạn',
           content: this.buildOverdueContent(rental.asset.title, lateFee),
+          metadata: {
+            rentalId: rental.id,
+            assetId: rental.assetId,
+          },
           referenceType: 'rental',
           referenceId: rental.id,
         },
@@ -289,6 +318,10 @@ export class NotificationsService {
           type: NotificationType.REVIEW_REMINDER,
           title: 'Nhắc nhở đánh giá giao dịch',
           content: `Bạn vẫn chưa để lại đánh giá cho giao dịch "${rental.asset.title}".`,
+          metadata: {
+            rentalId: rental.id,
+            assetId: rental.assetId,
+          },
           referenceType: 'rental',
           referenceId: rental.id,
         },
@@ -320,6 +353,9 @@ export class NotificationsService {
           type: NotificationType.AVAILABILITY_MATCH,
           title: 'Tài sản yêu thích đang rảnh cuối tuần',
           content: `Tài sản "${favorite.asset.title}" trong wishlist của bạn hiện có vẻ đang rảnh vào cuối tuần tới.`,
+          metadata: {
+            assetId: favorite.assetId,
+          },
           referenceType: 'asset',
           referenceId: favorite.assetId,
         },
@@ -387,5 +423,77 @@ export class NotificationsService {
     }
 
     return `Đơn thuê "${assetTitle}" hiện đang quá hạn. Phí trễ tạm tính hiện tại là ${lateFee} VND.`;
+  }
+  private normalizePayload(payload: NotificationPayload) {
+    const defaultMetadata =
+      payload.referenceType && payload.referenceId
+        ? this.buildReferenceMetadata(payload.referenceType, payload.referenceId)
+        : undefined;
+
+    return {
+      ...payload,
+      metadata: this.mergeMetadata(defaultMetadata, payload.metadata),
+    };
+  }
+
+  private buildReferenceMetadata(
+    referenceType: string,
+    referenceId: string,
+  ): NotificationMetadata | undefined {
+    const metadataKeyByReferenceType: Record<string, string> = {
+      asset: 'assetId',
+      rental: 'rentalId',
+      conversation: 'conversationId',
+      dispute: 'disputeId',
+      payment: 'paymentId',
+      payout: 'payoutId',
+      report: 'reportId',
+      support_ticket: 'supportTicketId',
+      risk: 'riskIncidentId',
+      kyc: 'kycId',
+    };
+    const metadataKey = metadataKeyByReferenceType[referenceType];
+
+    if (!metadataKey) {
+      return undefined;
+    }
+
+    return {
+      [metadataKey]: referenceId,
+    };
+  }
+
+  private mergeMetadata(
+    ...sources: Array<NotificationMetadata | undefined>
+  ): NotificationMetadata | undefined {
+    const mergedEntries = sources
+      .filter((source): source is NotificationMetadata => !!source)
+      .flatMap((source) =>
+        Object.entries(source).filter(([, value]) => value !== undefined),
+      );
+
+    if (mergedEntries.length === 0) {
+      return undefined;
+    }
+
+    return Object.fromEntries(mergedEntries);
+  }
+
+  private serializeNotification(notification: NotificationRecord) {
+    const metadata =
+      notification.metadata &&
+      typeof notification.metadata === 'object' &&
+      !Array.isArray(notification.metadata)
+        ? (notification.metadata as NotificationMetadata)
+        : this.buildReferenceMetadata(
+            notification.referenceType ?? '',
+            notification.referenceId ?? '',
+          );
+
+    return {
+      ...notification,
+      body: notification.content,
+      metadata: metadata ?? null,
+    };
   }
 }

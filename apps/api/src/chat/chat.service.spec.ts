@@ -24,8 +24,10 @@ describe('ChatService', () => {
 
   const conversation = {
     id: 'conversation-1',
+    rentalId: 'rental-1',
     rental: {
       asset: {
+        id: 'asset-1',
         title: 'Canon R6',
       },
     },
@@ -54,6 +56,11 @@ describe('ChatService', () => {
     createMany: jest.fn(),
   };
 
+  const chatEventsService = {
+    emitConversationCreated: jest.fn(),
+    emitMessageCreated: jest.fn(),
+  };
+
   const chatTimelineService = {
     appendSystemMessageForRental: jest.fn(),
   };
@@ -74,6 +81,7 @@ describe('ChatService', () => {
     service = new ChatService(
       prisma as never,
       notificationsService as never,
+      chatEventsService as never,
       chatTimelineService as never,
     );
   });
@@ -106,6 +114,13 @@ describe('ChatService', () => {
           attachmentUrl: 'https://cdn.example.com/evidence.jpg',
         }),
       }),
+    );
+    expect(chatEventsService.emitMessageCreated).toHaveBeenCalledWith(
+      conversation.id,
+      expect.objectContaining({
+        id: 'message-1',
+      }),
+      ['user-1', 'owner-1'],
     );
     expect(result.messageType).toBe(MessageType.IMAGE);
   });
@@ -146,6 +161,7 @@ describe('ChatService', () => {
         }),
       }),
     );
+    expect(chatEventsService.emitMessageCreated).toHaveBeenCalledTimes(2);
   });
 
   it('rejects image messages without attachmentUrl', async () => {

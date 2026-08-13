@@ -33,9 +33,11 @@ describe('RentalsService QR handover', () => {
 
   const rental = {
     id: 'rental-1',
+    assetId: 'asset-1',
     ownerId: ownerUser.id,
     renterId: renterUser.id,
     asset: {
+      id: 'asset-1',
       title: 'Canon R6',
       images: [],
     },
@@ -167,6 +169,10 @@ describe('RentalsService QR handover', () => {
       title: 'Phiên bàn giao đã sẵn sàng',
       content:
         'Chủ tài sản đã bắt đầu phiên bàn giao cho "Canon R6". Vui lòng kiểm tra và xác nhận khi nhận tài sản.',
+      metadata: {
+        rentalId: rental.id,
+        assetId: rental.assetId,
+      },
       referenceType: 'rental',
       referenceId: rental.id,
     });
@@ -230,7 +236,7 @@ describe('RentalsService QR handover', () => {
       id: 'qr-3',
       token: 'active-token',
       usedAt: null,
-      expiresAt: new Date('2026-08-13T12:00:00.000Z'),
+      expiresAt: new Date('2099-01-01T12:00:00.000Z'),
       handover,
       rental,
     });

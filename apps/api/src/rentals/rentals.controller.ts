@@ -54,6 +54,14 @@ export class RentalsController {
     return this.rentalsService.getById(rentalId, currentUser);
   }
 
+  @Get(':rentalId/payment-intent')
+  getPaymentIntent(
+    @Param('rentalId') rentalId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.rentalsService.getPaymentIntent(rentalId, currentUser);
+  }
+
   @Patch(':rentalId/approve')
   approve(
     @Param('rentalId') rentalId: string,

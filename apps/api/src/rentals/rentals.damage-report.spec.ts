@@ -28,10 +28,12 @@ describe('RentalsService damage report', () => {
 
   const rental = {
     id: 'rental-1',
+    assetId: 'asset-1',
     ownerId: ownerUser.id,
     renterId: renterUser.id,
     currency: 'VND',
     asset: {
+      id: 'asset-1',
       title: 'Canon R6',
       images: [],
     },

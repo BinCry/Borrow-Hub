@@ -6,7 +6,10 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { RoleName } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -36,6 +39,28 @@ export class AssetsController {
   @Get('my')
   listMine(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.assetsService.listMine(currentUser);
+  }
+
+  @Post('upload-image')
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      limits: {
+        files: 1,
+        fileSize: 15 * 1024 * 1024,
+      },
+    }),
+  )
+  uploadImage(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @UploadedFiles()
+    files: Array<{
+      originalname: string;
+      mimetype: string;
+      size: number;
+      buffer: Buffer;
+    }>,
+  ) {
+    return this.assetsService.uploadImage(currentUser, files?.[0] ?? null);
   }
 
   @Public()

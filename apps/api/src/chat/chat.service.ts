@@ -8,6 +8,7 @@ import { MessageType, NotificationType, Prisma, RoleName } from '@prisma/client'
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ChatEventsService } from './chat-events.service';
 import { ChatTimelineService } from './chat-timeline.service';
 import { ChatQueryDto, CreateConversationDto, SendMessageDto } from './chat.dto';
 
@@ -19,6 +20,7 @@ export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly chatEventsService: ChatEventsService,
     private readonly chatTimelineService: ChatTimelineService,
   ) {}
 
@@ -76,7 +78,7 @@ export class ChatService {
       return existing;
     }
 
-    return this.prisma.conversation.create({
+    const conversation = await this.prisma.conversation.create({
       data: {
         rentalId: rental.id,
         members: {
@@ -91,13 +93,20 @@ export class ChatService {
         messages: {
           create: {
             senderId: currentUser.id,
-            messageType: 'SYSTEM',
+            messageType: MessageType.SYSTEM,
             content: `Conversation created for rental "${rental.asset.title}"`,
           },
         },
       },
       include: this.conversationInclude(),
     });
+
+    this.chatEventsService.emitConversationCreated(
+      conversation,
+      conversation.members.map((member) => member.userId),
+    );
+
+    return conversation;
   }
 
   async getConversation(
@@ -178,61 +187,98 @@ export class ChatService {
         ? this.detectOffPlatformSignals(content)
         : [];
 
-    const message = await this.prisma.$transaction(async (tx) => {
-      const createdMessage = await tx.message.create({
-        data: {
-          conversationId: conversation.id,
-          senderId: currentUser.id,
-          messageType,
-          content,
-          attachmentUrl,
-          metadata: offPlatformSignals.length
-            ? ({ offPlatformSignals } as Prisma.InputJsonValue)
-            : undefined,
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-            },
-          },
-        },
-      });
-
-      if (offPlatformSignals.length > 0) {
-        await tx.message.create({
+    const { createdMessage, warningMessage } = await this.prisma.$transaction(
+      async (tx) => {
+        const createdMessage = await tx.message.create({
           data: {
             conversationId: conversation.id,
             senderId: currentUser.id,
-            messageType: MessageType.SYSTEM,
-            content: OFF_PLATFORM_WARNING,
-            metadata: {
-              source: 'off_platform_detection',
-              signals: offPlatformSignals,
-            } as Prisma.InputJsonValue,
+            messageType,
+            content,
+            attachmentUrl,
+            metadata: offPlatformSignals.length
+              ? ({ offPlatformSignals } as Prisma.InputJsonValue)
+              : undefined,
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+              },
+            },
           },
         });
-      }
 
-      return createdMessage;
-    });
+        let warningMessage: typeof createdMessage | null = null;
+
+        if (offPlatformSignals.length > 0) {
+          warningMessage = await tx.message.create({
+            data: {
+              conversationId: conversation.id,
+              senderId: currentUser.id,
+              messageType: MessageType.SYSTEM,
+              content: OFF_PLATFORM_WARNING,
+              metadata: {
+                source: 'off_platform_detection',
+                signals: offPlatformSignals,
+              } as Prisma.InputJsonValue,
+            },
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  email: true,
+                },
+              },
+            },
+          });
+        }
+
+        return {
+          createdMessage,
+          warningMessage,
+        };
+      },
+    );
+
+    const participantUserIds = conversation.members.map(
+      (member) => member.userId,
+    );
+
+    this.chatEventsService.emitMessageCreated(
+      conversation.id,
+      createdMessage,
+      participantUserIds,
+    );
+
+    if (warningMessage) {
+      this.chatEventsService.emitMessageCreated(
+        conversation.id,
+        warningMessage,
+        participantUserIds,
+      );
+    }
 
     await this.notificationsService.createMany(
-      conversation.members
-        .map((member) => member.userId)
-        .filter((userId) => userId !== currentUser.id),
+      participantUserIds.filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.SYSTEM,
         title: 'Tin nhắn mới',
         content: `${currentUser.fullName} vừa gửi tin nhắn trong cuộc trao đổi cho đơn "${conversation.rental.asset.title}".`,
+        metadata: {
+          conversationId: conversation.id,
+          rentalId: conversation.rentalId,
+          assetId: conversation.rental.asset.id,
+        },
         referenceType: 'conversation',
         referenceId: conversation.id,
       },
     );
 
-    return message;
+    return createdMessage;
   }
 
   async appendSystemMessageForRental(
