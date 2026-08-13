@@ -236,8 +236,21 @@ export class FinanceService {
       entityType: 'payout',
       entityId: payout.id,
       beforeData: { status: payout.status },
-      afterData: { status: updated.status },
+      afterData: { status: updated.status, paidAt: updated.paidAt },
     });
+
+    if (
+      updated.status === PayoutStatus.PAID &&
+      payout.status !== PayoutStatus.PAID
+    ) {
+      await this.notificationsService.createMany([payout.ownerId], {
+        type: NotificationType.PAYOUT_COMPLETED,
+        title: 'Payout đã hoàn tất',
+        content: `Payout cho đơn "${updated.rental.asset.title}" đã được ghi nhận thành công.`,
+        referenceType: 'payout',
+        referenceId: updated.id,
+      });
+    }
 
     return updated;
   }
