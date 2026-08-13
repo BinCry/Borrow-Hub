@@ -5,6 +5,7 @@ import {
 } from '@prisma/client';
 import {
   IsArray,
+  IsDateString,
   IsEnum,
   IsInt,
   IsNumber,
@@ -50,10 +51,10 @@ export class AssetAccessoryDto {
 }
 
 export class AssetAvailabilityDto {
-  @IsString()
+  @IsDateString()
   startAt!: string;
 
-  @IsString()
+  @IsDateString()
   endAt!: string;
 
   @IsOptional()
@@ -293,11 +294,11 @@ export class SearchAssetsQueryDto {
   status?: AssetStatus;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   startAt?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   endAt?: string;
 
   @IsOptional()

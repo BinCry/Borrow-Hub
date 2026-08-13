@@ -9,6 +9,7 @@ import { randomBytes } from 'crypto';
 import {
   AnalyticsEventType,
   AssetStatus,
+  AvailabilityType,
   ContractStatus,
   DisputeEventType,
   DisputeStatus,
@@ -107,6 +108,7 @@ export class RentalsService {
     }
 
     await this.ensureNoOverlap(asset.id, startAt, endAt);
+    await this.ensureWithinAvailability(asset.id, startAt, endAt);
 
     const pricing = await this.computePricing(asset.pricePerDay, durationInDays);
 
@@ -1489,6 +1491,61 @@ export class RentalsService {
 
     if (overlapping) {
       throw new ConflictException('This asset already has an overlapping booking');
+    }
+  }
+
+  private async ensureWithinAvailability(
+    assetId: string,
+    startAt: Date,
+    endAt: Date,
+  ) {
+    const blockedWindow = await this.prisma.assetAvailability.findFirst({
+      where: {
+        assetId,
+        availabilityType: AvailabilityType.BLOCKED,
+        startAt: {
+          lt: endAt,
+        },
+        endAt: {
+          gt: startAt,
+        },
+      },
+    });
+
+    if (blockedWindow) {
+      throw new ConflictException(
+        'This asset is blocked for the selected time range',
+      );
+    }
+
+    const availableWindowCount = await this.prisma.assetAvailability.count({
+      where: {
+        assetId,
+        availabilityType: AvailabilityType.AVAILABLE,
+      },
+    });
+
+    if (availableWindowCount === 0) {
+      return;
+    }
+
+    const coveringWindow = await this.prisma.assetAvailability.findFirst({
+      where: {
+        assetId,
+        availabilityType: AvailabilityType.AVAILABLE,
+        startAt: {
+          lte: startAt,
+        },
+        endAt: {
+          gte: endAt,
+        },
+      },
+    });
+
+    if (!coveringWindow) {
+      throw new ConflictException(
+        'This asset is not open for the selected time range',
+      );
     }
   }
 

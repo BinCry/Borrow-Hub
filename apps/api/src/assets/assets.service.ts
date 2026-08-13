@@ -39,6 +39,8 @@ export class AssetsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
+    const requestedStartAt = query.startAt ? new Date(query.startAt) : null;
+    const requestedEndAt = query.endAt ? new Date(query.endAt) : null;
 
     const where: Prisma.AssetWhereInput = {
       status:
@@ -65,7 +67,7 @@ export class AssetsService {
         : {}),
     };
 
-    if (query.startAt && query.endAt) {
+    if (requestedStartAt && requestedEndAt) {
       where.AND = [
         {
           rentalRequests: {
@@ -80,14 +82,15 @@ export class AssetsService {
                 ],
               },
               startAt: {
-                lt: new Date(query.endAt),
+                lt: requestedEndAt,
               },
               endAt: {
-                gt: new Date(query.startAt),
+                gt: requestedStartAt,
               },
             },
           },
         },
+        this.buildAvailabilityDateRangeFilter(requestedStartAt, requestedEndAt),
       ];
     }
 
@@ -216,6 +219,7 @@ export class AssetsService {
     this.assertVerifiedUser(currentUser);
     await this.ensureCategoryExists(dto.categoryId);
     this.assertDuration(dto.minimumDurationDays, dto.maximumDurationDays);
+    this.assertAvailabilityWindows(dto.availability);
 
     const asset = await this.prisma.asset.create({
       data: {
@@ -324,6 +328,8 @@ export class AssetsService {
         dto.maximumDurationDays ?? asset.maximumDurationDays,
       );
     }
+
+    this.assertAvailabilityWindows(dto.availability);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       if (dto.images) {
@@ -524,6 +530,67 @@ export class AssetsService {
       default:
         return [{ createdAt: 'desc' as const }];
     }
+  }
+
+  private buildAvailabilityDateRangeFilter(startAt: Date, endAt: Date) {
+    return {
+      AND: [
+        {
+          availability: {
+            none: {
+              availabilityType: AvailabilityType.BLOCKED,
+              startAt: {
+                lt: endAt,
+              },
+              endAt: {
+                gt: startAt,
+              },
+            },
+          },
+        },
+        {
+          OR: [
+            {
+              availability: {
+                none: {
+                  availabilityType: AvailabilityType.AVAILABLE,
+                },
+              },
+            },
+            {
+              availability: {
+                some: {
+                  availabilityType: AvailabilityType.AVAILABLE,
+                  startAt: {
+                    lte: startAt,
+                  },
+                  endAt: {
+                    gte: endAt,
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    } satisfies Prisma.AssetWhereInput;
+  }
+
+  private assertAvailabilityWindows(availability?: CreateAssetDto['availability']) {
+    if (!availability?.length) {
+      return;
+    }
+
+    availability.forEach((window) => {
+      const startAt = new Date(window.startAt);
+      const endAt = new Date(window.endAt);
+
+      if (startAt >= endAt) {
+        throw new ConflictException(
+          'Availability start time must be before end time',
+        );
+      }
+    });
   }
 
   private assertVerifiedUser(currentUser: AuthenticatedUser) {
