@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, AuditLog } from '@prisma/client';
+import { RequestContextService } from '../common/request-context.service';
 import { PrismaService } from '../database/prisma.service';
 
 type CreateAuditLogInput = {
@@ -15,9 +16,13 @@ type CreateAuditLogInput = {
 
 @Injectable()
 export class AuditService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly requestContextService: RequestContextService,
+  ) {}
 
   create(entry: CreateAuditLogInput): Promise<AuditLog> {
+    const requestContext = this.requestContextService.get();
     const data: Prisma.AuditLogUncheckedCreateInput = {
       actorId: entry.actorId ?? null,
       action: entry.action,
@@ -25,8 +30,8 @@ export class AuditService {
       entityId: entry.entityId ?? null,
       beforeData: entry.beforeData ?? undefined,
       afterData: entry.afterData ?? undefined,
-      ipAddress: entry.ipAddress ?? null,
-      userAgent: entry.userAgent ?? null,
+      ipAddress: entry.ipAddress ?? requestContext?.ipAddress ?? null,
+      userAgent: entry.userAgent ?? requestContext?.userAgent ?? null,
     };
 
     return this.prisma.auditLog.create({

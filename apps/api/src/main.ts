@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import type { NextFunction, Response } from 'express';
 import helmet from 'helmet';
 import type { AuthenticatedRequest } from './common/interfaces/authenticated-request.interface';
+import { RequestContextService } from './common/request-context.service';
 import { RequestLogsService } from './request-logs/request-logs.service';
 import { AppModule } from './app.module';
 
@@ -13,6 +14,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const requestLogsService = app.get(RequestLogsService);
+  const requestContextService = app.get(RequestContextService);
 
   app.use(helmet());
   app.enableCors();
@@ -26,24 +28,35 @@ async function bootstrap() {
 
     request.requestId = requestId;
     response.setHeader('x-request-id', requestId);
+    const userAgent =
+      typeof request.headers['user-agent'] === 'string'
+        ? request.headers['user-agent']
+        : null;
+    const ipAddress = request.ip || null;
 
-    response.on('finish', () => {
-      void requestLogsService.create({
+    requestContextService.run(
+      {
         requestId,
-        userId: request.user?.id ?? null,
-        method: request.method,
-        endpoint: request.originalUrl || request.url,
-        statusCode: response.statusCode,
-        latencyMs: Date.now() - startedAt,
-        ipAddress: request.ip || null,
-        userAgent:
-          typeof request.headers['user-agent'] === 'string'
-            ? request.headers['user-agent']
-            : null,
-      });
-    });
+        ipAddress,
+        userAgent,
+      },
+      () => {
+        response.on('finish', () => {
+          void requestLogsService.create({
+            requestId,
+            userId: request.user?.id ?? null,
+            method: request.method,
+            endpoint: request.originalUrl || request.url,
+            statusCode: response.statusCode,
+            latencyMs: Date.now() - startedAt,
+            ipAddress,
+            userAgent,
+          });
+        });
 
-    next();
+        next();
+      },
+    );
   });
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(

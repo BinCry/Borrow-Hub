@@ -25,6 +25,7 @@ import { RiskModule } from './risk/risk.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { SupportModule } from './support/support.module';
 import { UsersModule } from './users/users.module';
+import { RequestContextModule } from './common/request-context.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+    RequestContextModule,
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
