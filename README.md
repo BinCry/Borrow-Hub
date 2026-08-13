@@ -39,7 +39,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Đánh giá sau thuê: review hai chiều, edit trong cửa sổ cấu hình, moderation cho staff
 - Chat theo rental: conversation giữa owner, renter và staff, hỗ trợ text/image/system warning và lifecycle timeline (approve, contract signed, rental begins tomorrow, returned)
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái, hỗ trợ nhánh asset not returned
-- Reports: report user, listing, review và chat message
+- Reports: report user, listing, review và chat message; moderator có thể cảnh báo user, ẩn listing, review hoặc chat message khi report hợp lệ
 - Support ticket: lịch sử hỗ trợ, note nội bộ, phân công customer support
 - Finance: tra cứu payment, payout, refund, khóa payout khi có dispute và thông báo khi payout hoàn tất
 - Risk engine: prohibited asset rules, risk incidents và manual review
@@ -91,7 +91,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `chat`: hội thoại theo đơn thuê, ảnh chat, cảnh báo trao đổi ngoài nền tảng và system message nghiệp vụ
   - Timeline đã bao gồm approve, contract signed, rental begins tomorrow và asset returned
 - `disputes`: khiếu nại, evidence linkage, event timeline
-- `reports`: report moderation và support workflow
+- `reports`: report moderation, support workflow và moderation action lên target bị report
 - `support`: support ticket, lịch sử xử lý, assignment và note timeline
 - `finance`: payment, payout, refund, finance controls
   - Có notification `PAYOUT_COMPLETED` khi payout được đánh dấu `PAID`
@@ -193,7 +193,8 @@ pnpm prisma:seed
 15. Kiểm tra `GET /analytics/events` và `GET /analytics/summary` sau khi chạy các flow đăng ký, KYC, search, rental, review, dispute.
 16. Kiểm tra `GET /admin/request-logs` và xác nhận response có `x-request-id`, status, latency, endpoint.
 17. Tạo review, sửa review trong cửa sổ cho phép và thử moderation review bằng tài khoản staff.
-18. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
+18. Tạo report cho user/listing/review/chat message rồi resolve với `action` phù hợp để kiểm tra warning, ẩn nội dung và audit log moderation.
+19. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
 
 ## Tài khoản seed mẫu
 
