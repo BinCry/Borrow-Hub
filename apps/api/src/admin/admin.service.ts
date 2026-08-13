@@ -5,7 +5,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import argon2 from 'argon2';
-import { DisputeStatus, RoleName, UserStatus, VerificationStatus } from '@prisma/client';
+import {
+  DisputeStatus,
+  PayoutStatus,
+  RefundStatus,
+  ReportStatus,
+  ReviewStatus,
+  RiskIncidentStatus,
+  RiskTargetType,
+  RoleName,
+  UserStatus,
+  VerificationStatus,
+} from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
@@ -27,23 +38,58 @@ export class AdminService {
   ) {}
 
   async getDashboard() {
+    const openDisputeStatuses = [
+      DisputeStatus.OPEN,
+      DisputeStatus.WAITING_RESPONSE,
+      DisputeStatus.UNDER_REVIEW,
+    ];
+    const openReportStatuses = [ReportStatus.OPEN, ReportStatus.UNDER_REVIEW];
+    const openRiskIncidentStatuses = [
+      RiskIncidentStatus.OPEN,
+      RiskIncidentStatus.UNDER_REVIEW,
+    ];
+    const fraudReasonFilters = [
+      { reason: { contains: 'scam', mode: 'insensitive' as const } },
+      { reason: { contains: 'fraud', mode: 'insensitive' as const } },
+      { reason: { contains: 'fake', mode: 'insensitive' as const } },
+      { reason: { contains: 'prohibited', mode: 'insensitive' as const } },
+    ];
+
     const [
       totalUsers,
       verifiedUsers,
       suspendedUsers,
+      bannedUsers,
       activeListings,
       totalRentals,
       completedRentals,
-      openIssues,
+      cancelledRentals,
+      overdueRentals,
+      openDisputes,
+      totalDisputes,
+      totalDamageReports,
       totalGMV,
+      totalPlatformRevenue,
+      totalRefunds,
+      refundCount,
       totalPayouts,
-    ] = await this.prisma.$transaction([
+      blockedPayoutCount,
+      openReports,
+      fraudReports,
+      openRiskIncidents,
+      suspiciousAccounts,
+      averageRating,
+      fakeListingReports,
+    ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.userVerification.count({
         where: { verificationStatus: 'VERIFIED' },
       }),
       this.prisma.user.count({
         where: { status: 'SUSPENDED' },
+      }),
+      this.prisma.user.count({
+        where: { status: 'BANNED' },
       }),
       this.prisma.asset.count({
         where: { status: 'ACTIVE' },
@@ -52,15 +98,23 @@ export class AdminService {
       this.prisma.rentalRequest.count({
         where: { status: 'COMPLETED' },
       }),
+      this.prisma.rentalRequest.count({
+        where: { status: 'CANCELLED' },
+      }),
+      this.prisma.rentalRequest.count({
+        where: { status: 'OVERDUE' },
+      }),
       this.prisma.dispute.count({
         where: {
           status: {
-            in: [
-              DisputeStatus.OPEN,
-              DisputeStatus.WAITING_RESPONSE,
-              DisputeStatus.UNDER_REVIEW,
-            ],
+            in: openDisputeStatuses,
           },
+        },
+      }),
+      this.prisma.dispute.count(),
+      this.prisma.dispute.count({
+        where: {
+          reason: 'RETURN_ISSUE',
         },
       }),
       this.prisma.payment.aggregate({
@@ -71,33 +125,160 @@ export class AdminService {
           status: 'SUCCESS',
         },
       }),
+      this.prisma.rentalRequest.aggregate({
+        _sum: {
+          serviceFee: true,
+        },
+        where: {
+          payments: {
+            some: {
+              status: 'SUCCESS',
+            },
+          },
+        },
+      }),
+      this.prisma.refund.aggregate({
+        _sum: {
+          amount: true,
+        },
+        where: {
+          status: RefundStatus.COMPLETED,
+        },
+      }),
+      this.prisma.refund.count({
+        where: {
+          status: RefundStatus.COMPLETED,
+        },
+      }),
       this.prisma.payout.aggregate({
         _sum: {
           netAmount: true,
         },
         where: {
-          status: 'PAID',
+          status: PayoutStatus.PAID,
+        },
+      }),
+      this.prisma.payout.count({
+        where: {
+          status: PayoutStatus.BLOCKED,
+        },
+      }),
+      this.prisma.report.count({
+        where: {
+          status: {
+            in: openReportStatuses,
+          },
+        },
+      }),
+      this.prisma.report.count({
+        where: {
+          status: {
+            in: openReportStatuses,
+          },
+          OR: fraudReasonFilters,
+        },
+      }),
+      this.prisma.riskIncident.count({
+        where: {
+          status: {
+            in: openRiskIncidentStatuses,
+          },
+        },
+      }),
+      this.prisma.riskIncident.findMany({
+        where: {
+          status: {
+            in: openRiskIncidentStatuses,
+          },
+          targetType: RiskTargetType.USER,
+        },
+        distinct: ['targetId'],
+        select: {
+          targetId: true,
+        },
+      }),
+      this.prisma.review.aggregate({
+        _avg: {
+          rating: true,
+        },
+        where: {
+          status: ReviewStatus.PUBLISHED,
+        },
+      }),
+      this.prisma.report.count({
+        where: {
+          targetType: 'ASSET',
+          OR: [
+            { reason: { contains: 'fake', mode: 'insensitive' } },
+            { reason: { contains: 'prohibited', mode: 'insensitive' } },
+          ],
         },
       }),
     ]);
+
+    const disputeRate = this.safeDivide(totalDisputes, totalRentals);
+    const damageReportRate = this.safeDivide(totalDamageReports, totalRentals);
+    const lateReturnRate = this.safeDivide(overdueRentals, totalRentals);
+    const fakeListingRate = this.safeDivide(fakeListingReports, activeListings);
+    const kycCompletionRate = this.safeDivide(verifiedUsers, totalUsers);
+    const takeRate = this.safeDivide(
+      totalPlatformRevenue._sum.serviceFee ?? 0,
+      totalGMV._sum.amount ?? 0,
+    );
+    const cancellationRate = this.safeDivide(cancelledRentals, totalRentals);
+    const completionRate = this.safeDivide(completedRentals, totalRentals);
 
     return {
       users: {
         total: totalUsers,
         verified: verifiedUsers,
         suspended: suspendedUsers,
+        banned: bannedUsers,
+        kycCompletionRate,
       },
       marketplace: {
         activeListings,
         totalRentals,
         completedRentals,
-        openIssues,
+        cancelledRentals,
+        overdueRentals,
+        completionRate,
+        cancellationRate,
+        openIssues: openDisputes,
       },
       finance: {
         gmv: totalGMV._sum.amount ?? 0,
+        platformRevenue: totalPlatformRevenue._sum.serviceFee ?? 0,
+        takeRate,
+        refundAmount: totalRefunds._sum.amount ?? 0,
+        refundCount,
         paidOut: totalPayouts._sum.netAmount ?? 0,
+        blockedPayoutCount,
+      },
+      risk: {
+        openDisputes,
+        openReports,
+        fraudReports,
+        openRiskIncidents,
+        suspiciousAccounts: suspiciousAccounts.length,
+      },
+      trust: {
+        disputeRate,
+        damageReportRate,
+        lateReturnRate,
+        fakeListingRate,
+        averageRating: averageRating._avg.rating ?? 0,
+        kycCompletionRate,
       },
     };
+  }
+
+  private safeDivide(numerator: number, denominator: number) {
+    if (denominator <= 0) {
+      return 0;
+    }
+
+    return Number((numerator / denominator).toFixed(4));
   }
 
   listUsers() {
