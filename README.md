@@ -32,7 +32,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - KYC review nội bộ: admin duyệt `VERIFIED / REJECTED / REQUIRES_REVIEW`
 - Danh mục tài sản: cây danh mục, CRUD cơ bản cho admin
 - Tài sản cho thuê: tạo listing, tìm kiếm, lọc, moderation
-- Quy trình thuê: tạo yêu cầu, duyệt/từ chối, hủy đơn theo policy, thanh toán sandbox
+- Quy trình thuê: tạo yêu cầu, duyệt/từ chối, hủy đơn theo policy, thanh toán sandbox, tự động tính late fee khi quá hạn
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
 - QR handover: owner tạo QR ngắn hạn, renter scan một lần để xác nhận bàn giao
@@ -80,6 +80,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `assets`: listing, moderation, tìm kiếm và public listing detail
 - `rentals`: booking, thanh toán, hợp đồng, handover
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
+  - Có overdue late fee theo `late_fee_rate` trong `SystemConfig`
   - Có thêm QR handover short-lived, one-time, bound theo rental/handover
 - `reviews`: đánh giá sau giao dịch
   - Có edit theo `review_edit_hours` và moderation hide/publish cho staff
@@ -179,7 +180,7 @@ pnpm prisma:seed
 8. Tạo refund hoặc kiểm tra payout nếu cần xử lý tranh chấp.
 9. Thử hủy booking để kiểm tra flow cancellation policy.
 10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
-11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder.
+11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder và late fee khi rental quá hạn.
 12. Gửi chat text/image, thử nhập số điện thoại hoặc email để kiểm tra system warning ngoài nền tảng.
 13. Approve rental, ký xong contract, chạy batch reminder sát ngày bắt đầu và hoàn tất return để kiểm tra system message tự sinh trong chat timeline.
 14. Tạo phiên delivery handover, generate QR rồi confirm bằng token để kiểm tra QR handover one-time.
