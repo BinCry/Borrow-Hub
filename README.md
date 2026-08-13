@@ -48,7 +48,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Analytics: tracking funnel sự kiện nghiệp vụ chính và endpoint summary cho admin
 - Request logs: tracing request ID, user ID, endpoint, status và latency cho vận hành
 - Admin: dashboard, quản lý user, role, user nội bộ, system config, audit log
-- Notifications và audit log cho các action nhạy cảm
+- Notifications và audit log cho các action nhạy cảm, bao gồm payment success, contract ready và signature required
 
 ## Cấu trúc repo
 
@@ -98,6 +98,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `admin`: dashboard, quản trị user và config
 - `notifications`: hộp thông báo trong hệ thống
   - Có thêm endpoint admin để chạy batch reminder nghiệp vụ
+  - Luồng payment hiện phát đủ `PAYMENT_SUCCESS`, `CONTRACT_READY`, `SIGNATURE_REQUIRED`
 - `audit`: ghi log cho hành vi nhạy cảm
 - `health`: endpoint health check
 
@@ -174,7 +175,7 @@ pnpm prisma:seed
 1. Đăng nhập bằng tài khoản seed.
 2. Tạo hoặc duyệt một listing.
 3. Tạo yêu cầu thuê và approve.
-4. Ghi nhận thanh toán sandbox.
+4. Ghi nhận thanh toán sandbox và kiểm tra notification payment success / contract ready / signature required.
 5. Ký hợp đồng cả hai phía.
 6. Tạo handover delivery rồi confirm.
 7. Yêu cầu return, tạo handover return hoặc mở dispute.
