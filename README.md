@@ -52,6 +52,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Admin: dashboard, quản lý user, role, user nội bộ, system config, audit log
   - Dashboard đã có thêm marketplace KPI, finance KPI, risk overview và trust KPI
 - Notifications và audit log cho các action nhạy cảm, bao gồm payment success, contract ready và signature required
+  - Audit log tự động đính kèm `ipAddress` và `userAgent` từ request để phục vụ truy vết vận hành
 
 ## Cấu trúc repo
 
@@ -110,6 +111,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
   - Có thêm endpoint admin để chạy batch reminder nghiệp vụ
   - Luồng payment hiện phát đủ `PAYMENT_SUCCESS`, `CONTRACT_READY`, `SIGNATURE_REQUIRED`
 - `audit`: ghi log cho hành vi nhạy cảm
+  - Tự lấy metadata request hiện tại để lưu `ipAddress` và `userAgent` ngay cả khi service nghiệp vụ không truyền tay
 - `health`: endpoint health check
 
 ## Chạy local
@@ -205,6 +207,7 @@ pnpm prisma:seed
 21. Tạo support ticket gắn với rental/report/dispute rồi thử assign, đổi trạng thái và thêm note.
 22. Gọi `GET /admin/dashboard` để kiểm tra thêm các KPI: cancellation rate, take rate, refund amount, blocked payout, fraud reports, suspicious accounts và trust KPI.
 23. Duyệt KYC, tạo review, mở/đóng dispute rồi kiểm tra `trustScore` ở profile user để xác nhận trust score thay đổi theo vòng đời nghiệp vụ.
+24. Gọi một action nhạy cảm như khóa user hoặc resolve dispute rồi kiểm tra `GET /admin/audit-logs` để xác nhận log có `ipAddress`, `userAgent`, `before/after`.
 
 ## Tài khoản seed mẫu
 
