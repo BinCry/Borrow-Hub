@@ -41,7 +41,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
 - Reports: report user, listing, review và chat message
 - Support ticket: lịch sử hỗ trợ, note nội bộ, phân công customer support
-- Finance: tra cứu payment, payout, refund và khóa payout khi có dispute
+- Finance: tra cứu payment, payout, refund, khóa payout khi có dispute và thông báo khi payout hoàn tất
 - Risk engine: prohibited asset rules, risk incidents và manual review
 - Favorite/Wishlist: lưu tài sản yêu thích và xem danh sách wish list
 - Reminder batch: tạo notification cho rental tomorrow, return reminder, overdue, review reminder, availability match
@@ -90,6 +90,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `reports`: report moderation và support workflow
 - `support`: support ticket, lịch sử xử lý, assignment và note timeline
 - `finance`: payment, payout, refund, finance controls
+  - Có notification `PAYOUT_COMPLETED` khi payout được đánh dấu `PAID`
 - `risk`: prohibited asset rules, risk incidents, manual-review workflow
 - `favorites`: add/remove favorite, xem wishlist
 - `analytics`: tracking event nghiệp vụ và funnel summary cho admin
@@ -177,7 +178,7 @@ pnpm prisma:seed
 5. Ký hợp đồng cả hai phía.
 6. Tạo handover delivery rồi confirm.
 7. Yêu cầu return, tạo handover return hoặc mở dispute.
-8. Tạo refund hoặc kiểm tra payout nếu cần xử lý tranh chấp.
+8. Tạo refund hoặc cập nhật payout sang `PAID` để kiểm tra notification payout completed.
 9. Thử hủy booking để kiểm tra flow cancellation policy.
 10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
 11. Add favorite rồi chạy batch reminder để kiểm tra notification availability/reminder và late fee khi rental quá hạn.
