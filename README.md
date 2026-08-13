@@ -38,7 +38,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - QR handover: owner tạo QR ngắn hạn, renter scan một lần để xác nhận bàn giao
 - Đánh giá sau thuê: review hai chiều, edit trong cửa sổ cấu hình, moderation cho staff
 - Chat theo rental: conversation giữa owner, renter và staff, hỗ trợ text/image/system warning và lifecycle timeline (approve, contract signed, rental begins tomorrow, returned)
-- Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái
+- Dispute: mở vụ việc, phản hồi, gán người xử lý, cập nhật trạng thái, hỗ trợ nhánh asset not returned
 - Reports: report user, listing, review và chat message
 - Support ticket: lịch sử hỗ trợ, note nội bộ, phân công customer support
 - Finance: tra cứu payment, payout, refund, khóa payout khi có dispute và thông báo khi payout hoàn tất
@@ -81,6 +81,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `rentals`: booking, thanh toán, hợp đồng, handover
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
   - Có overdue late fee theo `late_fee_rate` trong `SystemConfig`
+  - Có endpoint owner báo `asset not returned` để mở dispute và khóa payout
   - Có thêm QR handover short-lived, one-time, bound theo rental/handover
 - `reviews`: đánh giá sau giao dịch
   - Có edit theo `review_edit_hours` và moderation hide/publish cho staff
@@ -178,7 +179,7 @@ pnpm prisma:seed
 4. Ghi nhận thanh toán sandbox và kiểm tra notification payment success / contract ready / signature required.
 5. Ký hợp đồng cả hai phía.
 6. Tạo handover delivery rồi confirm.
-7. Yêu cầu return, tạo handover return hoặc mở dispute.
+7. Yêu cầu return, tạo handover return hoặc mở dispute; nếu tài sản chưa được hoàn trả thì thử endpoint asset not returned.
 8. Tạo refund hoặc cập nhật payout sang `PAID` để kiểm tra notification payout completed.
 9. Thử hủy booking để kiểm tra flow cancellation policy.
 10. Tạo listing chứa keyword cấm để kiểm tra risk incident/manual review.
