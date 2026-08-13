@@ -6,6 +6,7 @@ import {
 import {
   HandoverStatus,
   HandoverType,
+  NotificationType,
   RentalStatus,
 } from '@prisma/client';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
@@ -73,8 +74,13 @@ describe('RentalsService QR handover', () => {
       update: jest.fn(),
     },
     handover: {
+      create: jest.fn(),
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
+    },
+    evidence: {
+      createMany: jest.fn(),
     },
     handoverQrSession: {
       create: jest.fn(),
@@ -118,6 +124,11 @@ describe('RentalsService QR handover', () => {
     jest.clearAllMocks();
     prisma.rentalRequest.findUnique.mockResolvedValue(rental);
     prisma.handover.findUnique.mockResolvedValue(handover);
+    prisma.handover.findUniqueOrThrow.mockResolvedValue({
+      ...handover,
+      items: [],
+      evidences: [],
+    });
     prisma.systemConfig.findUnique.mockResolvedValue(null);
     prisma.handoverQrSession.updateMany.mockResolvedValue({ count: 1 });
     prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) =>
@@ -131,6 +142,30 @@ describe('RentalsService QR handover', () => {
       notificationsService as never,
       riskService as never,
     );
+  });
+
+  it('notifies the renter when a delivery handover session starts', async () => {
+    prisma.handover.create.mockResolvedValue({
+      id: handover.id,
+      items: [],
+      evidences: [],
+    });
+
+    const result = await service.startHandover(rental.id, ownerUser, {
+      type: HandoverType.DELIVERY,
+      notes: 'Meet at the studio lobby',
+    });
+
+    expect(prisma.handover.create).toHaveBeenCalled();
+    expect(notificationsService.createMany).toHaveBeenCalledWith([renterUser.id], {
+      type: NotificationType.HANDOVER_READY,
+      title: 'Phiên bàn giao đã sẵn sàng',
+      content:
+        'Chủ tài sản đã bắt đầu phiên bàn giao cho "Canon R6". Vui lòng kiểm tra và xác nhận khi nhận tài sản.',
+      referenceType: 'rental',
+      referenceId: rental.id,
+    });
+    expect(result.id).toBe(handover.id);
   });
 
   it('generates a short-lived QR session for a delivery handover', async () => {

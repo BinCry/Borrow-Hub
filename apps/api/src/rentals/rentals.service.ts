@@ -728,6 +728,16 @@ export class RentalsService {
       });
     });
 
+    if (dto.type === HandoverType.DELIVERY) {
+      await this.notificationsService.createMany([rental.renterId], {
+        type: NotificationType.HANDOVER_READY,
+        title: 'Phiên bàn giao đã sẵn sàng',
+        content: `Chủ tài sản đã bắt đầu phiên bàn giao cho "${rental.asset.title}". Vui lòng kiểm tra và xác nhận khi nhận tài sản.`,
+        referenceType: 'rental',
+        referenceId: rental.id,
+      });
+    }
+
     return handover;
   }
 
