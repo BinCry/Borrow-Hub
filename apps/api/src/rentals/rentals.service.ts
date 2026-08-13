@@ -38,6 +38,7 @@ import {
   ConfirmHandoverQrDto,
   CreateRentalRequestDto,
   DeclineRentalDto,
+  MarkAssetNotReturnedDto,
   RecordPaymentDto,
   RentalListQueryDto,
   ReportIssueDto,
@@ -990,107 +991,41 @@ export class RentalsService {
     const rental = await this.findAccessibleRental(rentalId, currentUser);
     this.assertOwner(rental.ownerId, currentUser);
     this.assertStatus(rental.status, [RentalStatus.RETURN_PENDING]);
-
-    const existing = await this.prisma.dispute.findFirst({
-      where: {
-        rentalId: rental.id,
-        status: {
-          in: [
-            DisputeStatus.OPEN,
-            DisputeStatus.WAITING_RESPONSE,
-            DisputeStatus.UNDER_REVIEW,
-          ],
-        },
-      },
+    return this.createRentalDispute(currentUser, rental, {
+      reason: 'RETURN_ISSUE',
+      description: dto.description,
+      eventContent: dto.description,
+      renterNotificationTitle: 'Đơn thuê đang có vấn đề cần xử lý',
+      renterNotificationContent: `Chủ tài sản đã báo cáo vấn đề với đơn thuê "${rental.asset.title}".`,
+      auditAction: 'dispute.create.from-rental',
+      analyticsSource: 'rentals.reportIssue',
     });
+  }
 
-    if (existing) {
-      throw new ConflictException('This rental already has an active dispute');
-    }
+  async markAssetNotReturned(
+    rentalId: string,
+    currentUser: AuthenticatedUser,
+    dto: MarkAssetNotReturnedDto,
+  ) {
+    const rental = await this.findAccessibleRental(rentalId, currentUser);
+    this.assertOwner(rental.ownerId, currentUser);
+    this.assertStatus(rental.status, [
+      RentalStatus.OVERDUE,
+      RentalStatus.RETURN_PENDING,
+    ]);
 
-    const dispute = await this.prisma.$transaction(async (tx) => {
-      await tx.rentalRequest.update({
-        where: { id: rental.id },
-        data: {
-          status: RentalStatus.DISPUTED,
-          message: dto.description,
-        },
-      });
+    const description =
+      dto.description?.trim() ||
+      `Owner marked asset "${rental.asset.title}" as not returned.`;
 
-      if (rental.payout) {
-        await tx.payout.update({
-          where: { id: rental.payout.id },
-          data: {
-            status: PayoutStatus.BLOCKED,
-          },
-        });
-      }
-
-      return tx.dispute.create({
-        data: {
-          rentalId: rental.id,
-          openedById: currentUser.id,
-          reason: 'RETURN_ISSUE',
-          description: dto.description,
-          status: DisputeStatus.OPEN,
-          events: {
-            create: {
-              actorId: currentUser.id,
-              eventType: DisputeEventType.OPENED,
-              content: dto.description,
-              metadata: {
-                source: 'rentals.reportIssue',
-              },
-            },
-          },
-        },
-      });
-    });
-
-    await this.notificationsService.createMany([rental.renterId], {
-      type: NotificationType.SYSTEM,
-      title: 'Đơn thuê đang có vấn đề cần xử lý',
-      content: `Chủ tài sản đã báo cáo vấn đề với đơn thuê "${rental.asset.title}".`,
-      referenceType: 'dispute',
-      referenceId: dispute.id,
-    });
-
-    await this.auditService.create({
-      actorId: currentUser.id,
-      action: 'dispute.create.from-rental',
-      entityType: 'dispute',
-      entityId: dispute.id,
-      afterData: {
-        rentalId: rental.id,
-        reason: 'RETURN_ISSUE',
-      },
-    });
-
-    await this.analyticsService.track({
-      eventType: AnalyticsEventType.DISPUTE_OPENED,
-      userId: currentUser.id,
-      entityType: 'dispute',
-      entityId: dispute.id,
-      metadata: {
-        rentalId: rental.id,
-        source: 'rentals.reportIssue',
-      },
-    });
-
-    return this.prisma.dispute.findUniqueOrThrow({
-      where: { id: dispute.id },
-      include: {
-        openedBy: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-          },
-        },
-        events: {
-          orderBy: [{ createdAt: 'asc' }],
-        },
-      },
+    return this.createRentalDispute(currentUser, rental, {
+      reason: 'LOST_ASSET',
+      description,
+      eventContent: description,
+      renterNotificationTitle: 'Chủ tài sản báo chưa nhận lại tài sản',
+      renterNotificationContent: `Chủ tài sản đã đánh dấu "${rental.asset.title}" là chưa được hoàn trả và mở dispute xử lý.`,
+      auditAction: 'dispute.create.asset-not-returned',
+      analyticsSource: 'rentals.markAssetNotReturned',
     });
   }
 
@@ -1124,6 +1059,122 @@ export class RentalsService {
     }
 
     return rental;
+  }
+
+  private async createRentalDispute(
+    currentUser: AuthenticatedUser,
+    rental: Awaited<ReturnType<RentalsService['findAccessibleRental']>>,
+    options: {
+      reason: string;
+      description: string;
+      eventContent: string;
+      renterNotificationTitle: string;
+      renterNotificationContent: string;
+      auditAction: string;
+      analyticsSource: string;
+    },
+  ) {
+    const existing = await this.prisma.dispute.findFirst({
+      where: {
+        rentalId: rental.id,
+        status: {
+          in: [
+            DisputeStatus.OPEN,
+            DisputeStatus.WAITING_RESPONSE,
+            DisputeStatus.UNDER_REVIEW,
+          ],
+        },
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException('This rental already has an active dispute');
+    }
+
+    const dispute = await this.prisma.$transaction(async (tx) => {
+      await tx.rentalRequest.update({
+        where: { id: rental.id },
+        data: {
+          status: RentalStatus.DISPUTED,
+          message: options.description,
+        },
+      });
+
+      if (rental.payout) {
+        await tx.payout.update({
+          where: { id: rental.payout.id },
+          data: {
+            status: PayoutStatus.BLOCKED,
+          },
+        });
+      }
+
+      return tx.dispute.create({
+        data: {
+          rentalId: rental.id,
+          openedById: currentUser.id,
+          reason: options.reason,
+          description: options.description,
+          status: DisputeStatus.OPEN,
+          events: {
+            create: {
+              actorId: currentUser.id,
+              eventType: DisputeEventType.OPENED,
+              content: options.eventContent,
+              metadata: {
+                source: options.analyticsSource,
+              },
+            },
+          },
+        },
+      });
+    });
+
+    await this.notificationsService.createMany([rental.renterId], {
+      type: NotificationType.SYSTEM,
+      title: options.renterNotificationTitle,
+      content: options.renterNotificationContent,
+      referenceType: 'dispute',
+      referenceId: dispute.id,
+    });
+
+    await this.auditService.create({
+      actorId: currentUser.id,
+      action: options.auditAction,
+      entityType: 'dispute',
+      entityId: dispute.id,
+      afterData: {
+        rentalId: rental.id,
+        reason: options.reason,
+      },
+    });
+
+    await this.analyticsService.track({
+      eventType: AnalyticsEventType.DISPUTE_OPENED,
+      userId: currentUser.id,
+      entityType: 'dispute',
+      entityId: dispute.id,
+      metadata: {
+        rentalId: rental.id,
+        source: options.analyticsSource,
+      },
+    });
+
+    return this.prisma.dispute.findUniqueOrThrow({
+      where: { id: dispute.id },
+      include: {
+        openedBy: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        events: {
+          orderBy: [{ createdAt: 'asc' }],
+        },
+      },
+    });
   }
 
   private async findRentalHandover(rentalId: string, handoverId: string) {

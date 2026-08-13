@@ -154,6 +154,13 @@ export class ReportIssueDto {
   description!: string;
 }
 
+export class MarkAssetNotReturnedDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+}
+
 export class RentalListQueryDto {
   @IsOptional()
   @IsString()

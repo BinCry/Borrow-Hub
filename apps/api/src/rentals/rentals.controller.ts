@@ -18,6 +18,7 @@ import {
   DeclineRentalDto,
   RecordPaymentDto,
   RentalListQueryDto,
+  MarkAssetNotReturnedDto,
   ReportIssueDto,
   SignContractDto,
   StartHandoverDto,
@@ -157,5 +158,14 @@ export class RentalsController {
     @Body() dto: ReportIssueDto,
   ) {
     return this.rentalsService.reportIssue(rentalId, currentUser, dto);
+  }
+
+  @Post(':rentalId/asset-not-returned')
+  markAssetNotReturned(
+    @Param('rentalId') rentalId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: MarkAssetNotReturnedDto,
+  ) {
+    return this.rentalsService.markAssetNotReturned(rentalId, currentUser, dto);
   }
 }
