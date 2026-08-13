@@ -34,6 +34,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Danh mục tài sản: cây danh mục, CRUD cơ bản cho admin
 - Tài sản cho thuê: tạo listing, tìm kiếm, lọc, moderation kèm lý do xử lý cho owner
   - Search theo ngày giờ đã tôn trọng `availability` với cả block date và open date
+  - Search hỗ trợ thêm `distance`, `rating`, `delivery method`, sort `nearest / highest rating / most rented`
 - Quy trình thuê: tạo yêu cầu, duyệt/từ chối, hủy đơn theo policy, thanh toán sandbox, tự động tính late fee khi quá hạn
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận, upload standalone evidence cho dispute/damage report
@@ -85,6 +86,8 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - `assets`: listing, moderation, tìm kiếm và public listing detail
   - Moderation có thể gửi lý do duyệt/từ chối/khóa listing cho owner
   - Search có thêm rule loại trừ các slot bị `BLOCKED` và chỉ trả về asset nằm trọn trong slot `AVAILABLE` nếu owner đã mở lịch
+  - Search có thể lọc theo `deliveryMethod`, `minRating`, `radiusKm`, sort theo `nearest`, `highest-rating`, `most-rented`
+  - Response public không trả về `ward`, `latitude`, `longitude`, `meetingPoint` trước khi đi vào flow booking để giữ privacy vị trí owner
 - `rentals`: booking, thanh toán, hợp đồng, handover
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
   - Có overdue late fee theo `late_fee_rate` trong `SystemConfig`
@@ -212,6 +215,7 @@ pnpm prisma:seed
 23. Duyệt KYC, tạo review, mở/đóng dispute rồi kiểm tra `trustScore` ở profile user để xác nhận trust score thay đổi theo vòng đời nghiệp vụ.
 24. Gọi một action nhạy cảm như khóa user hoặc resolve dispute rồi kiểm tra `GET /admin/audit-logs` để xác nhận log có `ipAddress`, `userAgent`, `before/after`.
 25. Tạo asset với `availability` gồm cả `BLOCKED` và `AVAILABLE`, sau đó thử `GET /assets` theo date range và `POST /rentals` để xác nhận hệ thống chỉ cho thuê trong khung mở lịch hợp lệ.
+26. Gọi `GET /assets` với `latitude`, `longitude`, `radiusKm`, `deliveryMethod`, `minRating`, `sort=nearest|highest-rating|most-rented` rồi xác nhận kết quả đã ẩn location chi tiết nhưng vẫn tính đúng distance/ranking.
 
 ## Tài khoản seed mẫu
 
