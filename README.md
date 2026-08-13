@@ -45,6 +45,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - Risk engine: prohibited asset rules, risk incidents và manual review
 - Favorite/Wishlist: lưu tài sản yêu thích và xem danh sách wish list
 - Reminder batch: tạo notification cho rental tomorrow, return reminder, overdue, review reminder, availability match
+- Handover notification: khi owner bắt đầu phiên bàn giao delivery, renter nhận `HANDOVER_READY`
 - Analytics: tracking funnel sự kiện nghiệp vụ chính và endpoint summary cho admin
 - Request logs: tracing request ID, user ID, endpoint, status và latency cho vận hành
 - Admin: dashboard, quản lý user, role, user nội bộ, system config, audit log
@@ -82,6 +83,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
   - Có overdue late fee theo `late_fee_rate` trong `SystemConfig`
   - Có endpoint owner báo `asset not returned` để mở dispute và khóa payout
+  - Có `HANDOVER_READY` khi owner bắt đầu delivery handover
   - Có thêm QR handover short-lived, one-time, bound theo rental/handover
 - `reviews`: đánh giá sau giao dịch
   - Có edit theo `review_edit_hours` và moderation hide/publish cho staff
@@ -178,7 +180,7 @@ pnpm prisma:seed
 3. Tạo yêu cầu thuê và approve.
 4. Ghi nhận thanh toán sandbox và kiểm tra notification payment success / contract ready / signature required.
 5. Ký hợp đồng cả hai phía.
-6. Tạo handover delivery rồi confirm.
+6. Tạo handover delivery rồi kiểm tra notification `HANDOVER_READY`, sau đó confirm.
 7. Yêu cầu return, tạo handover return hoặc mở dispute; nếu tài sản chưa được hoàn trả thì thử endpoint asset not returned.
 8. Tạo refund hoặc cập nhật payout sang `PAID` để kiểm tra notification payout completed.
 9. Thử hủy booking để kiểm tra flow cancellation policy.
