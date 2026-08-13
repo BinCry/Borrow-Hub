@@ -135,6 +135,10 @@ describe('RentalsService damage report', () => {
     assessCancellationPattern: jest.fn(),
   };
 
+  const trustScoreService = {
+    recalculateUserTrustScore: jest.fn(),
+  };
+
   let service: RentalsService;
 
   beforeEach(() => {
@@ -159,6 +163,7 @@ describe('RentalsService damage report', () => {
       chatService as never,
       notificationsService as never,
       riskService as never,
+      trustScoreService as never,
     );
   });
 

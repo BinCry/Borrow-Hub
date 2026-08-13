@@ -10,6 +10,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrustScoreService } from '../trust-score/trust-score.service';
 import { maskDocumentNumber } from '../common/utils/mask.util';
 import { KycReviewQueryDto, ReviewKycDto, SubmitKycDto } from './kyc.dto';
 
@@ -20,6 +21,7 @@ export class KycService {
     private readonly auditService: AuditService,
     private readonly analyticsService: AnalyticsService,
     private readonly notificationsService: NotificationsService,
+    private readonly trustScoreService: TrustScoreService,
   ) {}
 
   getCurrentStatus(userId: string) {
@@ -134,17 +136,6 @@ export class KycService {
         },
       });
 
-      if (dto.verificationStatus === VerificationStatus.VERIFIED) {
-        await tx.user.update({
-          where: { id: userId },
-          data: {
-            trustScore: {
-              increment: 20,
-            },
-          },
-        });
-      }
-
       return verification;
     });
 
@@ -183,6 +174,8 @@ export class KycService {
         },
       });
     }
+
+    await this.trustScoreService.recalculateUserTrustScore(userId);
 
     return updated;
   }

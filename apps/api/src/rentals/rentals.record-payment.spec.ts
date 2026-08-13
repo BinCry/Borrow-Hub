@@ -133,6 +133,10 @@ describe('RentalsService recordPayment', () => {
     assessCancellationPattern: jest.fn(),
   };
 
+  const trustScoreService = {
+    recalculateUserTrustScore: jest.fn(),
+  };
+
   let service: RentalsService;
 
   beforeEach(() => {
@@ -154,6 +158,7 @@ describe('RentalsService recordPayment', () => {
       chatService as never,
       notificationsService as never,
       riskService as never,
+      trustScoreService as never,
     );
   });
 

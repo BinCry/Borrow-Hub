@@ -96,6 +96,10 @@ describe('DisputesService', () => {
     createMany: jest.fn(),
   };
 
+  const trustScoreService = {
+    recalculateUserTrustScore: jest.fn(),
+  };
+
   let service: DisputesService;
 
   beforeEach(() => {
@@ -114,6 +118,7 @@ describe('DisputesService', () => {
       auditService as never,
       analyticsService as never,
       notificationsService as never,
+      trustScoreService as never,
     );
   });
 
@@ -143,6 +148,8 @@ describe('DisputesService', () => {
         status: 'PENDING',
       },
     });
+    expect(trustScoreService.recalculateUserTrustScore).toHaveBeenCalledWith('owner-1');
+    expect(trustScoreService.recalculateUserTrustScore).toHaveBeenCalledWith('renter-1');
     expect(result.status).toBe(DisputeStatus.RESOLVED);
   });
 
@@ -178,6 +185,8 @@ describe('DisputesService', () => {
         status: 'PENDING',
       },
     });
+    expect(trustScoreService.recalculateUserTrustScore).toHaveBeenCalledWith('owner-1');
+    expect(trustScoreService.recalculateUserTrustScore).toHaveBeenCalledWith('renter-1');
   });
 
   it('rejects accepting a dispute that is not a damage report', async () => {

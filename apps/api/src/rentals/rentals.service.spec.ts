@@ -118,6 +118,10 @@ describe('RentalsService QR handover', () => {
     assessCancellationPattern: jest.fn(),
   };
 
+  const trustScoreService = {
+    recalculateUserTrustScore: jest.fn(),
+  };
+
   let service: RentalsService;
 
   beforeEach(() => {
@@ -141,6 +145,7 @@ describe('RentalsService QR handover', () => {
       chatService as never,
       notificationsService as never,
       riskService as never,
+      trustScoreService as never,
     );
   });
 

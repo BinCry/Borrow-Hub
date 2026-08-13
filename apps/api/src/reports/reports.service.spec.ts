@@ -52,6 +52,10 @@ describe('ReportsService', () => {
     createMany: jest.fn(),
   };
 
+  const trustScoreService = {
+    recalculateUserTrustScore: jest.fn(),
+  };
+
   let service: ReportsService;
 
   beforeEach(() => {
@@ -60,6 +64,7 @@ describe('ReportsService', () => {
       prisma as never,
       auditService as never,
       notificationsService as never,
+      trustScoreService as never,
     );
   });
 
@@ -165,7 +170,6 @@ describe('ReportsService', () => {
       revieweeId: 'reviewee-1',
       status: ReviewStatus.PUBLISHED,
     });
-    prisma.review.findMany.mockResolvedValue([{ rating: 5 }, { rating: 4 }]);
     prisma.report.update.mockResolvedValue({
       id: 'report-3',
       reporterId: 'reporter-1',
@@ -186,10 +190,7 @@ describe('ReportsService', () => {
       where: { id: 'review-1' },
       data: { status: ReviewStatus.HIDDEN },
     });
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'reviewee-1' },
-      data: { trustScore: 90 },
-    });
+    expect(trustScoreService.recalculateUserTrustScore).toHaveBeenCalledWith('reviewee-1');
   });
 
   it('rejects incompatible moderation action for a report target', async () => {

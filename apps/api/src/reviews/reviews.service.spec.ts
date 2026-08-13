@@ -42,6 +42,10 @@ describe('ReviewsService', () => {
     create: jest.fn(),
   };
 
+  const trustScoreService = {
+    recalculateUserTrustScore: jest.fn(),
+  };
+
   let service: ReviewsService;
 
   beforeEach(() => {
@@ -51,6 +55,7 @@ describe('ReviewsService', () => {
       analyticsService as never,
       notificationsService as never,
       auditService as never,
+      trustScoreService as never,
     );
   });
 
@@ -75,8 +80,6 @@ describe('ReviewsService', () => {
       createdAt,
       status: ReviewStatus.PUBLISHED,
     });
-    prisma.review.findMany.mockResolvedValue([{ rating: 5 }, { rating: 4 }]);
-    prisma.user.update.mockResolvedValue({});
 
     const result = await service.update('review-1', currentUser, {
       rating: 5,
@@ -85,6 +88,7 @@ describe('ReviewsService', () => {
 
     expect(prisma.review.update).toHaveBeenCalled();
     expect(auditService.create).toHaveBeenCalled();
+    expect(trustScoreService.recalculateUserTrustScore).toHaveBeenCalledWith('reviewee-1');
     expect(result.rating).toBe(5);
     expect(result.comment).toBe('updated');
   });
@@ -130,16 +134,13 @@ describe('ReviewsService', () => {
       createdAt: new Date(),
       status: ReviewStatus.HIDDEN,
     });
-    prisma.review.findMany.mockResolvedValue([{ rating: 5 }]);
-    prisma.user.update.mockResolvedValue({});
-
     const result = await service.moderate('review-1', currentUser, {
       status: ReviewStatus.HIDDEN,
     });
 
     expect(result.status).toBe(ReviewStatus.HIDDEN);
     expect(auditService.create).toHaveBeenCalled();
-    expect(prisma.user.update).toHaveBeenCalled();
+    expect(trustScoreService.recalculateUserTrustScore).toHaveBeenCalledWith('reviewee-1');
   });
 
   it('fails moderating a missing review', async () => {

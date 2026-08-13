@@ -126,6 +126,10 @@ describe('RentalsService asset not returned', () => {
     assessCancellationPattern: jest.fn(),
   };
 
+  const trustScoreService = {
+    recalculateUserTrustScore: jest.fn(),
+  };
+
   let service: RentalsService;
 
   beforeEach(() => {
@@ -150,6 +154,7 @@ describe('RentalsService asset not returned', () => {
       chatService as never,
       notificationsService as never,
       riskService as never,
+      trustScoreService as never,
     );
   });
 

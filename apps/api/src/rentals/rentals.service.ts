@@ -31,6 +31,7 @@ import type { AuthenticatedUser } from '../common/interfaces/authenticated-reque
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RiskService } from '../risk/risk.service';
+import { TrustScoreService } from '../trust-score/trust-score.service';
 import {
   ApproveRentalDto,
   CancelRentalDto,
@@ -56,6 +57,7 @@ export class RentalsService {
     private readonly chatService: ChatService,
     private readonly notificationsService: NotificationsService,
     private readonly riskService: RiskService,
+    private readonly trustScoreService: TrustScoreService,
   ) {}
 
   async create(currentUser: AuthenticatedUser, dto: CreateRentalRequestDto) {
@@ -1312,6 +1314,11 @@ export class RentalsService {
           : {}),
       },
     });
+
+    await Promise.all([
+      this.trustScoreService.recalculateUserTrustScore(rental.ownerId),
+      this.trustScoreService.recalculateUserTrustScore(rental.renterId),
+    ]);
 
     return this.prisma.dispute.findUniqueOrThrow({
       where: { id: dispute.id },

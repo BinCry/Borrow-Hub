@@ -21,6 +21,7 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrustScoreService } from '../trust-score/trust-score.service';
 import {
   AcceptDamageReportDto,
   AssignDisputeDto,
@@ -49,6 +50,7 @@ export class DisputesService {
     private readonly auditService: AuditService,
     private readonly analyticsService: AnalyticsService,
     private readonly notificationsService: NotificationsService,
+    private readonly trustScoreService: TrustScoreService,
   ) {}
 
   async create(currentUser: AuthenticatedUser, dto: CreateDisputeDto) {
@@ -171,6 +173,8 @@ export class DisputesService {
         source: 'disputes.create',
       },
     });
+
+    await this.recalculateParticipantsTrustScore(rental.ownerId, rental.renterId);
 
     return dispute;
   }
@@ -363,6 +367,11 @@ export class DisputesService {
       },
     });
 
+    await this.recalculateParticipantsTrustScore(
+      updated.rental.ownerId,
+      updated.rental.renterId,
+    );
+
     return updated;
   }
 
@@ -545,6 +554,11 @@ export class DisputesService {
       },
     });
 
+    await this.recalculateParticipantsTrustScore(
+      updated.rental.ownerId,
+      updated.rental.renterId,
+    );
+
     return updated;
   }
 
@@ -675,6 +689,13 @@ export class DisputesService {
         status: 'PENDING',
       },
     });
+  }
+
+  private async recalculateParticipantsTrustScore(ownerId: string, renterId: string) {
+    await Promise.all([
+      this.trustScoreService.recalculateUserTrustScore(ownerId),
+      this.trustScoreService.recalculateUserTrustScore(renterId),
+    ]);
   }
 
   private disputeInclude() {

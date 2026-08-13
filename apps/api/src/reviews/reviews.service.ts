@@ -15,6 +15,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrustScoreService } from '../trust-score/trust-score.service';
 import { CreateReviewDto, ModerateReviewDto, UpdateReviewDto } from './reviews.dto';
 
 @Injectable()
@@ -24,6 +25,7 @@ export class ReviewsService {
     private readonly analyticsService: AnalyticsService,
     private readonly notificationsService: NotificationsService,
     private readonly auditService: AuditService,
+    private readonly trustScoreService: TrustScoreService,
   ) {}
 
   async create(
@@ -100,7 +102,7 @@ export class ReviewsService {
       },
     });
 
-    await this.recalculateTrustScore(revieweeId);
+    await this.trustScoreService.recalculateUserTrustScore(revieweeId);
     return review;
   }
 
@@ -153,7 +155,7 @@ export class ReviewsService {
       },
     });
 
-    await this.recalculateTrustScore(review.revieweeId);
+    await this.trustScoreService.recalculateUserTrustScore(review.revieweeId);
     return updated;
   }
 
@@ -224,33 +226,8 @@ export class ReviewsService {
       afterData: { status: updated.status },
     });
 
-    await this.recalculateTrustScore(review.revieweeId);
+    await this.trustScoreService.recalculateUserTrustScore(review.revieweeId);
     return updated;
-  }
-
-  private async recalculateTrustScore(userId: string) {
-    const reviews = await this.prisma.review.findMany({
-      where: {
-        revieweeId: userId,
-        status: ReviewStatus.PUBLISHED,
-      },
-      select: {
-        rating: true,
-      },
-    });
-
-    if (reviews.length === 0) {
-      return;
-    }
-
-    const averageRating =
-      reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
-    const trustScore = Math.min(100, Math.round(averageRating * 20));
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { trustScore },
-    });
   }
 
   private async getReviewEditHours() {
