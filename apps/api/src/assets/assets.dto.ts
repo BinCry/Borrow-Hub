@@ -7,6 +7,7 @@ import {
   IsArray,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -17,6 +18,17 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export const ASSET_SORT_OPTIONS = [
+  'newest',
+  'lowest-price',
+  'highest-price',
+  'nearest',
+  'highest-rating',
+  'most-rented',
+] as const;
+
+export type AssetSortOption = (typeof ASSET_SORT_OPTIONS)[number];
 
 export class AssetImageDto {
   @IsString()
@@ -290,6 +302,29 @@ export class SearchAssetsQueryDto {
   condition?: AssetCondition;
 
   @IsOptional()
+  @IsString()
+  deliveryMethod?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  minRating?: number;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  radiusKm?: number;
+
+  @IsOptional()
   @IsEnum(AssetStatus)
   status?: AssetStatus;
 
@@ -302,8 +337,8 @@ export class SearchAssetsQueryDto {
   endAt?: string;
 
   @IsOptional()
-  @IsString()
-  sort?: 'newest' | 'lowest-price' | 'highest-price';
+  @IsIn(ASSET_SORT_OPTIONS)
+  sort?: AssetSortOption;
 
   @IsOptional()
   @IsInt()

@@ -5,9 +5,14 @@ describe('AssetsService availability filters', () => {
   const prisma = {
     asset: {
       findMany: jest.fn(),
-      count: jest.fn(),
+      findUnique: jest.fn(),
     },
-    $transaction: jest.fn(),
+    review: {
+      groupBy: jest.fn(),
+    },
+    rentalRequest: {
+      groupBy: jest.fn(),
+    },
   };
 
   const analyticsService = {
@@ -30,18 +35,45 @@ describe('AssetsService availability filters', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.asset.findMany.mockReturnValue('find-many-query');
-    prisma.asset.count.mockReturnValue('count-query');
-    prisma.$transaction.mockResolvedValue([
-      [
-        {
-          id: 'asset-1',
-          title: 'Canon R6',
-          status: AssetStatus.ACTIVE,
+    prisma.asset.findMany.mockResolvedValue([
+      {
+        id: 'asset-1',
+        ownerId: 'owner-1',
+        categoryId: 'camera',
+        title: 'Canon R6',
+        description: 'Mirrorless camera',
+        brand: 'Canon',
+        model: 'R6',
+        serialNumber: null,
+        condition: 'LIKE_NEW',
+        estimatedValue: 40000000,
+        pricePerDay: 300000,
+        minimumDurationDays: 1,
+        maximumDurationDays: 7,
+        city: 'Hồ Chí Minh',
+        district: 'Thủ Đức',
+        ward: 'Linh Tây',
+        latitude: 10.849,
+        longitude: 106.771,
+        meetingPoint: 'Studio A',
+        deliveryOptions: ['pickup'],
+        usageInstructions: null,
+        cancellationPolicy: null,
+        status: AssetStatus.ACTIVE,
+        createdAt: new Date('2026-08-10T10:00:00.000Z'),
+        updatedAt: new Date('2026-08-10T10:00:00.000Z'),
+        category: { id: 'camera', name: 'Camera', slug: 'camera' },
+        images: [],
+        accessories: [],
+        owner: {
+          id: 'owner-1',
+          fullName: 'Owner One',
+          trustScore: 80,
         },
-      ],
-      1,
+      },
     ]);
+    prisma.review.groupBy.mockResolvedValue([]);
+    prisma.rentalRequest.groupBy.mockResolvedValue([]);
 
     service = new AssetsService(
       prisma as never,

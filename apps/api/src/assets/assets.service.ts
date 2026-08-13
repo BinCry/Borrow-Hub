@@ -3,10 +3,13 @@ import {
   AssetStatus,
   AvailabilityType,
   Prisma,
+  RentalStatus,
+  ReviewStatus,
   RoleName,
   VerificationStatus,
 } from '@prisma/client';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -25,6 +28,48 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RiskService } from '../risk/risk.service';
 
+type SearchAssetRecord = Prisma.AssetGetPayload<{
+  include: {
+    category: true;
+    images: true;
+    accessories: true;
+    owner: {
+      select: {
+        id: true;
+        fullName: true;
+        trustScore: true;
+      };
+    };
+  };
+}>;
+
+type AssetDetailRecord = Prisma.AssetGetPayload<{
+  include: {
+    category: true;
+    images: true;
+    accessories: true;
+    availability: true;
+    owner: {
+      select: {
+        id: true;
+        fullName: true;
+        trustScore: true;
+        verification: {
+          select: {
+            verificationStatus: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type EnrichedSearchAsset = SearchAssetRecord & {
+  ownerAverageRating: number;
+  completedRentalCount: number;
+  distanceKm: number | null;
+};
+
 @Injectable()
 export class AssetsService {
   constructor(
@@ -41,6 +86,7 @@ export class AssetsService {
     const skip = (page - 1) * limit;
     const requestedStartAt = query.startAt ? new Date(query.startAt) : null;
     const requestedEndAt = query.endAt ? new Date(query.endAt) : null;
+    this.assertSearchQuery(query, requestedStartAt, requestedEndAt);
 
     const where: Prisma.AssetWhereInput = {
       status:
@@ -94,31 +140,30 @@ export class AssetsService {
       ];
     }
 
-    const orderBy = this.buildOrderBy(query.sort);
-
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.asset.findMany({
-        where,
-        include: {
-          category: true,
-          images: {
-            orderBy: [{ sortOrder: 'asc' }],
-          },
-          accessories: true,
-          owner: {
-            select: {
-              id: true,
-              fullName: true,
-              trustScore: true,
-            },
+    const items = await this.prisma.asset.findMany({
+      where,
+      include: {
+        category: true,
+        images: {
+          orderBy: [{ sortOrder: 'asc' }],
+        },
+        accessories: true,
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            trustScore: true,
           },
         },
-        orderBy,
-        skip,
-        take: limit,
-      }),
-      this.prisma.asset.count({ where }),
-    ]);
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+
+    const enrichedItems = await this.enrichSearchAssets(items, currentUser, query);
+    const filteredItems = this.filterSearchAssets(enrichedItems, query);
+    const sortedItems = this.sortSearchAssets(filteredItems, query.sort);
+    const total = sortedItems.length;
+    const paginatedItems = sortedItems.slice(skip, skip + limit);
 
     await this.analyticsService.track({
       eventType: AnalyticsEventType.SEARCH_PERFORMED,
@@ -129,7 +174,12 @@ export class AssetsService {
         categoryId: query.categoryId ?? null,
         city: query.city ?? null,
         district: query.district ?? null,
+        deliveryMethod: query.deliveryMethod ?? null,
+        minRating: query.minRating ?? null,
+        radiusKm: query.radiusKm ?? null,
+        sort: query.sort ?? 'newest',
         hasDateRange: Boolean(query.startAt && query.endAt),
+        hasCoordinates: query.latitude !== undefined && query.longitude !== undefined,
         page,
         limit,
         total,
@@ -137,7 +187,7 @@ export class AssetsService {
     });
 
     return {
-      data: items,
+      data: paginatedItems,
       pagination: {
         page,
         limit,
@@ -197,7 +247,7 @@ export class AssetsService {
       },
     });
 
-    return asset;
+    return this.sanitizeLocationFields(asset, currentUser ?? null);
   }
 
   async listMine(currentUser: AuthenticatedUser) {
@@ -520,18 +570,6 @@ export class AssetsService {
     return `${baseMessage} Lý do: ${reason.trim()}`;
   }
 
-  private buildOrderBy(sort?: SearchAssetsQueryDto['sort']) {
-    switch (sort) {
-      case 'lowest-price':
-        return [{ pricePerDay: 'asc' as const }];
-      case 'highest-price':
-        return [{ pricePerDay: 'desc' as const }];
-      case 'newest':
-      default:
-        return [{ createdAt: 'desc' as const }];
-    }
-  }
-
   private buildAvailabilityDateRangeFilter(startAt: Date, endAt: Date) {
     return {
       AND: [
@@ -591,6 +629,265 @@ export class AssetsService {
         );
       }
     });
+  }
+
+  private assertSearchQuery(
+    query: SearchAssetsQueryDto,
+    requestedStartAt: Date | null,
+    requestedEndAt: Date | null,
+  ) {
+    if ((query.startAt && !query.endAt) || (!query.startAt && query.endAt)) {
+      throw new BadRequestException(
+        'startAt and endAt must be provided together',
+      );
+    }
+
+    if (
+      (requestedStartAt && Number.isNaN(requestedStartAt.getTime())) ||
+      (requestedEndAt && Number.isNaN(requestedEndAt.getTime()))
+    ) {
+      throw new BadRequestException('Invalid search date range');
+    }
+
+    if (requestedStartAt && requestedEndAt && requestedStartAt >= requestedEndAt) {
+      throw new BadRequestException('Search start time must be before end time');
+    }
+
+    const hasLatitude = query.latitude !== undefined;
+    const hasLongitude = query.longitude !== undefined;
+
+    if (hasLatitude !== hasLongitude) {
+      throw new BadRequestException(
+        'latitude and longitude must be provided together',
+      );
+    }
+
+    if ((query.radiusKm !== undefined || query.sort === 'nearest') && !hasLatitude) {
+      throw new BadRequestException(
+        'latitude and longitude are required for distance-based search',
+      );
+    }
+  }
+
+  private async enrichSearchAssets(
+    items: SearchAssetRecord[],
+    currentUser: AuthenticatedUser | null,
+    query: SearchAssetsQueryDto,
+  ): Promise<EnrichedSearchAsset[]> {
+    if (items.length === 0) {
+      return [];
+    }
+
+    const ownerIds = [...new Set(items.map((item) => item.ownerId))];
+    const assetIds = items.map((item) => item.id);
+
+    const [ratingGroups, rentalGroups] = await Promise.all([
+      this.prisma.review.groupBy({
+        by: ['revieweeId'],
+        _avg: {
+          rating: true,
+        },
+        where: {
+          revieweeId: {
+            in: ownerIds,
+          },
+          status: ReviewStatus.PUBLISHED,
+        },
+      }),
+      this.prisma.rentalRequest.groupBy({
+        by: ['assetId'],
+        _count: {
+          _all: true,
+        },
+        where: {
+          assetId: {
+            in: assetIds,
+          },
+          status: RentalStatus.COMPLETED,
+        },
+      }),
+    ]);
+
+    const ratingMap = new Map(
+      ratingGroups.map((group) => [
+        group.revieweeId,
+        Number((group._avg.rating ?? 0).toFixed(2)),
+      ]),
+    );
+    const completedRentalCountMap = new Map(
+      rentalGroups.map((group) => [group.assetId, group._count._all]),
+    );
+
+    return items.map((item) => ({
+      ...this.sanitizeLocationFields(item, currentUser),
+      ownerAverageRating: ratingMap.get(item.ownerId) ?? 0,
+      completedRentalCount: completedRentalCountMap.get(item.id) ?? 0,
+      distanceKm: this.calculateDistanceKm(
+        query.latitude,
+        query.longitude,
+        item.latitude,
+        item.longitude,
+      ),
+    }));
+  }
+
+  private filterSearchAssets(
+    items: EnrichedSearchAsset[],
+    query: SearchAssetsQueryDto,
+  ) {
+    return items.filter((item) => {
+      if (query.deliveryMethod) {
+        const requestedDeliveryMethod = query.deliveryMethod.trim().toLowerCase();
+        const deliveryOptions = this.normalizeDeliveryOptions(item.deliveryOptions);
+
+        if (
+          !deliveryOptions.some(
+            (option) => option.toLowerCase() === requestedDeliveryMethod,
+          )
+        ) {
+          return false;
+        }
+      }
+
+      if (
+        query.minRating !== undefined &&
+        item.ownerAverageRating < query.minRating
+      ) {
+        return false;
+      }
+
+      if (query.radiusKm !== undefined) {
+        if (item.distanceKm === null || item.distanceKm > query.radiusKm) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }
+
+  private sortSearchAssets(
+    items: EnrichedSearchAsset[],
+    sort: SearchAssetsQueryDto['sort'],
+  ) {
+    return [...items].sort((left, right) => {
+      switch (sort) {
+        case 'lowest-price':
+          return left.pricePerDay - right.pricePerDay || this.compareNewest(left, right);
+        case 'highest-price':
+          return right.pricePerDay - left.pricePerDay || this.compareNewest(left, right);
+        case 'highest-rating':
+          return (
+            right.ownerAverageRating - left.ownerAverageRating ||
+            this.compareNewest(left, right)
+          );
+        case 'most-rented':
+          return (
+            right.completedRentalCount - left.completedRentalCount ||
+            this.compareNewest(left, right)
+          );
+        case 'nearest':
+          return this.compareNearest(left, right);
+        case 'newest':
+        default:
+          return this.compareNewest(left, right);
+      }
+    });
+  }
+
+  private compareNewest(
+    left: { createdAt: Date },
+    right: { createdAt: Date },
+  ) {
+    return right.createdAt.getTime() - left.createdAt.getTime();
+  }
+
+  private compareNearest(
+    left: { distanceKm: number | null; createdAt: Date },
+    right: { distanceKm: number | null; createdAt: Date },
+  ) {
+    if (left.distanceKm === null && right.distanceKm === null) {
+      return this.compareNewest(left, right);
+    }
+
+    if (left.distanceKm === null) {
+      return 1;
+    }
+
+    if (right.distanceKm === null) {
+      return -1;
+    }
+
+    return left.distanceKm - right.distanceKm || this.compareNewest(left, right);
+  }
+
+  private calculateDistanceKm(
+    userLatitude?: number,
+    userLongitude?: number,
+    assetLatitude?: number | null,
+    assetLongitude?: number | null,
+  ) {
+    if (
+      userLatitude === undefined ||
+      userLongitude === undefined ||
+      assetLatitude === null ||
+      assetLatitude === undefined ||
+      assetLongitude === null ||
+      assetLongitude === undefined
+    ) {
+      return null;
+    }
+
+    const earthRadiusKm = 6371;
+    const latitudeDelta = this.toRadians(assetLatitude - userLatitude);
+    const longitudeDelta = this.toRadians(assetLongitude - userLongitude);
+    const startLatitude = this.toRadians(userLatitude);
+    const endLatitude = this.toRadians(assetLatitude);
+
+    const haversine =
+      Math.sin(latitudeDelta / 2) ** 2 +
+      Math.cos(startLatitude) *
+        Math.cos(endLatitude) *
+        Math.sin(longitudeDelta / 2) ** 2;
+    const distance =
+      2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+
+    return Number(distance.toFixed(2));
+  }
+
+  private toRadians(value: number) {
+    return (value * Math.PI) / 180;
+  }
+
+  private normalizeDeliveryOptions(deliveryOptions: Prisma.JsonValue | null) {
+    if (!Array.isArray(deliveryOptions)) {
+      return [];
+    }
+
+    return deliveryOptions.filter(
+      (option): option is string => typeof option === 'string',
+    );
+  }
+
+  private sanitizeLocationFields<T extends SearchAssetRecord | AssetDetailRecord>(
+    asset: T,
+    currentUser: AuthenticatedUser | null,
+  ) {
+    const canViewPreciseLocation =
+      !!currentUser &&
+      (asset.ownerId === currentUser.id || this.isStaff(currentUser));
+
+    if (canViewPreciseLocation) {
+      return asset;
+    }
+
+    return {
+      ...asset,
+      ward: null,
+      latitude: null,
+      longitude: null,
+      meetingPoint: null,
+    };
   }
 
   private assertVerifiedUser(currentUser: AuthenticatedUser) {
