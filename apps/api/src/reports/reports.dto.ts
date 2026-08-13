@@ -1,5 +1,16 @@
 import { ReportStatus, ReportTargetType } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+
+export const REPORT_MODERATION_ACTIONS = [
+  'NONE',
+  'WARN_REPORTED_USER',
+  'SUSPEND_REPORTED_USER',
+  'HIDE_ASSET',
+  'HIDE_REVIEW',
+  'HIDE_CHAT_MESSAGE',
+] as const;
+
+export type ReportModerationAction = (typeof REPORT_MODERATION_ACTIONS)[number];
 
 export class CreateReportDto {
   @IsEnum(ReportTargetType)
@@ -26,6 +37,15 @@ export class AssignReportDto {
 export class UpdateReportStatusDto {
   @IsEnum(ReportStatus)
   status!: ReportStatus;
+
+  @IsOptional()
+  @IsIn(REPORT_MODERATION_ACTIONS)
+  action?: ReportModerationAction;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  actionNote?: string;
 
   @IsOptional()
   @IsString()
