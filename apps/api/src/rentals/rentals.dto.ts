@@ -4,6 +4,7 @@ import {
   SignatureMethod,
 } from '@prisma/client';
 import {
+  ArrayMaxSize,
   IsArray,
   IsEnum,
   IsOptional,
@@ -112,6 +113,18 @@ export class EvidenceDto {
   fileHash?: string;
 }
 
+export class UploadRentalEvidenceDto extends EvidenceDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  tag?: string;
+}
+
 export class StartHandoverDto {
   @IsEnum(HandoverType)
   type!: HandoverType;
@@ -152,6 +165,28 @@ export class ReportIssueDto {
   @IsString()
   @MaxLength(1000)
   description!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  repairEstimate?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  repairCurrency?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  evidenceIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  damageItems?: string[];
 }
 
 export class MarkAssetNotReturnedDto {

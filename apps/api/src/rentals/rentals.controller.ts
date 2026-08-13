@@ -22,6 +22,7 @@ import {
   ReportIssueDto,
   SignContractDto,
   StartHandoverDto,
+  UploadRentalEvidenceDto,
 } from './rentals.dto';
 import { RentalsService } from './rentals.service';
 
@@ -149,6 +150,15 @@ export class RentalsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.rentalsService.requestReturn(rentalId, currentUser);
+  }
+
+  @Post(':rentalId/evidences')
+  uploadEvidence(
+    @Param('rentalId') rentalId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: UploadRentalEvidenceDto,
+  ) {
+    return this.rentalsService.uploadEvidence(rentalId, currentUser, dto);
   }
 
   @Post(':rentalId/report-issue')

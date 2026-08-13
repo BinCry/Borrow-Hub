@@ -44,6 +44,7 @@ import {
   ReportIssueDto,
   SignContractDto,
   StartHandoverDto,
+  UploadRentalEvidenceDto,
 } from './rentals.dto';
 
 @Injectable()
@@ -993,6 +994,53 @@ export class RentalsService {
     return updated;
   }
 
+  async uploadEvidence(
+    rentalId: string,
+    currentUser: AuthenticatedUser,
+    dto: UploadRentalEvidenceDto,
+  ) {
+    const rental = await this.findAccessibleRental(rentalId, currentUser);
+
+    const canUpload =
+      [rental.ownerId, rental.renterId].includes(currentUser.id) ||
+      this.isStaff(currentUser);
+
+    if (!canUpload) {
+      throw new ForbiddenException('You cannot upload evidence for this rental');
+    }
+
+    const evidence = await this.prisma.evidence.create({
+      data: {
+        rentalId: rental.id,
+        uploadedBy: currentUser.id,
+        type: dto.type,
+        fileUrl: dto.fileUrl,
+        fileKey: dto.fileKey,
+        fileHash: dto.fileHash,
+        metadata: {
+          ...(dto.metadata ?? {}),
+          description: dto.description?.trim() || null,
+          tag: dto.tag?.trim() || null,
+          source: 'rentals.uploadEvidence',
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    await this.auditService.create({
+      actorId: currentUser.id,
+      action: 'rental.evidence.create',
+      entityType: 'evidence',
+      entityId: evidence.id,
+      afterData: {
+        rentalId: rental.id,
+        type: evidence.type,
+        tag: dto.tag?.trim() || null,
+      },
+    });
+
+    return evidence;
+  }
+
   async reportIssue(
     rentalId: string,
     currentUser: AuthenticatedUser,
@@ -1001,14 +1049,73 @@ export class RentalsService {
     const rental = await this.findAccessibleRental(rentalId, currentUser);
     this.assertOwner(rental.ownerId, currentUser);
     this.assertStatus(rental.status, [RentalStatus.RETURN_PENDING]);
+
+    const evidenceRecords = await this.loadEvidenceForRental(
+      rental.id,
+      dto.evidenceIds,
+      currentUser.id,
+    );
+    const repairCurrency = dto.repairCurrency?.trim() || rental.currency;
+    const damageItems =
+      dto.damageItems?.map((item) => item.trim()).filter(Boolean) ?? [];
+    const damageSummary =
+      damageItems.length > 0
+        ? `Hạng mục bị ảnh hưởng: ${damageItems.join(', ')}.`
+        : null;
+    const estimateSummary =
+      dto.repairEstimate !== undefined
+        ? `Ước tính sửa chữa: ${dto.repairEstimate} ${repairCurrency}.`
+        : null;
+    const description = [dto.description.trim(), damageSummary, estimateSummary]
+      .filter(Boolean)
+      .join(' ');
+
     return this.createRentalDispute(currentUser, rental, {
       reason: 'RETURN_ISSUE',
-      description: dto.description,
-      eventContent: dto.description,
+      description,
+      eventContent: dto.description.trim(),
       renterNotificationTitle: 'Đơn thuê đang có vấn đề cần xử lý',
       renterNotificationContent: `Chủ tài sản đã báo cáo vấn đề với đơn thuê "${rental.asset.title}".`,
       auditAction: 'dispute.create.from-rental',
       analyticsSource: 'rentals.reportIssue',
+      initialStatus: DisputeStatus.WAITING_RESPONSE,
+      evidenceRecords,
+      extraEventPayloads: [
+        ...(evidenceRecords.length > 0
+          ? [
+              {
+                eventType: DisputeEventType.EVIDENCE_ATTACHED,
+                content: `Attached ${evidenceRecords.length} damage evidence item(s)`,
+              },
+            ]
+          : []),
+        ...(dto.repairEstimate !== undefined
+          ? [
+              {
+                eventType: DisputeEventType.NOTE,
+                content: `Repair estimate submitted: ${dto.repairEstimate} ${repairCurrency}`,
+              },
+            ]
+          : []),
+      ],
+      openEventMetadata: {
+        source: 'rentals.reportIssue',
+        damageItems,
+        repairEstimate: dto.repairEstimate ?? null,
+        repairCurrency,
+      },
+      auditMetadata: {
+        damageItems,
+        repairEstimate: dto.repairEstimate ?? null,
+        repairCurrency,
+        evidenceCount: evidenceRecords.length,
+      },
+      analyticsMetadata: {
+        damageItems,
+        repairEstimate: dto.repairEstimate ?? null,
+        repairCurrency,
+        evidenceCount: evidenceRecords.length,
+      },
     });
   }
 
@@ -1082,6 +1189,16 @@ export class RentalsService {
       renterNotificationContent: string;
       auditAction: string;
       analyticsSource: string;
+      initialStatus?: DisputeStatus;
+      evidenceRecords?: Array<{ id: string }>;
+      extraEventPayloads?: Array<{
+        eventType: DisputeEventType;
+        content: string;
+        metadata?: Prisma.InputJsonValue;
+      }>;
+      openEventMetadata?: Prisma.InputJsonValue;
+      auditMetadata?: Prisma.InputJsonValue;
+      analyticsMetadata?: Prisma.InputJsonValue;
     },
   ) {
     const existing = await this.prisma.dispute.findFirst({
@@ -1125,17 +1242,37 @@ export class RentalsService {
           openedById: currentUser.id,
           reason: options.reason,
           description: options.description,
-          status: DisputeStatus.OPEN,
+          status: options.initialStatus ?? DisputeStatus.OPEN,
           events: {
-            create: {
-              actorId: currentUser.id,
-              eventType: DisputeEventType.OPENED,
-              content: options.eventContent,
-              metadata: {
-                source: options.analyticsSource,
+            create: [
+              {
+                actorId: currentUser.id,
+                eventType: DisputeEventType.OPENED,
+                content: options.eventContent,
+                metadata:
+                  options.openEventMetadata ??
+                  ({
+                    source: options.analyticsSource,
+                  } as Prisma.InputJsonValue),
               },
-            },
+              ...(
+                options.extraEventPayloads?.map((event) => ({
+                  actorId: currentUser.id,
+                  eventType: event.eventType,
+                  content: event.content,
+                  metadata: event.metadata,
+                })) ?? []
+              ),
+            ],
           },
+          evidences: options.evidenceRecords?.length
+            ? {
+                create: options.evidenceRecords.map((evidence) => ({
+                  evidenceId: evidence.id,
+                  uploadedById: currentUser.id,
+                })),
+              }
+            : undefined,
         },
       });
     });
@@ -1156,6 +1293,9 @@ export class RentalsService {
       afterData: {
         rentalId: rental.id,
         reason: options.reason,
+        ...(options.auditMetadata && typeof options.auditMetadata === 'object'
+          ? (options.auditMetadata as Record<string, unknown>)
+          : {}),
       },
     });
 
@@ -1167,6 +1307,9 @@ export class RentalsService {
       metadata: {
         rentalId: rental.id,
         source: options.analyticsSource,
+        ...(options.analyticsMetadata && typeof options.analyticsMetadata === 'object'
+          ? (options.analyticsMetadata as Record<string, unknown>)
+          : {}),
       },
     });
 
@@ -1185,6 +1328,44 @@ export class RentalsService {
         },
       },
     });
+  }
+
+  private async loadEvidenceForRental(
+    rentalId: string,
+    evidenceIds: string[] | undefined,
+    currentUserId: string,
+  ) {
+    if (!evidenceIds?.length) {
+      return [];
+    }
+
+    const evidences = await this.prisma.evidence.findMany({
+      where: {
+        id: {
+          in: evidenceIds,
+        },
+        rentalId,
+      },
+    });
+
+    if (evidences.length !== evidenceIds.length) {
+      throw new BadRequestException(
+        'Some evidence items were not found for this rental',
+      );
+    }
+
+    const unauthorized = evidences.some(
+      (evidence) =>
+        evidence.uploadedBy !== currentUserId && evidence.handoverId === null,
+    );
+
+    if (unauthorized) {
+      throw new ForbiddenException(
+        'You can only attach your own standalone evidence records',
+      );
+    }
+
+    return evidences;
   }
 
   private async findRentalHandover(rentalId: string, handoverId: string) {

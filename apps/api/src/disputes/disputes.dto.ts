@@ -60,6 +60,13 @@ export class UpdateDisputeStatusDto {
   note?: string;
 }
 
+export class AcceptDamageReportDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
 export class DisputeQueryDto {
   @IsOptional()
   @IsEnum(DisputeStatus)

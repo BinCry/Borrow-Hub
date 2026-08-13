@@ -22,6 +22,7 @@ import type { AuthenticatedUser } from '../common/interfaces/authenticated-reque
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
+  AcceptDamageReportDto,
   AssignDisputeDto,
   CreateDisputeDto,
   DisputeQueryDto,
@@ -276,6 +277,95 @@ export class DisputesService {
     return updated;
   }
 
+  async acceptDamageReport(
+    disputeId: string,
+    currentUser: AuthenticatedUser,
+    dto: AcceptDamageReportDto,
+  ) {
+    const dispute = await this.findAccessibleDispute(disputeId, currentUser);
+    this.ensureMutable(dispute.status);
+
+    if (dispute.reason !== 'RETURN_ISSUE') {
+      throw new BadRequestException('This dispute is not a damage report');
+    }
+
+    if (currentUser.id !== dispute.rental.renterId) {
+      throw new ForbiddenException(
+        'Only the renter can accept this damage report',
+      );
+    }
+
+    if (dispute.openedById !== dispute.rental.ownerId) {
+      throw new BadRequestException(
+        'Only owner-opened damage reports can be accepted by renter',
+      );
+    }
+
+    const resolutionSummary =
+      dto.note?.trim() || 'Renter accepted the reported damage and repair estimate';
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.disputeEvent.create({
+        data: {
+          disputeId: dispute.id,
+          actorId: currentUser.id,
+          eventType: DisputeEventType.RESOLVED,
+          content: dto.note?.trim() || 'Renter accepted the reported damage.',
+          metadata: {
+            acceptedByRenter: true,
+          },
+        },
+      });
+
+      await tx.dispute.update({
+        where: { id: dispute.id },
+        data: {
+          status: DisputeStatus.RESOLVED,
+          resolutionSummary,
+          resolvedAt: new Date(),
+        },
+      });
+
+      await tx.rentalRequest.update({
+        where: { id: dispute.rentalId },
+        data: {
+          status: RentalStatus.COMPLETED,
+        },
+      });
+
+      await this.restoreBlockedPayoutIfNeeded(tx, dispute.rental.payout);
+
+      return tx.dispute.findUniqueOrThrow({
+        where: { id: dispute.id },
+        include: this.disputeInclude(),
+      });
+    });
+
+    await this.notificationsService.createMany(
+      this.collectDisputeWatchers(updated, currentUser.id),
+      {
+        type: NotificationType.SYSTEM,
+        title: 'Damage report đã được chấp nhận',
+        content: `Người thuê đã chấp nhận báo cáo hư hỏng cho đơn "${updated.rental.asset.title}".`,
+        referenceType: 'dispute',
+        referenceId: updated.id,
+      },
+    );
+
+    await this.auditService.create({
+      actorId: currentUser.id,
+      action: 'dispute.damage-report.accept',
+      entityType: 'dispute',
+      entityId: updated.id,
+      afterData: {
+        status: updated.status,
+        resolutionSummary: updated.resolutionSummary,
+      },
+    });
+
+    return updated;
+  }
+
   async assign(
     disputeId: string,
     currentUser: AuthenticatedUser,
@@ -422,6 +512,10 @@ export class DisputesService {
         },
       });
 
+      if (TERMINAL_DISPUTE_STATUSES.includes(dto.status) && returnConfirmed) {
+        await this.restoreBlockedPayoutIfNeeded(tx, dispute.rental.payout);
+      }
+
       return tx.dispute.findUniqueOrThrow({
         where: { id: dispute.id },
         include: this.disputeInclude(),
@@ -565,6 +659,22 @@ export class DisputesService {
     ])].filter(
       (userId): userId is string => Boolean(userId && userId !== actorId),
     );
+  }
+
+  private async restoreBlockedPayoutIfNeeded(
+    tx: Prisma.TransactionClient,
+    payout: { id: string; status: string } | null | undefined,
+  ) {
+    if (!payout || payout.status !== 'BLOCKED') {
+      return;
+    }
+
+    await tx.payout.update({
+      where: { id: payout.id },
+      data: {
+        status: 'PENDING',
+      },
+    });
   }
 
   private disputeInclude() {

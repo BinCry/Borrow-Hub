@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import {
+  AcceptDamageReportDto,
   AssignDisputeDto,
   CreateDisputeDto,
   DisputeQueryDto,
@@ -45,6 +46,15 @@ export class DisputesController {
     @Body() dto: RespondDisputeDto,
   ) {
     return this.disputesService.respond(disputeId, currentUser, dto);
+  }
+
+  @Post(':disputeId/accept-damage-report')
+  acceptDamageReport(
+    @Param('disputeId') disputeId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: AcceptDamageReportDto,
+  ) {
+    return this.disputesService.acceptDamageReport(disputeId, currentUser, dto);
   }
 
   @Patch(':disputeId/assign')
