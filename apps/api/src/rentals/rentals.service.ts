@@ -503,11 +503,33 @@ export class RentalsService {
     });
 
     await this.notificationsService.createMany(
+      [rental.renterId],
+      {
+        type: NotificationType.PAYMENT_SUCCESS,
+        title: 'Thanh toán thành công',
+        content: `Thanh toán cho đơn thuê "${rental.asset.title}" đã được ghi nhận thành công.`,
+        referenceType: 'rental',
+        referenceId: rental.id,
+      },
+    );
+
+    await this.notificationsService.createMany(
       [rental.ownerId, rental.renterId],
       {
         type: NotificationType.CONTRACT_READY,
         title: 'Hợp đồng điện tử đã sẵn sàng',
         content: `Đơn thuê "${rental.asset.title}" đang chờ hai bên ký hợp đồng.`,
+        referenceType: 'rental',
+        referenceId: rental.id,
+      },
+    );
+
+    await this.notificationsService.createMany(
+      [rental.ownerId, rental.renterId],
+      {
+        type: NotificationType.SIGNATURE_REQUIRED,
+        title: 'Cần ký hợp đồng điện tử',
+        content: `Đơn thuê "${rental.asset.title}" đang chờ chữ ký của các bên liên quan.`,
         referenceType: 'rental',
         referenceId: rental.id,
       },
