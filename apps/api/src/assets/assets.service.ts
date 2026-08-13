@@ -465,8 +465,8 @@ export class AssetsService {
 
     await this.notificationsService.createMany([asset.ownerId], {
       type: 'ASSET_MODERATED',
-      title: 'Cập nhật trạng thái tài sản',
-      content: `Tài sản "${asset.title}" đã được cập nhật sang trạng thái ${dto.status}.`,
+      title: this.buildModerationTitle(dto.status),
+      content: this.buildModerationContent(asset.title, dto.status, dto.reason),
       referenceType: 'asset',
       referenceId: asset.id,
     });
@@ -477,10 +477,41 @@ export class AssetsService {
       entityType: 'asset',
       entityId: asset.id,
       beforeData: { status: asset.status },
-      afterData: { status: updated.status },
+      afterData: { status: updated.status, moderationReason: dto.reason ?? null },
     });
 
     return updated;
+  }
+
+  private buildModerationTitle(status: AssetStatus) {
+    switch (status) {
+      case AssetStatus.ACTIVE:
+        return 'Listing đã được duyệt';
+      case AssetStatus.REJECTED:
+        return 'Listing bị từ chối';
+      case AssetStatus.SUSPENDED:
+        return 'Listing đã bị khóa';
+      case AssetStatus.PAUSED:
+        return 'Listing đã tạm dừng';
+      case AssetStatus.ARCHIVED:
+        return 'Listing đã lưu trữ';
+      default:
+        return 'Cập nhật trạng thái tài sản';
+    }
+  }
+
+  private buildModerationContent(
+    assetTitle: string,
+    status: AssetStatus,
+    reason?: string,
+  ) {
+    const baseMessage = `Tài sản "${assetTitle}" đã được cập nhật sang trạng thái ${status}.`;
+
+    if (!reason?.trim()) {
+      return baseMessage;
+    }
+
+    return `${baseMessage} Lý do: ${reason.trim()}`;
   }
 
   private buildOrderBy(sort?: SearchAssetsQueryDto['sort']) {

@@ -11,6 +11,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -318,5 +319,9 @@ export class SearchAssetsQueryDto {
 export class ModerateAssetDto {
   @IsEnum(AssetStatus)
   status!: AssetStatus;
-}
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
