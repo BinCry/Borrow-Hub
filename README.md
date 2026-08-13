@@ -31,7 +31,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
 - eKYC giả lập: submit hồ sơ, xem trạng thái xác minh
 - KYC review nội bộ: admin duyệt `VERIFIED / REJECTED / REQUIRES_REVIEW`
 - Danh mục tài sản: cây danh mục, CRUD cơ bản cho admin
-- Tài sản cho thuê: tạo listing, tìm kiếm, lọc, moderation
+- Tài sản cho thuê: tạo listing, tìm kiếm, lọc, moderation kèm lý do xử lý cho owner
 - Quy trình thuê: tạo yêu cầu, duyệt/từ chối, hủy đơn theo policy, thanh toán sandbox, tự động tính late fee khi quá hạn
 - Hợp đồng điện tử: tạo contract snapshot, ký hai bên, kích hoạt
 - Bàn giao và hoàn trả: checklist, evidence, xác nhận giao nhận
@@ -79,6 +79,7 @@ Frontend React Native / Expo được giữ nguyên để bạn tự code tay, n
   - Có thêm nhánh review nội bộ cho admin
 - `categories`: danh mục tài sản
 - `assets`: listing, moderation, tìm kiếm và public listing detail
+  - Moderation có thể gửi lý do duyệt/từ chối/khóa listing cho owner
 - `rentals`: booking, thanh toán, hợp đồng, handover
   - Có cancellation policy + auto refund/block payout theo rule cấu hình
   - Có overdue late fee theo `late_fee_rate` trong `SystemConfig`
@@ -176,7 +177,7 @@ pnpm prisma:seed
 ## Gợi ý flow test nhanh
 
 1. Đăng nhập bằng tài khoản seed.
-2. Tạo hoặc duyệt một listing.
+2. Tạo hoặc duyệt một listing, thử moderation với lý do để kiểm tra notification cho owner.
 3. Tạo yêu cầu thuê và approve.
 4. Ghi nhận thanh toán sandbox và kiểm tra notification payment success / contract ready / signature required.
 5. Ký hợp đồng cả hai phía.
