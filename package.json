@@ -8,6 +8,8 @@
   },
   "scripts": {
     "build": "pnpm --filter toolshare-api build",
+    "cache:check:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/windows/use-d-drive-cache.ps1 -PrintOnly",
+    "dev:shell:windows": "powershell -NoLogo -NoExit -ExecutionPolicy Bypass -Command \". .\\scripts\\windows\\use-d-drive-cache.ps1\"",
     "start": "pnpm --filter toolshare-api start",
     "start:dev": "pnpm --filter toolshare-api start:dev",
     "lint": "pnpm --filter toolshare-api lint",
