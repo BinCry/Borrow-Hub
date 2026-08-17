@@ -178,114 +178,60 @@ async function seedUsersAndAssets() {
   const passwordHash = await argon2.hash('Admin@123456', { type: argon2.argon2id });
   const userPasswordHash = await argon2.hash('User@123456', { type: argon2.argon2id });
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@toolshare.local' },
-    update: {
-      fullName: 'ToolShare Admin',
-      phone: '0900000001',
-      status: UserStatus.ACTIVE,
-      passwordHash,
-      trustScore: 100,
-      emailVerifiedAt: new Date(),
-      phoneVerifiedAt: new Date(),
-    },
-    create: {
-      email: 'admin@toolshare.local',
-      phone: '0900000001',
-      passwordHash,
-      fullName: 'ToolShare Admin',
-      status: UserStatus.ACTIVE,
-      trustScore: 100,
-      emailVerifiedAt: new Date(),
-      phoneVerifiedAt: new Date(),
-    },
-  });
+  const superAdminRole = await prisma.role.findUniqueOrThrow({ where: { name: RoleName.SUPER_ADMIN } });
+  const userRole = await prisma.role.findUniqueOrThrow({ where: { name: RoleName.USER } });
 
-  const demoOwner = await prisma.user.upsert({
-    where: { email: 'owner@toolshare.local' },
-    update: {
-      fullName: 'Demo Owner',
-      phone: '0900000002',
-      status: UserStatus.ACTIVE,
-      passwordHash: userPasswordHash,
-      trustScore: 82,
-      emailVerifiedAt: new Date(),
-      phoneVerifiedAt: new Date(),
-    },
-    create: {
-      email: 'owner@toolshare.local',
-      phone: '0900000002',
-      passwordHash: userPasswordHash,
-      fullName: 'Demo Owner',
-      status: UserStatus.ACTIVE,
-      trustScore: 82,
-      emailVerifiedAt: new Date(),
-      phoneVerifiedAt: new Date(),
-    },
-  });
-
-  const demoRenter = await prisma.user.upsert({
-    where: { email: 'renter@toolshare.local' },
-    update: {
-      fullName: 'Demo Renter',
-      phone: '0900000003',
-      status: UserStatus.ACTIVE,
-      passwordHash: userPasswordHash,
-      trustScore: 68,
-      emailVerifiedAt: new Date(),
-      phoneVerifiedAt: new Date(),
-    },
-    create: {
-      email: 'renter@toolshare.local',
-      phone: '0900000003',
-      passwordHash: userPasswordHash,
-      fullName: 'Demo Renter',
-      status: UserStatus.ACTIVE,
-      trustScore: 68,
-      emailVerifiedAt: new Date(),
-      phoneVerifiedAt: new Date(),
-    },
-  });
-
-  const superAdminRole = await prisma.role.findUniqueOrThrow({
-    where: { name: RoleName.SUPER_ADMIN },
-  });
-  const userRole = await prisma.role.findUniqueOrThrow({
-    where: { name: RoleName.USER },
-  });
-
-  for (const [userId, roleId] of [
-    [admin.id, superAdminRole.id],
-    [demoOwner.id, userRole.id],
-    [demoRenter.id, userRole.id],
-  ] as const) {
-    await prisma.userRole.upsert({
-      where: {
-        userId_roleId: {
-          userId,
-          roleId,
-        },
-      },
+  // 2 Admins
+  const admins = [];
+  for (let i = 1; i <= 2; i++) {
+    const admin = await prisma.user.upsert({
+      where: { email: `admin${i}@toolshare.local` },
       update: {},
-      create: { userId, roleId },
+      create: {
+        email: `admin${i}@toolshare.local`,
+        phone: `090000001${i}`,
+        passwordHash,
+        fullName: `ToolShare Admin ${i}`,
+        status: UserStatus.ACTIVE,
+        trustScore: 100,
+        emailVerifiedAt: new Date(),
+        phoneVerifiedAt: new Date(),
+      },
+    });
+    admins.push(admin);
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: admin.id, roleId: superAdminRole.id } },
+      update: {}, create: { userId: admin.id, roleId: superAdminRole.id }
     });
   }
 
-  for (const userId of [admin.id, demoOwner.id, demoRenter.id]) {
+  // 5 Users
+  const users = [];
+  for (let i = 1; i <= 5; i++) {
+    const user = await prisma.user.upsert({
+      where: { email: `user${i}@toolshare.local` },
+      update: {},
+      create: {
+        email: `user${i}@toolshare.local`,
+        phone: `090000002${i}`,
+        passwordHash: userPasswordHash,
+        fullName: `Demo User ${i}`,
+        status: UserStatus.ACTIVE,
+        trustScore: 80 + i,
+        emailVerifiedAt: new Date(),
+        phoneVerifiedAt: new Date(),
+      },
+    });
+    users.push(user);
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: userRole.id } },
+      update: {}, create: { userId: user.id, roleId: userRole.id }
+    });
     await prisma.userVerification.upsert({
-      where: { userId },
-      update: {
-        provider: 'mock-kyc',
-        verificationStatus: VerificationStatus.VERIFIED,
-        documentType: 'CCCD',
-        maskedDocumentNumber: '********1234',
-        nameVerified: true,
-        dateOfBirthVerified: true,
-        faceMatchStatus: FaceMatchStatus.MATCHED,
-        verifiedAt: new Date(),
-      },
+      where: { userId: user.id },
+      update: {},
       create: {
-        userId,
+        userId: user.id,
         provider: 'mock-kyc',
         verificationStatus: VerificationStatus.VERIFIED,
         documentType: 'CCCD',
@@ -298,108 +244,79 @@ async function seedUsersAndAssets() {
     });
   }
 
-  const cameraCategory = await prisma.category.findUniqueOrThrow({
-    where: { slug: 'camera' },
-  });
+  const cameraCategory = await prisma.category.findUniqueOrThrow({ where: { slug: 'camera' } });
 
-  const asset = await prisma.asset.upsert({
-    where: { id: 'cm-toolshare-demo-asset' },
-    update: {
-      ownerId: demoOwner.id,
-      categoryId: cameraCategory.id,
-      title: 'Canon R50 Kit',
-      description: 'Mirrorless camera package for short-term shooting and content creation.',
-      brand: 'Canon',
-      model: 'R50',
-      serialNumber: 'TS-DEMO-R50',
-      condition: AssetCondition.GOOD,
-      estimatedValue: 20000000,
-      pricePerDay: 300000,
-      minimumDurationDays: 1,
-      maximumDurationDays: 7,
-      city: 'TP.HCM',
-      district: 'Thu Duc',
-      ward: 'Linh Tay',
-      status: AssetStatus.ACTIVE,
-      deliveryOptions: ['meetup', 'owner-dropoff'],
-      usageInstructions: 'Use gently and avoid moisture exposure.',
-      cancellationPolicy: 'Free cancellation up to 24 hours before pickup.',
-    },
-    create: {
-      id: 'cm-toolshare-demo-asset',
-      ownerId: demoOwner.id,
-      categoryId: cameraCategory.id,
-      title: 'Canon R50 Kit',
-      description: 'Mirrorless camera package for short-term shooting and content creation.',
-      brand: 'Canon',
-      model: 'R50',
-      serialNumber: 'TS-DEMO-R50',
-      condition: AssetCondition.GOOD,
-      estimatedValue: 20000000,
-      pricePerDay: 300000,
-      minimumDurationDays: 1,
-      maximumDurationDays: 7,
-      city: 'TP.HCM',
-      district: 'Thu Duc',
-      ward: 'Linh Tay',
-      status: AssetStatus.ACTIVE,
-      deliveryOptions: ['meetup', 'owner-dropoff'],
-      usageInstructions: 'Use gently and avoid moisture exposure.',
-      cancellationPolicy: 'Free cancellation up to 24 hours before pickup.',
-    },
-  });
-
-  await prisma.assetImage.upsert({
-    where: { id: 'cm-toolshare-demo-asset-image' },
-    update: {
-      assetId: asset.id,
-      url: 'https://example.com/assets/canon-r50-cover.jpg',
-      sortOrder: 0,
-      isCover: true,
-    },
-    create: {
-      id: 'cm-toolshare-demo-asset-image',
-      assetId: asset.id,
-      url: 'https://example.com/assets/canon-r50-cover.jpg',
-      sortOrder: 0,
-      isCover: true,
-    },
-  });
-
-  for (const accessory of [
-    { id: 'cm-toolshare-acc-battery', name: 'Battery', quantity: 2 },
-    { id: 'cm-toolshare-acc-charger', name: 'Charger', quantity: 1 },
-    { id: 'cm-toolshare-acc-bag', name: 'Bag', quantity: 1 },
-  ]) {
-    await prisma.assetAccessory.upsert({
-      where: { id: accessory.id },
-      update: {
-        assetId: asset.id,
-        name: accessory.name,
-        quantity: accessory.quantity,
-      },
+  // 20 Assets
+  const assets = [];
+  for (let i = 1; i <= 20; i++) {
+    const owner = users[i % 5];
+    const asset = await prisma.asset.upsert({
+      where: { id: `cm-toolshare-demo-asset-${i}` },
+      update: {},
       create: {
-        id: accessory.id,
+        id: `cm-toolshare-demo-asset-${i}`,
+        ownerId: owner.id,
+        categoryId: cameraCategory.id,
+        title: `Thiết bị Demo ${i}`,
+        description: `Mô tả cho thiết bị demo số ${i} dành cho việc test.`,
+        brand: i % 2 === 0 ? 'Canon' : 'Sony',
+        model: `Model X${i}`,
+        serialNumber: `TS-DEMO-${i}`,
+        condition: AssetCondition.GOOD,
+        estimatedValue: 15000000 + i * 1000000,
+        pricePerDay: 200000 + i * 10000,
+        minimumDurationDays: 1,
+        maximumDurationDays: 14,
+        city: 'TP.HCM',
+        district: 'Thu Duc',
+        ward: 'Linh Tay',
+        status: AssetStatus.ACTIVE,
+        deliveryOptions: ['meetup'],
+      },
+    });
+    assets.push(asset);
+    
+    await prisma.assetImage.upsert({
+      where: { id: `cm-toolshare-demo-asset-image-${i}` },
+      update: {},
+      create: {
+        id: `cm-toolshare-demo-asset-image-${i}`,
         assetId: asset.id,
-        name: accessory.name,
-        quantity: accessory.quantity,
+        url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=800&auto=format&fit=crop',
+        sortOrder: 0,
+        isCover: true,
       },
     });
   }
 
-  await prisma.favoriteAsset.upsert({
-    where: {
-      userId_assetId: {
-        userId: demoRenter.id,
-        assetId: asset.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: demoRenter.id,
-      assetId: asset.id,
-    },
-  });
+  // A few Bookings
+  const renter = users[0];
+  const owner = users[1];
+  const rentedAsset = assets.find(a => a.ownerId === owner.id);
+  
+  if (rentedAsset) {
+    const startAt = new Date();
+    startAt.setDate(startAt.getDate() + 1);
+    const endAt = new Date();
+    endAt.setDate(endAt.getDate() + 3);
+
+    await prisma.rentalRequest.upsert({
+      where: { id: 'demo-booking-1' },
+      update: {},
+      create: {
+        id: 'demo-booking-1',
+        assetId: rentedAsset.id,
+        ownerId: owner.id,
+        renterId: renter.id,
+        startAt,
+        endAt,
+        status: 'CONFIRMED',
+        rentalFee: 500000,
+        serviceFee: 25000,
+        totalAmount: 525000,
+      }
+    });
+  }
 }
 
 async function main() {

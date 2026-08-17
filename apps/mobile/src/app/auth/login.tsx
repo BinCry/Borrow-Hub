@@ -29,8 +29,12 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      const response = await apiClient.post('/auth/login', data);
-      const token = response.data.accessToken;
+      const payload = {
+        identifier: data.email,
+        password: data.password
+      };
+      const response = await apiClient.post('/auth/login', payload);
+      const token = response.data.tokens.accessToken;
       setAuth(token);
       router.replace('/(tabs)');
     } catch (error: any) {

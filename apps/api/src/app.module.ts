@@ -11,6 +11,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ChatModule } from './chat/chat.module';
 import { AuthGuard } from './common/guards/auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './database/prisma.module';
 import { DisputesModule } from './disputes/disputes.module';
 import { FinanceModule } from './finance/finance.module';
@@ -83,6 +84,10 @@ import { validateEnv } from './config/env.validation';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

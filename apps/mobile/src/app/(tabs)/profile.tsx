@@ -22,7 +22,12 @@ export default function ProfileScreen() {
     enabled: isAuthenticated,
   });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch (e) {
+      console.warn('Logout API failed', e);
+    }
     logout();
     router.replace('/auth/login');
   };

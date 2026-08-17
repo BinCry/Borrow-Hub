@@ -3,7 +3,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshTokenDto, RegisterDto } from './auth.dto';
+import { LoginDto, RefreshTokenDto, RegisterDto, ForgotPasswordDto, ResetPasswordDto } from './auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -35,6 +35,18 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.authService.me(currentUser.id);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Public()
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }
 

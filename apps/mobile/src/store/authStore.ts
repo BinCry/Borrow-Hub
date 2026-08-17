@@ -2,66 +2,78 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const setToken = async (token: string) => {
+const setTokens = async (accessToken: string, refreshToken: string) => {
   if (Platform.OS === 'web') {
-    localStorage.setItem('accessToken', token);
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
   } else {
-    await SecureStore.setItemAsync('accessToken', token);
+    await SecureStore.setItemAsync('accessToken', accessToken);
+    await SecureStore.setItemAsync('refreshToken', refreshToken);
   }
 };
 
-const deleteToken = async () => {
+const deleteTokens = async () => {
   if (Platform.OS === 'web') {
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
   } else {
     await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('refreshToken');
   }
 };
 
-const getToken = async () => {
+const getTokens = async () => {
   if (Platform.OS === 'web') {
-    return localStorage.getItem('accessToken');
+    return {
+      accessToken: localStorage.getItem('accessToken'),
+      refreshToken: localStorage.getItem('refreshToken')
+    };
   } else {
-    return await SecureStore.getItemAsync('accessToken');
+    return {
+      accessToken: await SecureStore.getItemAsync('accessToken'),
+      refreshToken: await SecureStore.getItemAsync('refreshToken')
+    };
   }
 };
 
 interface AuthState {
   accessToken: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  setAuth: (token: string | null) => void;
+  setAuth: (accessToken: string | null, refreshToken?: string | null) => void;
   logout: () => void;
   checkSession: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
+  refreshToken: null,
   isAuthenticated: false,
   isLoading: true,
-  setAuth: async (token) => {
-    if (token) {
-      await setToken(token);
-      set({ accessToken: token, isAuthenticated: true, isLoading: false });
+  setAuth: async (accessToken, refreshToken) => {
+    if (accessToken && refreshToken) {
+      await setTokens(accessToken, refreshToken);
+      set({ accessToken, refreshToken, isAuthenticated: true, isLoading: false });
     } else {
-      await deleteToken();
-      set({ accessToken: null, isAuthenticated: false, isLoading: false });
+      await deleteTokens();
+      set({ accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
     }
   },
   logout: async () => {
-    await deleteToken();
-    set({ accessToken: null, isAuthenticated: false, isLoading: false });
+    await deleteTokens();
+    set({ accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
   },
   checkSession: async () => {
     try {
-      const token = await getToken();
-      if (token) {
-        set({ accessToken: token, isAuthenticated: true, isLoading: false });
+      const { accessToken, refreshToken } = await getTokens();
+      if (accessToken && refreshToken) {
+        set({ accessToken, refreshToken, isAuthenticated: true, isLoading: false });
       } else {
-        set({ accessToken: null, isAuthenticated: false, isLoading: false });
+        set({ accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
       }
     } catch (e) {
-      set({ accessToken: null, isAuthenticated: false, isLoading: false });
+      set({ accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
     }
   },
 }));

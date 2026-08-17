@@ -282,6 +282,8 @@ model User {
   fullName         String            @map("full_name")
   avatarUrl        String?           @map("avatar_url")
   dateOfBirth      DateTime?         @map("date_of_birth")
+  passwordResetToken String?         @unique @map("password_reset_token")
+  passwordResetExpiresAt DateTime?   @map("password_reset_expires_at")
   emailVerifiedAt  DateTime?         @map("email_verified_at")
   phoneVerifiedAt  DateTime?         @map("phone_verified_at")
   status           UserStatus        @default(ACTIVE)

@@ -19,6 +19,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile } from 'fs/promises';
 import { dirname, extname, resolve } from 'path';
+import sharp from 'sharp';
 import { PrismaService } from '../database/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
@@ -301,12 +302,19 @@ export class AssetsService {
       throw new BadRequestException('Uploaded image is empty');
     }
 
-    const fileKey = this.buildAssetUploadFileKey(currentUser.id, file);
+    const fileKey = this.buildAssetUploadFileKey(currentUser.id, { ...file, originalname: file.originalname.replace(/\.[^/.]+$/, "") + '.webp' });
     const uploadsRoot = resolve(__dirname, '..', '..', 'uploads');
     const outputPath = resolve(uploadsRoot, fileKey);
 
     await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, file.buffer);
+    
+    // Resize & Convert to WebP using sharp
+    const optimizedBuffer = await sharp(file.buffer)
+      .resize({ width: 1200, withoutEnlargement: true }) // Max width 1200px
+      .webp({ quality: 80 }) // Convert to webp with 80% quality
+      .toBuffer();
+
+    await writeFile(outputPath, optimizedBuffer);
 
     return {
       url: this.buildPublicUploadUrl(fileKey),

@@ -7,14 +7,44 @@ import { useAsset } from '../../hooks/useAssets';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ChevronLeft, MapPin, Star, ShieldCheck, Heart, User, AlertCircle } from 'lucide-react-native';
+import { useState, useEffect } from 'react';
+import { apiClient } from '../../services/api/client';
+import { useAuthStore } from '../../store/authStore';
 
 const { width } = Dimensions.get('window');
 
 export default function AssetDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 
   const { data: asset, isLoading, isError } = useAsset(id);
+
+  // Ideally this should come from the asset API response (e.g. asset.isFavorite), but we mock it or fetch separately
+  // Since the backend /assets/:id doesn't return isFavorite (it might, but we don't know), we will just allow toggling
+  const toggleFavorite = async () => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+    
+    setIsTogglingFavorite(true);
+    try {
+      if (isFavorite) {
+        await apiClient.delete(`/favorites/${id}`);
+        setIsFavorite(false);
+      } else {
+        await apiClient.post(`/favorites`, { assetId: id });
+        setIsFavorite(true);
+      }
+    } catch (e) {
+      console.warn('Failed to toggle favorite', e);
+    } finally {
+      setIsTogglingFavorite(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -69,8 +99,12 @@ export default function AssetDetailScreen() {
         <Text className="text-lg font-bold text-text-primary" numberOfLines={1}>
           Chi tiết
         </Text>
-        <TouchableOpacity className="p-2 -mr-2">
-          <Heart size={24} color="#6B7280" />
+        <TouchableOpacity 
+          className="p-2 -mr-2" 
+          onPress={toggleFavorite}
+          disabled={isTogglingFavorite}
+        >
+          <Heart size={24} color={isFavorite ? colors.danger.DEFAULT : "#6B7280"} fill={isFavorite ? colors.danger.DEFAULT : "transparent"} />
         </TouchableOpacity>
       </View>
 

@@ -33,7 +33,7 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const response = await apiClient.post('/auth/register', data);
-      const token = response.data.accessToken;
+      const token = response.data.tokens.accessToken;
       setAuth(token);
       router.replace('/(tabs)');
     } catch (error: any) {

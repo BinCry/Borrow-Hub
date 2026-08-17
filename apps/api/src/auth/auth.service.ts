@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import argon2 from 'argon2';
@@ -16,7 +17,7 @@ import {
 } from '@prisma/client';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { PrismaService } from '../database/prisma.service';
-import { LoginDto, RefreshTokenDto, RegisterDto } from './auth.dto';
+import { LoginDto, RefreshTokenDto, RegisterDto, ForgotPasswordDto, ResetPasswordDto } from './auth.dto';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 
 type UserWithRelations = Prisma.PromiseReturnType<typeof findUserWithRelations>;
@@ -259,6 +260,59 @@ export class AuthService {
 
       throw new UnauthorizedException('Invalid or expired access token');
     }
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email }
+    });
+    
+    if (!user) {
+      // Return success anyway to prevent email enumeration
+      return { success: true };
+    }
+    
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: resetToken,
+        passwordResetExpiresAt: tokenExpires
+      }
+    });
+    
+    // In a real application, send this token via email
+    console.log(`[DEV ONLY] Password reset token for ${user.email}: ${resetToken}`);
+    
+    return { success: true };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { passwordResetToken: dto.token }
+    });
+    
+    if (!user || !user.passwordResetExpiresAt || user.passwordResetExpiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+    
+    const passwordHash = await argon2.hash(dto.newPassword, {
+      type: argon2.argon2id,
+    });
+    
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+        refreshTokenHash: null // Invalidate all existing sessions
+      }
+    });
+    
+    return { success: true };
   }
 
   private async issueTokens(user: PersistedUserWithRelations) {
