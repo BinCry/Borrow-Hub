@@ -1,8 +1,9 @@
+import { colors } from '../../../theme/colors';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
+import { apiClient } from '@/services/api/client';
 import { ChevronLeft, QrCode } from 'lucide-react-native';
 
 export default function QrScreen() {
@@ -31,7 +32,7 @@ export default function QrScreen() {
 
       <View className="flex-1 px-5 py-10 items-center justify-center">
         {isLoading ? (
-          <ActivityIndicator size="large" color="#4F7C6B" />
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         ) : (
           <View className="items-center">
             <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 items-center justify-center">

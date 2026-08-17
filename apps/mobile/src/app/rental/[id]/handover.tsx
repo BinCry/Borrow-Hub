@@ -1,8 +1,9 @@
+import { colors } from '../../../theme/colors';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
+import { apiClient } from '@/services/api/client';
 import { ChevronLeft, QrCode, ClipboardCheck } from 'lucide-react-native';
 
 export default function HandoverScreen() {
@@ -45,7 +46,7 @@ export default function HandoverScreen() {
           disabled={isStarting}
         >
           <View className="bg-primary-soft p-3 rounded-full mr-4">
-            <QrCode size={24} color="#4F7C6B" />
+            <QrCode size={24} color={colors.primary.DEFAULT} />
           </View>
           <View className="flex-1">
             <Text className="text-lg font-bold text-text-primary">Generate QR Code</Text>

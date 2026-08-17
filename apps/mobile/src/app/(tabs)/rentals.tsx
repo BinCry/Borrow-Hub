@@ -1,3 +1,4 @@
+import { colors } from '../../theme/colors';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -43,8 +44,8 @@ export default function RentalsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="px-4 pt-4 pb-2 bg-surface z-10 border-b border-border">
-        <Text className="text-2xl font-bold text-text-primary mb-4">Rentals</Text>
+      <View className="px-4 py-4 bg-surface border-b border-border z-10">
+        <Text className="text-2xl font-bold text-text-primary mb-4">Đơn thuê</Text>
         
         {/* Segmented Control */}
         <View className="flex-row bg-gray-100 p-1 rounded-lg">
@@ -52,24 +53,24 @@ export default function RentalsScreen() {
             className={`flex-1 py-2 items-center rounded-md ${activeTab === 'renter' ? 'bg-white shadow-sm' : ''}`}
             onPress={() => setActiveTab('renter')}
           >
-            <Text className={`font-semibold ${activeTab === 'renter' ? 'text-primary' : 'text-text-secondary'}`}>Renting</Text>
+            <Text className={`font-semibold ${activeTab === 'renter' ? 'text-primary' : 'text-text-secondary'}`}>Đi thuê</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             className={`flex-1 py-2 items-center rounded-md ${activeTab === 'owner' ? 'bg-white shadow-sm' : ''}`}
             onPress={() => setActiveTab('owner')}
           >
-            <Text className={`font-semibold ${activeTab === 'owner' ? 'text-primary' : 'text-text-secondary'}`}>Lending</Text>
+            <Text className={`font-semibold ${activeTab === 'owner' ? 'text-primary' : 'text-text-secondary'}`}>Cho thuê</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#4F7C6B" />
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         </View>
       ) : isError ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-danger">Failed to load rentals.</Text>
+          <Text className="text-danger">Không thể tải danh sách đơn thuê.</Text>
         </View>
       ) : (
         <FlatList
@@ -81,7 +82,7 @@ export default function RentalsScreen() {
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center py-20">
               <CalendarClock size={48} color="#D1D5DB" />
-              <Text className="text-text-secondary mt-4 text-lg font-medium">No rentals found</Text>
+              <Text className="text-text-secondary mt-4 text-lg font-medium">Chưa có đơn thuê nào</Text>
             </View>
           }
           renderItem={({ item }) => (

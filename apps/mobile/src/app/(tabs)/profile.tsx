@@ -1,3 +1,4 @@
+import { colors } from '../../theme/colors';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
@@ -28,17 +29,17 @@ export default function ProfileScreen() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center px-6">
-        <User size={64} color="#9CA3AF" className="mb-4" />
-        <Text className="text-xl font-bold text-text-primary mb-2">Not Logged In</Text>
-        <Text className="text-text-secondary text-center mb-6">
-          Login to manage your profile, rentals, and listings.
+      <SafeAreaView className="flex-1 bg-background items-center justify-center p-4">
+        <User size={64} color="#9CA3AF" />
+        <Text className="text-xl font-bold text-text-primary mb-2">Chưa đăng nhập</Text>
+        <Text className="text-text-secondary text-center mb-8">
+          Đăng nhập để quản lý tài sản, đơn thuê và tin nhắn của bạn
         </Text>
         <TouchableOpacity 
           className="bg-primary w-full py-4 rounded-xl items-center"
           onPress={() => router.push('/auth/login')}
         >
-          <Text className="text-white font-bold text-lg">Login / Sign Up</Text>
+          <Text className="text-white font-bold text-lg">Đăng nhập / Đăng ký</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -47,9 +48,9 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="px-4 py-4 bg-surface border-b border-border z-10 flex-row justify-between items-center">
-        <Text className="text-2xl font-bold text-text-primary">Profile</Text>
-        <TouchableOpacity onPress={() => router.push('/settings')}>
-          <Settings size={24} color="#4F7C6B" />
+        <Text className="text-2xl font-bold text-text-primary">Tài khoản</Text>
+        <TouchableOpacity className="p-2 -mr-2" onPress={() => router.push('/settings')}>
+          <Settings size={24} color={colors.primary.DEFAULT} />
         </TouchableOpacity>
       </View>
 
@@ -60,7 +61,7 @@ export default function ProfileScreen() {
             {user?.avatarUrl ? (
               <Image source={{ uri: user.avatarUrl }} className="w-full h-full" />
             ) : (
-              <User size={40} color="#4F7C6B" />
+              <User size={40} color={colors.primary.DEFAULT} />
             )}
           </View>
           <Text className="text-2xl font-bold text-text-primary mb-1">
@@ -68,57 +69,62 @@ export default function ProfileScreen() {
           </Text>
           <Text className="text-text-secondary">{user?.email}</Text>
           
-          <View className="flex-row items-center mt-3 bg-primary-soft px-3 py-1.5 rounded-full">
+          <View className="flex-row items-center mt-3 bg-primary-soft px-4 py-2 rounded-full">
             <ShieldCheck size={16} color="#2F855A" />
-            <Text className="text-success font-semibold ml-2">Trust Score: {user?.trustScore || 0}</Text>
+            <Text className="text-text-secondary text-xs ml-2">Độ uy tín</Text>
+            <Text className="text-success font-bold ml-1">{user?.trustScore || 0}</Text>
           </View>
         </View>
 
         {/* Menu Items */}
         <View className="p-4">
-          <Text className="text-xs font-bold text-text-secondary uppercase mb-2 ml-2">Owner Tools</Text>
-          <View className="bg-surface rounded-xl border border-border mb-6 overflow-hidden">
-            <TouchableOpacity 
-              className="flex-row items-center p-4 border-b border-border"
-              onPress={() => router.push('/asset/create')}
-            >
-              <PlusCircle size={22} color="#4F7C6B" className="mr-3" />
-              <Text className="flex-1 text-base font-medium text-text-primary">Create Listing</Text>
+          <Text className="text-xs font-bold text-text-secondary uppercase mb-2 ml-2">Tài sản của tôi</Text>
+          <View className="mb-6">
+            <TouchableOpacity className="bg-surface p-4 rounded-xl mb-3 border border-border flex-row justify-between items-center" onPress={() => router.push('/asset/create')}>
+              <View className="flex-row items-center">
+                <PlusCircle size={22} color={colors.primary.DEFAULT} className="mr-3" />
+                <Text className="font-semibold text-text-primary">Tạo bài đăng</Text>
+              </View>
+              <ChevronRight size={20} color="#9CA3AF" />
             </TouchableOpacity>
-            <TouchableOpacity 
-              className="flex-row items-center p-4"
-              onPress={() => router.push('/profile/listings')}
-            >
-              <List size={22} color="#4F7C6B" className="mr-3" />
-              <Text className="flex-1 text-base font-medium text-text-primary">My Listings</Text>
+
+            <TouchableOpacity className="bg-surface p-4 rounded-xl border border-border flex-row justify-between items-center" onPress={() => router.push('/profile/listings')}>
+              <View className="flex-row items-center">
+                <List size={22} color={colors.primary.DEFAULT} className="mr-3" />
+                <Text className="font-semibold text-text-primary">Quản lý bài đăng</Text>
+              </View>
+              <ChevronRight size={20} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
 
-          <Text className="text-xs font-bold text-text-secondary uppercase mb-2 ml-2">Account</Text>
-          <View className="bg-surface rounded-xl border border-border mb-6 overflow-hidden">
-            <TouchableOpacity 
-              className="flex-row items-center p-4 border-b border-border"
-              onPress={() => router.push('/profile/kyc')}
-            >
-              <ShieldCheck size={22} color="#4F7C6B" className="mr-3" />
-              <Text className="flex-1 text-base font-medium text-text-primary">Identity Verification</Text>
+          <Text className="text-xs font-bold text-text-secondary uppercase mb-2 ml-2">Tài khoản</Text>
+          <View className="mb-6">
+            <TouchableOpacity className="bg-surface p-4 rounded-xl mb-3 border border-border flex-row justify-between items-center" onPress={() => router.push('/profile/kyc')}>
+              <View className="flex-row items-center">
+                <ShieldCheck size={22} color={colors.primary.DEFAULT} className="mr-3" />
+                <Text className="font-semibold text-text-primary">Xác thực danh tính (KYC)</Text>
+              </View>
+              <ChevronRight size={20} color="#9CA3AF" />
             </TouchableOpacity>
+
+            <TouchableOpacity className="bg-surface p-4 rounded-xl mb-3 border border-border flex-row justify-between items-center" onPress={() => router.push('/support')}>
+              <View className="flex-row items-center">
+                <HelpCircle size={22} color={colors.primary.DEFAULT} className="mr-3" />
+                <Text className="font-semibold text-text-primary">Hỗ trợ</Text>
+              </View>
+              <ChevronRight size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+            
             <TouchableOpacity 
-              className="flex-row items-center p-4"
-              onPress={() => router.push('/support')}
+              className="bg-surface p-4 rounded-xl border border-border flex-row justify-between items-center"
+              onPress={handleLogout}
             >
-              <HelpCircle size={22} color="#4F7C6B" className="mr-3" />
-              <Text className="flex-1 text-base font-medium text-text-primary">Support & FAQ</Text>
+              <View className="flex-row items-center">
+                <LogOut size={22} color="#DC5C5C" className="mr-3" />
+                <Text className="font-semibold text-danger">Đăng xuất</Text>
+              </View>
             </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity 
-            className="flex-row items-center p-4 bg-surface rounded-xl border border-border mt-4"
-            onPress={handleLogout}
-          >
-            <LogOut size={22} color="#DC5C5C" className="mr-3" />
-            <Text className="flex-1 text-base font-medium text-danger">Logout</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

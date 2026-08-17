@@ -5,10 +5,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { randomUUID } from 'crypto';
 import { mkdirSync } from 'fs';
 import type { NextFunction, Response } from 'express';
-import express from 'express';
 import helmet from 'helmet';
 import { resolve } from 'path';
 import type { AuthenticatedRequest } from './common/interfaces/authenticated-request.interface';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RequestContextService } from './common/request-context.service';
 import { RequestLogsService } from './request-logs/request-logs.service';
 import { AppModule } from './app.module';
@@ -22,9 +22,9 @@ async function bootstrap() {
 
   mkdirSync(uploadsRoot, { recursive: true });
 
+  app.useGlobalFilters(new AllExceptionsFilter());
   app.use(helmet());
   app.enableCors();
-  app.use('/uploads', express.static(uploadsRoot));
   app.use((request: AuthenticatedRequest, response: Response, next: NextFunction) => {
     const startedAt = Date.now();
     const incomingRequestId = request.headers['x-request-id'];

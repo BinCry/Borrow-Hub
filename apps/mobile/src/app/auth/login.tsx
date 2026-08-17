@@ -9,8 +9,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useState } from 'react';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email('Email không hợp lệ'),
+  password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -32,7 +32,7 @@ export default function LoginScreen() {
       setAuth(token);
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Login Failed', error.response?.data?.message || 'Something went wrong');
+      Alert.alert('Đăng nhập thất bại', error.response?.data?.message || 'Đã có lỗi xảy ra');
     } finally {
       setLoading(false);
     }
@@ -45,8 +45,8 @@ export default function LoginScreen() {
         className="flex-1 justify-center px-6"
       >
         <View className="mb-10">
-          <Text className="text-3xl font-bold text-primary">Welcome Back</Text>
-          <Text className="text-text-secondary mt-2">Login to continue</Text>
+          <Text className="text-3xl font-bold text-primary">Chào mừng trở lại</Text>
+          <Text className="text-text-secondary mt-2">Đăng nhập để tiếp tục</Text>
         </View>
 
         <View className="mb-4">
@@ -60,7 +60,7 @@ export default function LoginScreen() {
                 onBlur={onBlur}
                 onChangeText={onChange}
                 value={value}
-                placeholder="Enter your email"
+                placeholder="Nhập email của bạn"
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -70,7 +70,7 @@ export default function LoginScreen() {
         </View>
 
         <View className="mb-6">
-          <Text className="text-text-primary mb-2 font-medium">Password</Text>
+          <Text className="text-text-primary mb-2 font-medium">Mật khẩu</Text>
           <Controller
             control={control}
             name="password"
@@ -80,7 +80,7 @@ export default function LoginScreen() {
                 onBlur={onBlur}
                 onChangeText={onChange}
                 value={value}
-                placeholder="Enter your password"
+                placeholder="Nhập mật khẩu"
                 secureTextEntry
               />
             )}
@@ -93,14 +93,14 @@ export default function LoginScreen() {
           onPress={handleSubmit(onSubmit)}
           disabled={loading}
         >
-          <Text className="text-white font-semibold text-lg">{loading ? 'Logging in...' : 'Login'}</Text>
+          <Text className="text-white font-semibold text-lg">{loading ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
         </TouchableOpacity>
 
         <View className="flex-row justify-center mt-6">
-          <Text className="text-text-secondary">Don't have an account? </Text>
+          <Text className="text-text-secondary">Chưa có tài khoản? </Text>
           <Link href="/auth/register" asChild>
             <TouchableOpacity>
-              <Text className="text-primary font-semibold">Sign Up</Text>
+              <Text className="text-primary font-semibold">Đăng ký</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -109,7 +109,7 @@ export default function LoginScreen() {
         <View className="flex-row justify-center mt-6">
           <Link href="/(tabs)" asChild>
             <TouchableOpacity>
-              <Text className="text-text-secondary underline">Continue as Guest</Text>
+              <Text className="text-text-secondary underline">Tiếp tục dưới dạng Khách</Text>
             </TouchableOpacity>
           </Link>
         </View>

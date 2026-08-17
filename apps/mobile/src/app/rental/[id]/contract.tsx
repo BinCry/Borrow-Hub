@@ -1,8 +1,9 @@
+import { colors } from '../../../theme/colors';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
+import { apiClient } from '@/services/api/client';
 import { ChevronLeft, FileText, CheckCircle } from 'lucide-react-native';
 import { useState } from 'react';
 
@@ -40,7 +41,7 @@ export default function ContractScreen() {
 
       <ScrollView className="flex-1 px-5 py-4">
         <View className="items-center mb-6">
-          <FileText size={48} color="#4F7C6B" />
+          <FileText size={48} color={colors.primary.DEFAULT} />
           <Text className="text-xl font-bold text-text-primary mt-2">Rental Agreement</Text>
         </View>
 

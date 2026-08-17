@@ -1,12 +1,11 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
 
-import { useColorScheme } from '../hooks/useColorScheme';
+import { useColorScheme } from '../hooks/use-color-scheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 
@@ -16,9 +15,6 @@ const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
-  });
   
   const checkSession = useAuthStore((state) => state.checkSession);
   const isLoadingAuth = useAuthStore((state) => state.isLoading);
@@ -28,12 +24,12 @@ export default function RootLayout() {
   }, [checkSession]);
 
   useEffect(() => {
-    if (loaded && !isLoadingAuth) {
+    if (!isLoadingAuth) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, isLoadingAuth]);
+  }, [isLoadingAuth]);
 
-  if (!loaded || isLoadingAuth) {
+  if (isLoadingAuth) {
     return null;
   }
 

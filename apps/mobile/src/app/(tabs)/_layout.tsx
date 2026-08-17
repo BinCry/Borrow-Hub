@@ -1,10 +1,11 @@
+import { colors } from '../../theme/colors';
 import { Tabs } from 'expo-router';
 import { Home, Search, CalendarClock, MessageCircle, User } from 'lucide-react-native';
 import { useColorScheme } from 'react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const tintColor = '#4F7C6B'; // Primary color
+  const tintColor = colors.primary.DEFAULT; // Primary color
 
   return (
     <Tabs
@@ -15,35 +16,35 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Trang chủ',
           tabBarIcon: ({ color }) => <Home color={color} size={24} />,
         }}
       />
       <Tabs.Screen
         name="discover"
         options={{
-          title: 'Discover',
+          title: 'Khám phá',
           tabBarIcon: ({ color }) => <Search color={color} size={24} />,
         }}
       />
       <Tabs.Screen
         name="rentals"
         options={{
-          title: 'Rentals',
+          title: 'Đơn thuê',
           tabBarIcon: ({ color }) => <CalendarClock color={color} size={24} />,
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
-          title: 'Messages',
+          title: 'Tin nhắn',
           tabBarIcon: ({ color }) => <MessageCircle color={color} size={24} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'Tài khoản',
           tabBarIcon: ({ color }) => <User color={color} size={24} />,
         }}
       />

@@ -1,7 +1,12 @@
 import argon2 from 'argon2';
 import { PrismaClient, RoleName, VerificationStatus, FaceMatchStatus, UserStatus, AssetCondition, AssetStatus, CategoryStatus } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/toolshare?schema=public';
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function seedRolesAndPermissions() {
   const permissions = [
@@ -408,9 +413,11 @@ async function main() {
 main()
   .then(async () => {
     await prisma.$disconnect();
+    await pool.end();
   })
   .catch(async (error) => {
     console.error(error);
     await prisma.$disconnect();
+    await pool.end();
     process.exit(1);
   });

@@ -1,3 +1,4 @@
+import { colors } from '../../theme/colors';
 import { View, Text, FlatList, ActivityIndicator, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -28,28 +29,28 @@ export default function DiscoverScreen() {
       <View className="px-4 py-4 bg-surface border-b border-border z-10">
         <View className="flex-row items-center space-x-2">
           <View className="flex-1 flex-row items-center bg-background rounded-lg px-3 py-2 border border-border">
-            <Search size={20} color="#6B7280" />
+            <Search size={20} color="#9CA3AF" />
             <TextInput
-              className="flex-1 ml-2 text-text-primary"
-              placeholder="Search assets..."
+              className="flex-1 ml-2 text-base text-text-primary h-12"
+              placeholder="Tìm kiếm tài sản..."
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
             />
           </View>
           <TouchableOpacity className="bg-primary-soft p-3 rounded-lg">
-            <SlidersHorizontal size={20} color="#4F7C6B" />
+            <SlidersHorizontal size={20} color={colors.primary.DEFAULT} />
           </TouchableOpacity>
         </View>
       </View>
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#4F7C6B" />
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         </View>
       ) : isError ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-danger">Failed to perform search.</Text>
+          <Text className="text-danger">Không thể tải dữ liệu tìm kiếm.</Text>
         </View>
       ) : (
         <FlatList
@@ -60,8 +61,8 @@ export default function DiscoverScreen() {
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center py-20">
               <Search size={48} color="#D1D5DB" />
-              <Text className="text-text-secondary mt-4 text-lg font-medium">No results found</Text>
-              <Text className="text-text-secondary text-sm mt-1">Try adjusting your search terms</Text>
+              <Text className="text-text-secondary mt-4 text-lg font-medium">Không tìm thấy kết quả</Text>
+              <Text className="text-text-secondary text-sm mt-1">Thử thay đổi từ khoá tìm kiếm</Text>
             </View>
           }
         />

@@ -1,5 +1,30 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
+const setToken = async (token: string) => {
+  if (Platform.OS === 'web') {
+    localStorage.setItem('accessToken', token);
+  } else {
+    await SecureStore.setItemAsync('accessToken', token);
+  }
+};
+
+const deleteToken = async () => {
+  if (Platform.OS === 'web') {
+    localStorage.removeItem('accessToken');
+  } else {
+    await SecureStore.deleteItemAsync('accessToken');
+  }
+};
+
+const getToken = async () => {
+  if (Platform.OS === 'web') {
+    return localStorage.getItem('accessToken');
+  } else {
+    return await SecureStore.getItemAsync('accessToken');
+  }
+};
 
 interface AuthState {
   accessToken: string | null;
@@ -14,22 +39,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   isAuthenticated: false,
   isLoading: true,
-  setAuth: (token) => {
+  setAuth: async (token) => {
     if (token) {
-      SecureStore.setItemAsync('accessToken', token);
+      await setToken(token);
       set({ accessToken: token, isAuthenticated: true, isLoading: false });
     } else {
-      SecureStore.deleteItemAsync('accessToken');
+      await deleteToken();
       set({ accessToken: null, isAuthenticated: false, isLoading: false });
     }
   },
   logout: async () => {
-    await SecureStore.deleteItemAsync('accessToken');
+    await deleteToken();
     set({ accessToken: null, isAuthenticated: false, isLoading: false });
   },
   checkSession: async () => {
     try {
-      const token = await SecureStore.getItemAsync('accessToken');
+      const token = await getToken();
       if (token) {
         set({ accessToken: token, isAuthenticated: true, isLoading: false });
       } else {

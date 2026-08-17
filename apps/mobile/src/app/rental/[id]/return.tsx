@@ -1,8 +1,9 @@
+import { colors } from '../../../theme/colors';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
+import { apiClient } from '@/services/api/client';
 import { ChevronLeft, ArrowLeftRight } from 'lucide-react-native';
 
 export default function ReturnAssetScreen() {
@@ -35,7 +36,7 @@ export default function ReturnAssetScreen() {
       </View>
 
       <View className="flex-1 px-5 py-10 items-center">
-        <ArrowLeftRight size={64} color="#4F7C6B" className="mb-6" />
+        <ArrowLeftRight size={64} color={colors.primary.DEFAULT} className="mb-6" />
         <Text className="text-2xl font-bold text-text-primary mb-2 text-center">Ready to return?</Text>
         <Text className="text-text-secondary text-center mb-8 px-4 leading-5">
           By initiating the return process, you notify the owner that you are ready to hand back the asset. Ensure the asset is in its original condition to avoid disputes.

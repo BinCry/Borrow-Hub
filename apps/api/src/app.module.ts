@@ -26,6 +26,8 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { SupportModule } from './support/support.module';
 import { UsersModule } from './users/users.module';
 import { RequestContextModule } from './common/request-context.module';
+import { PaymentModule } from './payment/payment.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -66,6 +68,8 @@ import { RequestContextModule } from './common/request-context.module';
     ReviewsModule,
     SupportModule,
     HealthModule,
+    PaymentModule,
+    StorageModule,
   ],
   providers: [
     {

@@ -107,27 +107,53 @@ export class RentalsService {
       );
     }
 
-    await this.ensureNoOverlap(asset.id, startAt, endAt);
-    await this.ensureWithinAvailability(asset.id, startAt, endAt);
-
     const pricing = await this.computePricing(asset.pricePerDay, durationInDays);
 
-    const rental = await this.prisma.rentalRequest.create({
-      data: {
-        assetId: asset.id,
-        ownerId: asset.ownerId,
-        renterId: currentUser.id,
-        startAt,
-        endAt,
-        deliveryMethod: dto.deliveryMethod,
-        message: dto.message,
-        rentalFee: pricing.rentalFee,
-        serviceFee: pricing.serviceFee,
-        deliveryFee: pricing.deliveryFee,
-        totalAmount: pricing.totalAmount,
-        status: RentalStatus.PENDING_OWNER,
-      },
-      include: this.rentalInclude(),
+    const rental = await this.prisma.$transaction(async (tx) => {
+      // Lock the asset row to prevent race conditions during concurrent bookings
+      await tx.$queryRaw`SELECT 1 FROM "assets" WHERE id = ${asset.id} FOR UPDATE`;
+
+      const overlapping = await tx.rentalRequest.findFirst({
+        where: {
+          assetId: asset.id,
+          status: {
+            in: [
+              RentalStatus.AWAITING_SIGNATURE,
+              RentalStatus.CONFIRMED,
+              RentalStatus.READY_FOR_HANDOVER,
+              RentalStatus.ONGOING,
+              RentalStatus.RETURN_PENDING,
+              RentalStatus.OVERDUE,
+            ],
+          },
+          startAt: { lt: endAt },
+          endAt: { gt: startAt },
+        },
+      });
+
+      if (overlapping) {
+        throw new ConflictException('This asset already has an overlapping booking');
+      }
+
+      await this.ensureWithinAvailability(asset.id, startAt, endAt, tx);
+
+      return tx.rentalRequest.create({
+        data: {
+          assetId: asset.id,
+          ownerId: asset.ownerId,
+          renterId: currentUser.id,
+          startAt,
+          endAt,
+          deliveryMethod: dto.deliveryMethod,
+          message: dto.message,
+          rentalFee: pricing.rentalFee,
+          serviceFee: pricing.serviceFee,
+          deliveryFee: pricing.deliveryFee,
+          totalAmount: pricing.totalAmount,
+          status: RentalStatus.PENDING_OWNER,
+        },
+        include: this.rentalInclude(),
+      });
     });
 
     await this.notificationsService.createMany([asset.ownerId], {
@@ -1531,40 +1557,15 @@ export class RentalsService {
     }
   }
 
-  private async ensureNoOverlap(assetId: string, startAt: Date, endAt: Date) {
-    const overlapping = await this.prisma.rentalRequest.findFirst({
-      where: {
-        assetId,
-        status: {
-          in: [
-            RentalStatus.AWAITING_SIGNATURE,
-            RentalStatus.CONFIRMED,
-            RentalStatus.READY_FOR_HANDOVER,
-            RentalStatus.ONGOING,
-            RentalStatus.RETURN_PENDING,
-            RentalStatus.OVERDUE,
-          ],
-        },
-        startAt: {
-          lt: endAt,
-        },
-        endAt: {
-          gt: startAt,
-        },
-      },
-    });
-
-    if (overlapping) {
-      throw new ConflictException('This asset already has an overlapping booking');
-    }
-  }
 
   private async ensureWithinAvailability(
     assetId: string,
     startAt: Date,
     endAt: Date,
+    tx?: Prisma.TransactionClient,
   ) {
-    const blockedWindow = await this.prisma.assetAvailability.findFirst({
+    const prisma = tx ?? this.prisma;
+    const blockedWindow = await prisma.assetAvailability.findFirst({
       where: {
         assetId,
         availabilityType: AvailabilityType.BLOCKED,
@@ -1583,7 +1584,7 @@ export class RentalsService {
       );
     }
 
-    const availableWindowCount = await this.prisma.assetAvailability.count({
+    const availableWindowCount = await prisma.assetAvailability.count({
       where: {
         assetId,
         availabilityType: AvailabilityType.AVAILABLE,

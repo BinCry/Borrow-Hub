@@ -9,10 +9,10 @@ import { useAuthStore } from '../../store/authStore';
 import { useState } from 'react';
 
 const registerSchema = z.object({
-  fullName: z.string().min(2, 'Name is too short'),
-  email: z.string().email('Invalid email format'),
-  phone: z.string().min(10, 'Invalid phone number'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  fullName: z.string().min(2, 'Tên quá ngắn'),
+  email: z.string().email('Email không hợp lệ'),
+  phone: z.string().min(10, 'Số điện thoại không hợp lệ'),
+  password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
@@ -34,7 +34,7 @@ export default function RegisterScreen() {
       setAuth(token);
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Registration Failed', error.response?.data?.message || 'Something went wrong');
+      Alert.alert('Đăng ký thất bại', error.response?.data?.message || 'Đã có lỗi xảy ra');
     } finally {
       setLoading(false);
     }
@@ -48,12 +48,12 @@ export default function RegisterScreen() {
       >
         <ScrollView contentContainerClassName="flex-grow justify-center px-6 py-6">
           <View className="mb-8">
-            <Text className="text-3xl font-bold text-primary">Create Account</Text>
-            <Text className="text-text-secondary mt-2">Join Borrow Hub today</Text>
+            <Text className="text-3xl font-bold text-primary">Tạo tài khoản</Text>
+            <Text className="text-text-secondary mt-2">Tham gia Borrow Hub ngay hôm nay</Text>
           </View>
 
           <View className="mb-4">
-            <Text className="text-text-primary mb-2 font-medium">Full Name</Text>
+            <Text className="text-text-primary mb-2 font-medium">Họ và tên</Text>
             <Controller
               control={control}
               name="fullName"
@@ -63,7 +63,7 @@ export default function RegisterScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
-                  placeholder="Enter your full name"
+                  placeholder="Nhập họ và tên của bạn"
                 />
               )}
             />
@@ -81,7 +81,7 @@ export default function RegisterScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
-                  placeholder="Enter your email"
+                  placeholder="Nhập email của bạn"
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -91,7 +91,7 @@ export default function RegisterScreen() {
           </View>
           
           <View className="mb-4">
-            <Text className="text-text-primary mb-2 font-medium">Phone</Text>
+            <Text className="text-text-primary mb-2 font-medium">Số điện thoại</Text>
             <Controller
               control={control}
               name="phone"
@@ -101,7 +101,7 @@ export default function RegisterScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
-                  placeholder="Enter your phone number"
+                  placeholder="Nhập số điện thoại của bạn"
                   keyboardType="phone-pad"
                 />
               )}
@@ -110,7 +110,7 @@ export default function RegisterScreen() {
           </View>
 
           <View className="mb-8">
-            <Text className="text-text-primary mb-2 font-medium">Password</Text>
+            <Text className="text-text-primary mb-2 font-medium">Mật khẩu</Text>
             <Controller
               control={control}
               name="password"
@@ -120,7 +120,7 @@ export default function RegisterScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
-                  placeholder="Create a password"
+                  placeholder="Tạo mật khẩu"
                   secureTextEntry
                 />
               )}
@@ -133,14 +133,14 @@ export default function RegisterScreen() {
             onPress={handleSubmit(onSubmit)}
             disabled={loading}
           >
-            <Text className="text-white font-semibold text-lg">{loading ? 'Signing up...' : 'Sign Up'}</Text>
+            <Text className="text-white font-semibold text-lg">{loading ? 'Đang đăng ký...' : 'Đăng ký'}</Text>
           </TouchableOpacity>
 
           <View className="flex-row justify-center mt-6">
-            <Text className="text-text-secondary">Already have an account? </Text>
+            <Text className="text-text-secondary">Đã có tài khoản? </Text>
             <Link href="/auth/login" asChild>
               <TouchableOpacity>
-                <Text className="text-primary font-semibold">Login</Text>
+                <Text className="text-primary font-semibold">Đăng nhập</Text>
               </TouchableOpacity>
             </Link>
           </View>

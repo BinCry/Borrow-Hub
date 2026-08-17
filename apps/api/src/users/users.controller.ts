@@ -13,6 +13,11 @@ export class UsersController {
     return this.usersService.getProfile(currentUser.id);
   }
 
+  @Delete('me/account')
+  deleteAccount(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.usersService.deleteAccount(currentUser.id);
+  }
+
   @Patch('me')
   updateMe(
     @CurrentUser() currentUser: AuthenticatedUser,

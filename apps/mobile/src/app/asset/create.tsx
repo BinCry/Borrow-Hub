@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -9,14 +9,14 @@ import { ChevronLeft } from 'lucide-react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const createAssetSchema = z.object({
-  title: z.string().min(5, 'Title must be at least 5 characters'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  pricePerDay: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, 'Must be a valid positive number'),
-  categoryId: z.string().min(1, 'Category is required'),
-  city: z.string().min(2, 'City is required'),
-  district: z.string().min(2, 'District is required'),
+  title: z.string().min(5, 'Tiêu đề phải dài ít nhất 5 ký tự'),
+  description: z.string().min(10, 'Mô tả phải dài ít nhất 10 ký tự'),
+  pricePerDay: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, 'Phải là số hợp lệ'),
+  categoryId: z.string().min(1, 'Danh mục là bắt buộc'),
+  city: z.string().min(2, 'Tỉnh/Thành phố là bắt buộc'),
+  district: z.string().min(2, 'Quận/Huyện là bắt buộc'),
   condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR', 'WORN']),
-  estimatedValue: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, 'Must be a valid positive number'),
+  estimatedValue: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, 'Phải là số hợp lệ'),
 });
 
 type CreateAssetForm = z.infer<typeof createAssetSchema>;
@@ -48,29 +48,33 @@ export default function CreateListingScreen() {
       return apiClient.post('/assets', payload);
     },
     onSuccess: () => {
-      Alert.alert('Success', 'Listing created successfully');
+      Alert.alert('Thành công', 'Đã tạo bài đăng thành công');
       queryClient.invalidateQueries({ queryKey: ['my-assets'] });
       router.back();
     },
     onError: (error: any) => {
-      Alert.alert('Creation Failed', error.response?.data?.message || 'Could not create listing');
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tạo bài đăng');
     }
   });
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="flex-row items-center justify-between px-4 py-3 bg-surface z-10 border-b border-border">
-        <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
-          <ChevronLeft size={28} color="#1F2937" />
-        </TouchableOpacity>
-        <Text className="text-lg font-bold text-text-primary">Create Listing</Text>
-        <View className="w-10" />
-      </View>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View className="flex-row items-center justify-between px-4 py-3 bg-surface z-10 border-b border-border">
+          <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
+            <ChevronLeft size={28} color="#1F2937" />
+          </TouchableOpacity>
+          <Text className="text-lg font-bold text-text-primary">Tạo bài đăng</Text>
+          <View className="w-10" />
+        </View>
 
-      <ScrollView className="flex-1 px-5 py-4">
-        
-        <View className="mb-4">
-          <Text className="text-text-primary mb-2 font-medium">Title</Text>
+        <ScrollView className="flex-1 px-5 py-4" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          
+          <View className="mb-4">
+            <Text className="text-text-primary mb-2 font-medium">Tiêu đề</Text>
           <Controller
             control={control}
             name="title"
@@ -80,7 +84,7 @@ export default function CreateListingScreen() {
                 onBlur={onBlur}
                 onChangeText={onChange}
                 value={value}
-                placeholder="What are you renting out?"
+                placeholder="Bạn muốn cho thuê món đồ gì?"
               />
             )}
           />
@@ -88,7 +92,7 @@ export default function CreateListingScreen() {
         </View>
 
         <View className="mb-4">
-          <Text className="text-text-primary mb-2 font-medium">Description</Text>
+          <Text className="text-text-primary mb-2 font-medium">Mô tả</Text>
           <Controller
             control={control}
             name="description"
@@ -98,7 +102,7 @@ export default function CreateListingScreen() {
                 onBlur={onBlur}
                 onChangeText={onChange}
                 value={value}
-                placeholder="Describe your item in detail"
+                placeholder="Mô tả chi tiết về món đồ của bạn"
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
@@ -110,7 +114,7 @@ export default function CreateListingScreen() {
 
         <View className="flex-row mb-4">
           <View className="flex-1 mr-2">
-            <Text className="text-text-primary mb-2 font-medium">Price per day (VND)</Text>
+            <Text className="text-text-primary mb-2 font-medium">Giá thuê 1 ngày (VND)</Text>
             <Controller
               control={control}
               name="pricePerDay"
@@ -120,7 +124,7 @@ export default function CreateListingScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
-                  placeholder="e.g. 50000"
+                  placeholder="VD: 50000"
                   keyboardType="numeric"
                 />
               )}
@@ -128,7 +132,7 @@ export default function CreateListingScreen() {
             {errors.pricePerDay && <Text className="text-danger mt-1 text-sm">{errors.pricePerDay.message}</Text>}
           </View>
           <View className="flex-1 ml-2">
-            <Text className="text-text-primary mb-2 font-medium">Est. Value (VND)</Text>
+            <Text className="text-text-primary mb-2 font-medium">Giá trị ước tính (VND)</Text>
             <Controller
               control={control}
               name="estimatedValue"
@@ -138,7 +142,7 @@ export default function CreateListingScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
-                  placeholder="e.g. 1000000"
+                  placeholder="VD: 1000000"
                   keyboardType="numeric"
                 />
               )}
@@ -149,7 +153,7 @@ export default function CreateListingScreen() {
 
         <View className="flex-row mb-6">
           <View className="flex-1 mr-2">
-            <Text className="text-text-primary mb-2 font-medium">City</Text>
+            <Text className="text-text-primary mb-2 font-medium">Tỉnh/Thành phố</Text>
             <Controller
               control={control}
               name="city"
@@ -159,14 +163,14 @@ export default function CreateListingScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
-                  placeholder="e.g. Ho Chi Minh"
+                  placeholder="VD: Hồ Chí Minh"
                 />
               )}
             />
             {errors.city && <Text className="text-danger mt-1 text-sm">{errors.city.message}</Text>}
           </View>
           <View className="flex-1 ml-2">
-            <Text className="text-text-primary mb-2 font-medium">District</Text>
+            <Text className="text-text-primary mb-2 font-medium">Quận/Huyện</Text>
             <Controller
               control={control}
               name="district"
@@ -176,7 +180,7 @@ export default function CreateListingScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
-                  placeholder="e.g. District 1"
+                  placeholder="VD: Quận 1"
                 />
               )}
             />
@@ -192,11 +196,12 @@ export default function CreateListingScreen() {
           {isPending ? (
              <ActivityIndicator color="white" />
           ) : (
-            <Text className="text-white font-bold text-lg">Create Listing</Text>
+            <Text className="text-white font-bold text-lg">Đăng cho thuê</Text>
           )}
         </TouchableOpacity>
 
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

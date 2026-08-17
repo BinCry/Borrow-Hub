@@ -1,8 +1,9 @@
+import { colors } from '../../../theme/colors';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
+import { apiClient } from '@/services/api/client';
 import { ChevronLeft, CreditCard } from 'lucide-react-native';
 
 export default function PaymentSandboxScreen() {
@@ -39,7 +40,7 @@ export default function PaymentSandboxScreen() {
       </View>
 
       <View className="flex-1 px-5 py-10 items-center">
-        <CreditCard size={64} color="#4F7C6B" className="mb-6" />
+        <CreditCard size={64} color={colors.primary.DEFAULT} className="mb-6" />
         <Text className="text-2xl font-bold text-text-primary mb-2">Sandbox Payment</Text>
         <Text className="text-text-secondary text-center mb-8 px-4">
           This is a sandbox environment. No real money will be charged. Clicking the button below will simulate a successful payment transaction.

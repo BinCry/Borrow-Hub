@@ -2,8 +2,11 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { AssetStatus, RentalStatus, UserStatus } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import {
   CreateAddressDto,
   UpdateAddressDto,
@@ -141,6 +144,60 @@ export class UsersService {
     });
 
     return { success: true };
+  }
+
+  async deleteAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        rentalsAsOwner: {
+          where: {
+            status: {
+              in: [RentalStatus.ONGOING, RentalStatus.READY_FOR_HANDOVER, RentalStatus.RETURN_PENDING],
+            },
+          },
+        },
+        rentalsAsRenter: {
+          where: {
+            status: {
+              in: [RentalStatus.ONGOING, RentalStatus.READY_FOR_HANDOVER, RentalStatus.RETURN_PENDING],
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.rentalsAsOwner.length > 0 || user.rentalsAsRenter.length > 0) {
+      throw new BadRequestException('Cannot delete account with active rentals. Please complete or cancel them first.');
+    }
+
+    const uuid = randomUUID();
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.asset.updateMany({
+        where: { ownerId: userId, status: AssetStatus.ACTIVE },
+        data: { status: AssetStatus.PAUSED },
+      });
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          status: UserStatus.DELETED,
+          email: `deleted_${uuid}@toolshare.local`,
+          phone: `deleted_${uuid}`,
+          fullName: 'Deleted User',
+          avatarUrl: null,
+          passwordHash: '',
+          refreshTokenHash: null,
+        },
+      });
+
+      return { success: true, message: 'Account has been securely deleted' };
+    });
   }
 }
 

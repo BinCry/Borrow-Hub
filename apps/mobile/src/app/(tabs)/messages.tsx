@@ -1,3 +1,4 @@
+import { colors } from '../../theme/colors';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -27,7 +28,7 @@ export default function MessagesScreen() {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
         <MessageCircle size={48} color="#9CA3AF" />
-        <Text className="text-text-secondary mt-4">Login to view messages</Text>
+        <Text className="text-text-secondary mt-4">Đăng nhập để xem tin nhắn</Text>
       </SafeAreaView>
     );
   }
@@ -35,18 +36,18 @@ export default function MessagesScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="px-4 py-4 bg-surface border-b border-border z-10">
-        <Text className="text-2xl font-bold text-text-primary">Messages</Text>
+        <Text className="text-2xl font-bold text-text-primary">Tin nhắn</Text>
       </View>
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#4F7C6B" />
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         </View>
       ) : isError || !data?.data ? (
         <View className="flex-1 items-center justify-center py-20">
           <MessageCircle size={48} color="#D1D5DB" />
-          <Text className="text-text-secondary mt-4 text-lg font-medium">No conversations</Text>
-          <Text className="text-text-secondary text-sm mt-1">Start a rental to message owners/renters</Text>
+          <Text className="text-text-secondary mt-4 text-lg font-medium">Chưa có cuộc trò chuyện nào</Text>
+          <Text className="text-text-secondary text-sm mt-1">Bắt đầu thuê để nhắn tin với chủ/người thuê</Text>
         </View>
       ) : (
         <FlatList
@@ -68,7 +69,7 @@ export default function MessagesScreen() {
                   </Text>
                 </View>
                 <Text className="text-text-secondary" numberOfLines={1}>
-                  {item.lastMessage?.content || 'Started conversation'}
+                  {item.lastMessage?.content || 'Đã bắt đầu cuộc trò chuyện'}
                 </Text>
               </View>
             </TouchableOpacity>

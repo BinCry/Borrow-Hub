@@ -1,3 +1,4 @@
+import { colors } from '../../theme/colors';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -41,14 +42,14 @@ export default function RentalDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['rentals'] });
     },
     onError: (error: any) => {
-      Alert.alert('Action Failed', error.response?.data?.message || 'Something went wrong');
+      Alert.alert('Lỗi thao tác', error.response?.data?.message || 'Đã có lỗi xảy ra');
     }
   });
 
   if (isLoading || !rental || !currentUserId) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color="#4F7C6B" />
+        <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
       </SafeAreaView>
     );
   }
@@ -64,15 +65,15 @@ export default function RentalDetailScreen() {
             <View className="flex-row space-x-3 mt-4">
               <TouchableOpacity 
                 className="flex-1 bg-surface border border-danger py-3 rounded-xl items-center"
-                onPress={() => handleAction({ action: 'decline', payload: { reason: 'Not available' } })}
+                onPress={() => handleAction({ action: 'decline', payload: { reason: 'Không có sẵn' } })}
               >
-                <Text className="text-danger font-semibold">Decline</Text>
+                <Text className="text-danger font-semibold">Từ chối</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 className="flex-1 bg-primary py-3 rounded-xl items-center"
                 onPress={() => handleAction({ action: 'approve' })}
               >
-                <Text className="text-white font-semibold">Approve</Text>
+                <Text className="text-white font-semibold">Chấp nhận</Text>
               </TouchableOpacity>
             </View>
           );
@@ -80,9 +81,9 @@ export default function RentalDetailScreen() {
           return (
             <TouchableOpacity 
               className="w-full bg-surface border border-danger py-3 rounded-xl items-center mt-4"
-              onPress={() => handleAction({ action: 'cancel', payload: { reason: 'Changed mind' } })}
+              onPress={() => handleAction({ action: 'cancel', payload: { reason: 'Đổi ý' } })}
             >
-              <Text className="text-danger font-semibold">Cancel Request</Text>
+              <Text className="text-danger font-semibold">Huỷ yêu cầu</Text>
             </TouchableOpacity>
           );
         }
@@ -94,7 +95,7 @@ export default function RentalDetailScreen() {
               className="w-full bg-primary py-4 rounded-xl items-center mt-4"
               onPress={() => router.push(`/rental/${id}/payment`)}
             >
-              <Text className="text-white font-bold">Pay Now</Text>
+              <Text className="text-white font-bold">Thanh toán ngay</Text>
             </TouchableOpacity>
           );
         }
@@ -105,7 +106,7 @@ export default function RentalDetailScreen() {
             className="w-full bg-primary py-4 rounded-xl items-center mt-4"
             onPress={() => router.push(`/rental/${id}/contract`)}
           >
-            <Text className="text-white font-bold">Sign Contract</Text>
+            <Text className="text-white font-bold">Ký hợp đồng</Text>
           </TouchableOpacity>
         );
       case 'READY_FOR_HANDOVER':
@@ -115,7 +116,7 @@ export default function RentalDetailScreen() {
             className="w-full bg-primary py-4 rounded-xl items-center mt-4"
             onPress={() => router.push(`/rental/${id}/handover`)}
           >
-            <Text className="text-white font-bold">Proceed to Handover</Text>
+            <Text className="text-white font-bold">Tiến hành giao nhận</Text>
           </TouchableOpacity>
         );
       case 'ONGOING':
@@ -125,7 +126,7 @@ export default function RentalDetailScreen() {
               className="w-full bg-primary py-4 rounded-xl items-center mt-4"
               onPress={() => router.push(`/rental/${id}/return`)}
             >
-              <Text className="text-white font-bold">Return Asset</Text>
+              <Text className="text-white font-bold">Trả tài sản</Text>
             </TouchableOpacity>
           );
         }
@@ -136,7 +137,7 @@ export default function RentalDetailScreen() {
 
   const getStatusText = () => {
     if (rental.status === 'PENDING_OWNER') {
-      return isOwner ? 'Action Required: Request Pending' : 'Waiting for Owner Approval';
+      return isOwner ? 'Cần xử lý: Yêu cầu đang chờ' : 'Đang chờ chủ sở hữu phê duyệt';
     }
     return rental.status.replace(/_/g, ' ');
   };
@@ -147,7 +148,7 @@ export default function RentalDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
           <ChevronLeft size={28} color="#1F2937" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-text-primary">Rental Details</Text>
+        <Text className="text-lg font-bold text-text-primary">Chi tiết đơn thuê</Text>
         <View className="w-10" />
       </View>
 
@@ -158,7 +159,7 @@ export default function RentalDetailScreen() {
           <View className="flex-1">
             <Text className="text-primary-dark font-bold text-lg mb-1">{getStatusText()}</Text>
             <Text className="text-primary-dark opacity-80 text-sm">
-              Please complete the required actions to proceed with the rental process.
+              Vui lòng hoàn thành các bước yêu cầu để tiếp tục quá trình thuê.
             </Text>
           </View>
         </View>
@@ -170,33 +171,33 @@ export default function RentalDetailScreen() {
 
         {/* Asset Details */}
         <View className="bg-surface p-4 rounded-xl border border-border mb-4">
-          <Text className="text-lg font-bold text-text-primary mb-2">Asset Details</Text>
+          <Text className="text-lg font-bold text-text-primary mb-2">Chi tiết tài sản</Text>
           <Text className="text-text-primary font-medium mb-1">{rental.asset?.title}</Text>
           <Text className="text-text-secondary text-sm mb-3">ID: {rental.asset?.id}</Text>
           
           <View className="flex-row justify-between mb-2">
-            <Text className="text-text-secondary">Start Date</Text>
+            <Text className="text-text-secondary">Ngày bắt đầu</Text>
             <Text className="text-text-primary font-medium">{format(new Date(rental.startAt), 'MMM dd, yyyy HH:mm')}</Text>
           </View>
           <View className="flex-row justify-between">
-            <Text className="text-text-secondary">End Date</Text>
+            <Text className="text-text-secondary">Ngày kết thúc</Text>
             <Text className="text-text-primary font-medium">{format(new Date(rental.endAt), 'MMM dd, yyyy HH:mm')}</Text>
           </View>
         </View>
 
         {/* Price Details */}
         <View className="bg-surface p-4 rounded-xl border border-border mb-4">
-          <Text className="text-lg font-bold text-text-primary mb-3">Payment Summary</Text>
+          <Text className="text-lg font-bold text-text-primary mb-3">Tóm tắt thanh toán</Text>
           <View className="flex-row justify-between mb-2">
-            <Text className="text-text-secondary">Rental Fee</Text>
+            <Text className="text-text-secondary">Phí thuê</Text>
             <Text className="text-text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.rentalFee)}</Text>
           </View>
           <View className="flex-row justify-between mb-2">
-            <Text className="text-text-secondary">Service Fee</Text>
+            <Text className="text-text-secondary">Phí dịch vụ</Text>
             <Text className="text-text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.serviceFee)}</Text>
           </View>
           <View className="flex-row justify-between pt-3 border-t border-border mt-1">
-            <Text className="text-base font-bold text-text-primary">Total Amount</Text>
+            <Text className="text-base font-bold text-text-primary">Tổng cộng</Text>
             <Text className="text-base font-bold text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.totalAmount)}</Text>
           </View>
         </View>
@@ -204,13 +205,13 @@ export default function RentalDetailScreen() {
         {/* User Details */}
         <View className="bg-surface p-4 rounded-xl border border-border mb-8">
           <Text className="text-lg font-bold text-text-primary mb-3">
-            {isOwner ? 'Renter Information' : 'Owner Information'}
+            {isOwner ? 'Thông tin người thuê' : 'Thông tin chủ sở hữu'}
           </Text>
           <Text className="text-text-primary font-medium mb-1">
             {isOwner ? rental.renter?.fullName : rental.owner?.fullName}
           </Text>
           <Text className="text-text-secondary text-sm">
-            Contact options will be available after payment and contract signing.
+            Thông tin liên hệ sẽ hiển thị sau khi thanh toán và ký hợp đồng.
           </Text>
         </View>
       </ScrollView>

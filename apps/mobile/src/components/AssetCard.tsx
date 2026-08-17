@@ -1,3 +1,4 @@
+import { colors } from '../theme/colors';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Asset } from '../types/api';
 import { MapPin, Star } from 'lucide-react-native';
@@ -17,7 +18,7 @@ export function AssetCard({ asset }: AssetCardProps) {
           <Image source={{ uri: coverImage }} className="w-full h-48 bg-gray-200" resizeMode="cover" />
         ) : (
           <View className="w-full h-48 bg-gray-200 items-center justify-center">
-            <Text className="text-text-secondary">No Image</Text>
+            <Text className="text-text-secondary">Chưa có ảnh</Text>
           </View>
         )}
         
@@ -28,14 +29,14 @@ export function AssetCard({ asset }: AssetCardProps) {
             </Text>
             {asset.rating !== undefined && (
               <View className="flex-row items-center bg-primary-soft px-2 py-1 rounded-full">
-                <Star size={12} color="#4F7C6B" fill="#4F7C6B" />
+                <Star size={12} color={colors.primary.DEFAULT} fill={colors.primary.DEFAULT} />
                 <Text className="text-primary font-semibold text-xs ml-1">{asset.rating}</Text>
               </View>
             )}
           </View>
 
           <Text className="text-primary font-semibold text-lg mb-2">
-            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(asset.pricePerDay)}<Text className="text-sm text-text-secondary font-normal">/day</Text>
+            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(asset.pricePerDay)}<Text className="text-sm text-text-secondary font-normal">/ngày</Text>
           </Text>
 
           <View className="flex-row items-center">
