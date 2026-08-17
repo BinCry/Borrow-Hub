@@ -19,10 +19,16 @@
 ## 3. Deployment Configuration
 - [x] **App Identifier**: Added Android `package: "com.toolshare.app"` and iOS `bundleIdentifier: "com.toolshare.app"` to `app.json`.
 - [x] **Permissions**: Explicitly defined `CAMERA`, `READ_EXTERNAL_STORAGE`, and `WRITE_EXTERNAL_STORAGE` in `app.json` for Android to ensure core features (Handover, Evidence Upload) work securely.
+- [x] **Redis-ready Cache Layer**: Admin read-heavy endpoints now support cache through Nest cache-manager, with `REDIS_URL` support and memory fallback for environments that do not run Redis yet.
+- [x] **Runtime Env Validation**: API startup now fails fast when required deployment variables such as `DATABASE_URL`, JWT secrets, or invalid URLs are missing.
+- [x] **Production Containerization**: `apps/api/Dockerfile` now builds a production image with a dedicated build stage, non-root runtime user, and container healthcheck.
+- [x] **VPS Compose Stack**: Added `docker-compose.production.yml` with PostgreSQL, Redis, migration job, and persistent uploads volume.
+- [x] **Deployment Runbooks**: Added `docs/deployment/VPS_DEPLOYMENT.md` and `docs/deployment/DATABASE_RUNBOOK.md`.
 
 ---
 ### Next Steps for the Operations Team:
 1. Swap `SandboxPaymentProvider` with `VNPayProvider` in production environment.
 2. Swap `LocalStorageProvider` with `S3StorageProvider` for distributed scale.
 3. Configure PostgreSQL `max_connections` for expected launch traffic.
-4. Execute `eas build --platform android` for Google Play submission.
+4. Put Nginx or Caddy in front of the API for HTTPS termination and request size limits.
+5. Execute `eas build --platform android` for Google Play submission.
