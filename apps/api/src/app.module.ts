@@ -28,6 +28,7 @@ import { UsersModule } from './users/users.module';
 import { RequestContextModule } from './common/request-context.module';
 import { PaymentModule } from './payment/payment.module';
 import { StorageModule } from './storage/storage.module';
+import { AppCacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { StorageModule } from './storage/storage.module';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+    AppCacheModule,
     RequestContextModule,
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],

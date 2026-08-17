@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  Inject,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import argon2 from 'argon2';
 import {
   DisputeStatus,
@@ -21,6 +23,7 @@ import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { RequestLogsService } from '../request-logs/request-logs.service';
+import { CACHE_KEYS, CACHE_TTL_MS } from '../cache/cache.constants';
 import {
   CreateInternalUserDto,
   UpdateSystemConfigDto,
@@ -28,6 +31,7 @@ import {
   UpdateUserStatusDto,
 } from './admin.dto';
 import { RequestLogQueryDto } from '../request-logs/request-logs.dto';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class AdminService {
@@ -35,9 +39,14 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly requestLogsService: RequestLogsService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async getDashboard() {
+    return this.remember(
+      CACHE_KEYS.adminDashboard,
+      CACHE_TTL_MS.adminDashboard,
+      async () => {
     const openDisputeStatuses = [
       DisputeStatus.OPEN,
       DisputeStatus.WAITING_RESPONSE,
@@ -271,6 +280,8 @@ export class AdminService {
         kycCompletionRate,
       },
     };
+      },
+    );
   }
 
   private safeDivide(numerator: number, denominator: number) {
@@ -282,30 +293,34 @@ export class AdminService {
   }
 
   listUsers() {
-    return this.prisma.user.findMany({
-      include: {
-        verification: true,
-        userRoles: {
-          include: {
-            role: true,
+    return this.remember(CACHE_KEYS.adminUsers, CACHE_TTL_MS.adminUsers, () =>
+      this.prisma.user.findMany({
+        include: {
+          verification: true,
+          userRoles: {
+            include: {
+              role: true,
+            },
           },
         },
-      },
-      orderBy: [{ createdAt: 'desc' }],
-    });
+        orderBy: [{ createdAt: 'desc' }],
+      }),
+    );
   }
 
   listRoles() {
-    return this.prisma.role.findMany({
-      include: {
-        rolePermissions: {
-          include: {
-            permission: true,
+    return this.remember(CACHE_KEYS.adminRoles, CACHE_TTL_MS.adminRoles, () =>
+      this.prisma.role.findMany({
+        include: {
+          rolePermissions: {
+            include: {
+              permission: true,
+            },
           },
         },
-      },
-      orderBy: [{ name: 'asc' }],
-    });
+        orderBy: [{ name: 'asc' }],
+      }),
+    );
   }
 
   async updateUserStatus(
@@ -338,6 +353,8 @@ export class AdminService {
       beforeData: { status: existing.status },
       afterData: { status: updated.status },
     });
+
+    await this.invalidateAdminReadCache();
 
     return updated;
   }
@@ -419,6 +436,8 @@ export class AdminService {
       },
     });
 
+    await this.invalidateAdminReadCache();
+
     return updated;
   }
 
@@ -497,13 +516,20 @@ export class AdminService {
       },
     });
 
+    await this.invalidateAdminReadCache();
+
     return created;
   }
 
   listSystemConfigs() {
-    return this.prisma.systemConfig.findMany({
-      orderBy: [{ key: 'asc' }],
-    });
+    return this.remember(
+      CACHE_KEYS.adminSystemConfigs,
+      CACHE_TTL_MS.adminSystemConfigs,
+      () =>
+        this.prisma.systemConfig.findMany({
+          orderBy: [{ key: 'asc' }],
+        }),
+    );
   }
 
   async updateSystemConfig(
@@ -536,26 +562,66 @@ export class AdminService {
       afterData: { value: updated.value, description: updated.description },
     });
 
+    await this.invalidateAdminReadCache();
+
     return updated;
   }
 
   getAuditLogs() {
-    return this.prisma.auditLog.findMany({
-      include: {
-        actor: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
+    return this.remember(CACHE_KEYS.adminAuditLogs, CACHE_TTL_MS.adminAuditLogs, () =>
+      this.prisma.auditLog.findMany({
+        include: {
+          actor: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+            },
           },
         },
-      },
-      orderBy: [{ createdAt: 'desc' }],
-      take: 200,
-    });
+        orderBy: [{ createdAt: 'desc' }],
+        take: 200,
+      }),
+    );
   }
 
   getRequestLogs(query: RequestLogQueryDto) {
-    return this.requestLogsService.list(query);
+    const queryKey = JSON.stringify({
+      requestId: query.requestId ?? null,
+      userId: query.userId ?? null,
+      method: query.method ?? null,
+      statusCode: query.statusCode ?? null,
+      endpointContains: query.endpointContains ?? null,
+      limit: query.limit ?? null,
+    });
+
+    return this.remember(
+      CACHE_KEYS.adminRequestLogs(queryKey),
+      CACHE_TTL_MS.adminRequestLogs,
+      () => this.requestLogsService.list(query),
+    );
+  }
+
+  private async remember<T>(key: string, ttl: number, resolver: () => Promise<T>) {
+    const cached = await this.cacheManager.get<T>(key);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const value = await resolver();
+    await this.cacheManager.set(key, value, ttl);
+    return value;
+  }
+
+  private async invalidateAdminReadCache() {
+    await Promise.all([
+      this.cacheManager.del(CACHE_KEYS.adminDashboard),
+      this.cacheManager.del(CACHE_KEYS.adminUsers),
+      this.cacheManager.del(CACHE_KEYS.adminRoles),
+      this.cacheManager.del(CACHE_KEYS.adminSystemConfigs),
+      this.cacheManager.del(CACHE_KEYS.adminAuditLogs),
+      this.cacheManager.clear(),
+    ]);
   }
 }

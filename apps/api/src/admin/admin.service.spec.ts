@@ -68,14 +68,26 @@ describe('AdminService', () => {
     list: jest.fn(),
   };
 
+  const cacheManager = {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    clear: jest.fn(),
+  };
+
   let service: AdminService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    cacheManager.get.mockResolvedValue(undefined);
+    cacheManager.set.mockResolvedValue(undefined);
+    cacheManager.del.mockResolvedValue(true);
+    cacheManager.clear.mockResolvedValue(true);
     service = new AdminService(
       prisma as never,
       auditService as never,
       requestLogsService as never,
+      cacheManager as never,
     );
   });
 
@@ -175,6 +187,11 @@ describe('AdminService', () => {
       averageRating: 4.6,
       kycCompletionRate: 0.72,
     });
+    expect(cacheManager.set).toHaveBeenCalledWith(
+      'admin:dashboard',
+      result,
+      30000,
+    );
   });
 
   it('returns zero-safe rates when the dashboard has no denominator data', async () => {
@@ -218,5 +235,18 @@ describe('AdminService', () => {
     expect(result.trust.lateReturnRate).toBe(0);
     expect(result.trust.fakeListingRate).toBe(0);
     expect(result.trust.averageRating).toBe(0);
+  });
+
+  it('returns cached dashboard data when available', async () => {
+    const cachedDashboard = {
+      users: { total: 12 },
+    };
+    cacheManager.get.mockResolvedValue(cachedDashboard);
+
+    const result = await service.getDashboard();
+
+    expect(result).toBe(cachedDashboard);
+    expect(prisma.user.count).not.toHaveBeenCalled();
+    expect(cacheManager.set).not.toHaveBeenCalled();
   });
 });
