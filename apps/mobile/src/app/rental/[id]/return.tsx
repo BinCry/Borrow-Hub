@@ -16,12 +16,12 @@ export default function ReturnAssetScreen() {
       return apiClient.post(`/rentals/${id}/return-request`);
     },
     onSuccess: () => {
-      Alert.alert('Return Requested', 'You have requested to return the asset. The owner will confirm.');
-      queryClient.invalidateQueries({ queryKey: ['rental', id] });
+      Alert.alert('Đã gửi yêu cầu', 'Bạn đã yêu cầu trả tài sản. Chủ sở hữu sẽ xác nhận.');
+      queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', id] });
       router.back();
     },
     onError: (error: any) => {
-      Alert.alert('Action Failed', error.response?.data?.message || 'Could not request return');
+      Alert.alert('Thất bại', error.response?.data?.message || 'Không thể gửi yêu cầu trả');
     }
   });
 
@@ -31,15 +31,15 @@ export default function ReturnAssetScreen() {
         <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
           <ChevronLeft size={28} color="#1F2937" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-text-primary">Return Asset</Text>
+        <Text className="text-lg font-bold text-text-primary">Trả tài sản</Text>
         <View className="w-10" />
       </View>
 
       <View className="flex-1 px-5 py-10 items-center">
         <ArrowLeftRight size={64} color={colors.primary.DEFAULT} className="mb-6" />
-        <Text className="text-2xl font-bold text-text-primary mb-2 text-center">Ready to return?</Text>
+        <Text className="text-2xl font-bold text-text-primary mb-2 text-center">Sẵn sàng trả tài sản?</Text>
         <Text className="text-text-secondary text-center mb-8 px-4 leading-5">
-          By initiating the return process, you notify the owner that you are ready to hand back the asset. Ensure the asset is in its original condition to avoid disputes.
+          Bằng việc bắt đầu quy trình trả, bạn thông báo cho chủ sở hữu rằng bạn đã sẵn sàng bàn giao lại tài sản. Đảm bảo tài sản đang ở tình trạng ban đầu để tránh tranh chấp.
         </Text>
 
         <TouchableOpacity 
@@ -50,7 +50,7 @@ export default function ReturnAssetScreen() {
           {isPending ? (
              <ActivityIndicator color="white" />
           ) : (
-            <Text className="text-white font-bold text-lg">Request Return</Text>
+            <Text className="text-white font-bold text-lg">Yêu cầu trả tài sản</Text>
           )}
         </TouchableOpacity>
       </View>

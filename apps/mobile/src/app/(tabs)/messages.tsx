@@ -56,7 +56,7 @@ export default function MessagesScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity 
               className="px-4 py-4 border-b border-border bg-surface flex-row items-center"
-              onPress={() => router.push(`/chat/${item.id}`)}
+              onPress={() => router.push(`/chat/${item.id}` as any)}
             >
               <View className="w-12 h-12 rounded-full bg-primary-soft items-center justify-center mr-3">
                 <Text className="text-primary font-bold text-lg">{item.otherUser?.fullName?.charAt(0) || 'U'}</Text>

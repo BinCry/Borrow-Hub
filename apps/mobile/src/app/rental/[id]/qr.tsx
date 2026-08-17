@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/services/api/client';
-import { ChevronLeft, QrCode } from 'lucide-react-native';
+import { ChevronLeft, QrCode, ShieldAlert } from 'lucide-react-native';
 
 export default function QrScreen() {
   const { id, handoverId } = useLocalSearchParams<{ id: string, handoverId: string }>();
@@ -26,26 +26,37 @@ export default function QrScreen() {
         <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
           <ChevronLeft size={28} color="#1F2937" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-text-primary">Handover QR</Text>
+        <Text className="text-lg font-bold text-text-primary">Mã QR Giao nhận</Text>
         <View className="w-10" />
       </View>
 
-      <View className="flex-1 px-5 py-10 items-center justify-center">
+      <View className="flex-1 items-center justify-center bg-background">
         {isLoading ? (
           <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         ) : (
-          <View className="items-center">
-            <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 items-center justify-center">
-              {/* Dummy QR Code visual since we can't easily install react-native-qrcode-svg right now without adding deps */}
-              <View className="w-48 h-48 bg-gray-200 items-center justify-center">
-                <QrCode size={100} color="#1F2937" />
-                <Text className="text-xs text-text-secondary mt-2 text-center">Token: {qrData?.token || 'xxxx'}</Text>
+          <View className="items-center px-6 w-full">
+            <View className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.1)] w-full items-center justify-center mb-8 border border-gray-100">
+              <Text className="text-sm font-bold text-text-secondary mb-6 tracking-widest uppercase">Mã xác nhận</Text>
+              
+              {/* Dummy QR Code visual */}
+              <View className="w-56 h-56 bg-white items-center justify-center">
+                <QrCode size={200} color="#1F2937" strokeWidth={1} />
+              </View>
+              
+              <View className="bg-gray-100 px-4 py-2 rounded-lg mt-6">
+                 <Text className="text-lg font-mono font-bold tracking-widest text-text-primary">{qrData?.token || 'A8X-92M'}</Text>
               </View>
             </View>
-            <Text className="text-xl font-bold text-text-primary mb-2 text-center">Ask Renter to Scan</Text>
-            <Text className="text-text-secondary text-center px-4">
-              The Renter needs to scan this QR code using their Borrow Hub app to confirm the handover.
+            
+            <Text className="text-2xl font-extrabold text-text-primary mb-3 text-center tracking-tight">Quét để nhận tài sản</Text>
+            <Text className="text-text-secondary text-center px-4 leading-6 mb-8 text-base">
+              Vui lòng đưa mã này cho người thuê để họ quét bằng ứng dụng Borrow Hub.
             </Text>
+
+            <View className="flex-row items-center bg-warning/10 p-4 rounded-xl border border-warning/20">
+               <ShieldAlert size={20} color={colors.warning} />
+               <Text className="flex-1 ml-3 text-sm text-warning font-medium">Tuyệt đối không chia sẻ mã này qua tin nhắn hoặc mạng xã hội.</Text>
+            </View>
           </View>
         )}
       </View>

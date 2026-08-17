@@ -2,9 +2,8 @@ import { colors } from '../../../theme/colors';
 import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiClient } from '@/services/api/client';
-import { Asset } from '@/types/api';
+import { useAsset } from '@/hooks/useAssets';
+import { useCreateRental } from '@/hooks/useRentals';
 import { useState } from 'react';
 import { ChevronLeft, Calendar as CalendarIcon, Info } from 'lucide-react-native';
 import { addDays, differenceInDays, format } from 'date-fns';
@@ -19,32 +18,29 @@ export default function BookAssetScreen() {
 
   const daysCount = Math.max(1, differenceInDays(endDate, startDate) + 1);
 
-  const { data: asset, isLoading } = useQuery({
-    queryKey: ['asset', id],
-    queryFn: async () => {
-      const response = await apiClient.get<Asset>(`/assets/${id}`);
-      return response.data;
-    },
-  });
+  const { data: asset, isLoading } = useAsset(id);
 
-  const { mutate: createRental, isPending: isBooking } = useMutation({
-    mutationFn: async () => {
-      const payload = {
+  const { mutate: createRental, isPending: isBooking } = useCreateRental();
+
+  const handleBooking = () => {
+    createRental(
+      {
         assetId: id,
         startAt: startDate.toISOString(),
         endAt: endDate.toISOString(),
-        deliveryMethod: 'PICKUP', // hardcode or add selection
-      };
-      return apiClient.post('/rentals', payload);
-    },
-    onSuccess: (res) => {
-      Alert.alert('Yêu cầu đã được gửi', 'Yêu cầu thuê của bạn đã được gửi cho chủ sở hữu.');
-      router.replace(`/(tabs)/rentals`);
-    },
-    onError: (error: any) => {
-      Alert.alert('Đặt thuê thất bại', error.response?.data?.message || 'Không thể gửi yêu cầu');
-    }
-  });
+        deliveryMethod: 'PICKUP',
+      },
+      {
+        onSuccess: () => {
+          Alert.alert('Yêu cầu đã được gửi', 'Yêu cầu thuê của bạn đã được gửi cho chủ sở hữu.');
+          router.replace(`/(tabs)/rentals`);
+        },
+        onError: () => {
+          Alert.alert('Đặt thuê thất bại', 'Không thể gửi yêu cầu');
+        }
+      }
+    );
+  };
 
   if (isLoading || !asset) {
     return (
@@ -127,7 +123,7 @@ export default function BookAssetScreen() {
       <View className="px-5 py-4 bg-surface border-t border-border">
         <TouchableOpacity 
           className={`bg-primary rounded-xl py-4 items-center shadow-sm ${isBooking ? 'opacity-70' : ''}`}
-          onPress={() => createRental()}
+          onPress={handleBooking}
           disabled={isBooking}
         >
           <Text className="text-white font-bold text-lg">{isBooking ? 'Đang gửi yêu cầu...' : 'Gửi yêu cầu'}</Text>

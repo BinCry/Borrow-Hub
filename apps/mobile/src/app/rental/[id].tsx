@@ -2,10 +2,9 @@ import { colors } from '../../theme/colors';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
-import { RentalRequest } from '../../types/api';
-import { ChevronLeft, Info, MapPin } from 'lucide-react-native';
+import { useRental, useApproveRental, useDeclineRental } from '../../hooks/useRentals';
+import { getRentalStatusPresentation } from '../../utils/status-mappers';
+import { ChevronLeft, Info, MapPin, CheckCircle2, Circle, Clock } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { useAuthStore } from '../../store/authStore';
 import { useEffect, useState } from 'react';
@@ -14,37 +13,18 @@ import * as SecureStore from 'expo-secure-store';
 export default function RentalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>('user-1'); // Mock current user for UI test
 
-  // Quick way to get current user ID since we don't have a robust user store yet
-  useEffect(() => {
-    apiClient.get('/auth/me').then(res => setCurrentUserId(res.data.id)).catch(() => {});
-  }, []);
+  const { data: rental, isLoading, refetch } = useRental(id);
+  
+  const { mutate: approveRental, isPending: isApproving } = useApproveRental();
+  const { mutate: declineRental, isPending: isDeclining } = useDeclineRental();
 
-  const { data: rental, isLoading, refetch } = useQuery({
-    queryKey: ['rental', id],
-    queryFn: async () => {
-      const response = await apiClient.get<RentalRequest>(`/rentals/${id}`);
-      return response.data;
-    },
-  });
-
-  const { mutate: handleAction, isPending: actionLoading } = useMutation({
-    mutationFn: async ({ action, payload = {} }: { action: string, payload?: any }) => {
-      if (action === 'approve') return apiClient.patch(`/rentals/${id}/approve`, payload);
-      if (action === 'decline') return apiClient.patch(`/rentals/${id}/decline`, payload);
-      if (action === 'cancel') return apiClient.post(`/rentals/${id}/cancel`, payload);
-      throw new Error('Unknown action');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rental', id] });
-      queryClient.invalidateQueries({ queryKey: ['rentals'] });
-    },
-    onError: (error: any) => {
-      Alert.alert('Lỗi thao tác', error.response?.data?.message || 'Đã có lỗi xảy ra');
-    }
-  });
+  const handleAction = ({ action, payload = {} }: { action: string, payload?: any }) => {
+    if (action === 'approve') approveRental(id);
+    if (action === 'decline') declineRental({ id, reason: payload.reason || '' });
+    if (action === 'cancel') declineRental({ id, reason: payload.reason || '' }); // mock cancel as decline
+  };
 
   if (isLoading || !rental || !currentUserId) {
     return (
@@ -110,7 +90,6 @@ export default function RentalDetailScreen() {
           </TouchableOpacity>
         );
       case 'READY_FOR_HANDOVER':
-      case 'CONFIRMED':
         return (
           <TouchableOpacity 
             className="w-full bg-primary py-4 rounded-xl items-center mt-4"
@@ -135,12 +114,7 @@ export default function RentalDetailScreen() {
     return null;
   };
 
-  const getStatusText = () => {
-    if (rental.status === 'PENDING_OWNER') {
-      return isOwner ? 'Cần xử lý: Yêu cầu đang chờ' : 'Đang chờ chủ sở hữu phê duyệt';
-    }
-    return rental.status.replace(/_/g, ' ');
-  };
+  const statusPresentation = getRentalStatusPresentation(rental.status, isOwner);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -153,14 +127,41 @@ export default function RentalDetailScreen() {
       </View>
 
       <ScrollView className="flex-1 px-4 py-4">
-        {/* Status Card */}
-        <View className="bg-primary-soft p-4 rounded-xl border border-primary/20 mb-6 flex-row items-start">
-          <Info size={20} color="#365B4E" className="mr-3 mt-0.5" />
-          <View className="flex-1">
-            <Text className="text-primary-dark font-bold text-lg mb-1">{getStatusText()}</Text>
-            <Text className="text-primary-dark opacity-80 text-sm">
-              Vui lòng hoàn thành các bước yêu cầu để tiếp tục quá trình thuê.
-            </Text>
+        {/* Status Timeline */}
+        <View className="bg-surface p-5 rounded-2xl border border-border mb-6 shadow-sm">
+          <Text className="font-extrabold text-lg text-text-primary mb-4">Tiến trình thuê</Text>
+          <View className="pl-2">
+            {[
+              { label: 'Yêu cầu thuê', done: true, active: rental.status === 'PENDING_OWNER' },
+              { label: 'Xác nhận', done: rental.status !== 'PENDING_OWNER' && rental.status !== 'CANCELLED', active: rental.status === 'APPROVED' },
+              { label: 'Thanh toán', done: !['PENDING_OWNER', 'APPROVED', 'AWAITING_PAYMENT', 'CANCELLED'].includes(rental.status), active: rental.status === 'AWAITING_PAYMENT' },
+              { label: 'Ký hợp đồng', done: !['PENDING_OWNER', 'APPROVED', 'AWAITING_PAYMENT', 'AWAITING_SIGNATURE', 'CANCELLED'].includes(rental.status), active: rental.status === 'AWAITING_SIGNATURE' },
+              { label: 'Bàn giao', done: ['ONGOING', 'COMPLETED'].includes(rental.status), active: rental.status === 'READY_FOR_HANDOVER' },
+              { label: 'Hoàn trả', done: rental.status === 'COMPLETED', active: rental.status === 'ONGOING' }
+            ].map((step, index, arr) => (
+              <View key={index} className="flex-row items-start mb-4 relative">
+                {/* Connector Line */}
+                {index < arr.length - 1 && (
+                  <View 
+                    className={`absolute left-[9px] top-6 bottom-[-24px] w-0.5 z-0 ${step.done ? 'bg-primary' : 'bg-gray-200'}`} 
+                  />
+                )}
+                {/* Node */}
+                <View className="z-10 mr-4 bg-surface">
+                  {step.done ? (
+                    <CheckCircle2 size={20} color={colors.primary.DEFAULT} />
+                  ) : step.active ? (
+                    <Clock size={20} color={colors.warning} />
+                  ) : (
+                    <Circle size={20} color="#E5E7EB" />
+                  )}
+                </View>
+                {/* Text */}
+                <Text className={`text-base mt-[-2px] ${step.done ? 'font-medium text-text-primary' : step.active ? 'font-bold text-warning' : 'text-text-muted'}`}>
+                  {step.label}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -190,15 +191,15 @@ export default function RentalDetailScreen() {
           <Text className="text-lg font-bold text-text-primary mb-3">Tóm tắt thanh toán</Text>
           <View className="flex-row justify-between mb-2">
             <Text className="text-text-secondary">Phí thuê</Text>
-            <Text className="text-text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.rentalFee)}</Text>
+            <Text className="text-text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.pricing.rentalFee)}</Text>
           </View>
           <View className="flex-row justify-between mb-2">
             <Text className="text-text-secondary">Phí dịch vụ</Text>
-            <Text className="text-text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.serviceFee)}</Text>
+            <Text className="text-text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.pricing.serviceFee)}</Text>
           </View>
           <View className="flex-row justify-between pt-3 border-t border-border mt-1">
             <Text className="text-base font-bold text-text-primary">Tổng cộng</Text>
-            <Text className="text-base font-bold text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.totalAmount)}</Text>
+            <Text className="text-base font-bold text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(rental.pricing.totalAmount)}</Text>
           </View>
         </View>
 

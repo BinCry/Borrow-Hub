@@ -1,9 +1,7 @@
 import { colors } from '../../theme/colors';
 import { View, Text, FlatList, ActivityIndicator, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
-import { Asset, PaginatedResponse } from '../../types/api';
+import { useAssets } from '../../hooks/useAssets';
 import { AssetCard } from '../../components/AssetCard';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
@@ -13,16 +11,7 @@ export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 500);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['assets', 'search', debouncedSearch],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.append('q', debouncedSearch);
-      
-      const response = await apiClient.get<PaginatedResponse<Asset>>(`/assets?${params.toString()}`);
-      return response.data;
-    },
-  });
+  const { data, isLoading, isError } = useAssets({ query: debouncedSearch });
 
   return (
     <SafeAreaView className="flex-1 bg-background">

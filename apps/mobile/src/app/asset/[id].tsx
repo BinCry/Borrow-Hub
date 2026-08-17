@@ -1,10 +1,9 @@
 import { colors } from '../../theme/colors';
-import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
-import { Asset } from '../../types/api';
+import { useAsset } from '../../hooks/useAssets';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ChevronLeft, MapPin, Star, ShieldCheck, Heart, User, AlertCircle } from 'lucide-react-native';
@@ -15,13 +14,7 @@ export default function AssetDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const { data: asset, isLoading, isError } = useQuery({
-    queryKey: ['asset', id],
-    queryFn: async () => {
-      const response = await apiClient.get<Asset>(`/assets/${id}`);
-      return response.data;
-    },
-  });
+  const { data: asset, isLoading, isError } = useAsset(id);
 
   if (isLoading) {
     return (
@@ -83,7 +76,7 @@ export default function AssetDetailScreen() {
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Image Gallery */}
-        <View className="bg-gray-200">
+        <View className="bg-gray-100 relative">
           {asset.images && asset.images.length > 0 ? (
             <FlatList
               data={asset.images}
@@ -94,14 +87,24 @@ export default function AssetDetailScreen() {
               renderItem={({ item }) => (
                 <Image
                   source={{ uri: item.url }}
-                  style={{ width, height: width * 0.75 }}
-                  resizeMode="cover"
+                  style={{ width, height: width }}
+                  contentFit="cover"
+                  transition={200}
                 />
               )}
             />
           ) : (
-            <View style={{ width, height: width * 0.75 }} className="items-center justify-center">
+            <View style={{ width, height: width }} className="items-center justify-center">
               <Text className="text-text-secondary">Không có hình ảnh</Text>
+            </View>
+          )}
+          
+          {/* Pagination indicator mock */}
+          {asset.images && asset.images.length > 1 && (
+            <View className="absolute bottom-4 left-0 right-0 flex-row justify-center space-x-1.5">
+               {asset.images.map((_, index) => (
+                  <View key={index} className={`h-2 rounded-full ${index === 0 ? 'w-5 bg-primary' : 'w-2 bg-white/60'}`} />
+               ))}
             </View>
           )}
         </View>
@@ -131,25 +134,25 @@ export default function AssetDetailScreen() {
             </View>
             <View>
               <Text className="text-text-secondary text-xs">Khu vực</Text>
-              <Text className="text-text-primary font-medium">{asset.district}, {asset.city}</Text>
+              <Text className="text-text-primary font-medium">{asset.location?.district}, {asset.location?.city}</Text>
             </View>
           </View>
 
           {/* Owner Profile */}
-          <View className="flex-row items-center mb-6 pb-6 border-b border-border">
-            <View className="w-12 h-12 rounded-full bg-primary-soft items-center justify-center mr-3 overflow-hidden">
+          <View className="flex-row items-center mb-8 pb-6 border-b border-border bg-surfaceSecondary rounded-2xl p-4">
+            <View className="w-14 h-14 rounded-full bg-primary-soft items-center justify-center mr-4 overflow-hidden border border-gray-200">
               {asset.owner?.avatarUrl ? (
-                <Image source={{ uri: asset.owner.avatarUrl }} className="w-full h-full" />
+                <Image source={{ uri: asset.owner.avatarUrl }} style={{ width: '100%', height: '100%' }} />
               ) : (
-                <User size={24} color={colors.primary.DEFAULT} />
+                <User size={28} color={colors.primary.DEFAULT} />
               )}
             </View>
             <View className="flex-1">
-              <Text className="text-text-primary font-bold">{asset.owner?.fullName || 'Chủ sở hữu'}</Text>
+              <Text className="text-text-primary font-extrabold text-lg">{asset.owner?.fullName || 'Chủ sở hữu'}</Text>
               <View className="flex-row items-center mt-1">
-                <ShieldCheck size={14} color="#2F855A" />
-                <Text className="text-success text-xs font-semibold ml-1">
-                  Độ uy tín: {asset.owner?.trustScore || 0}
+                <ShieldCheck size={16} color="#2F855A" />
+                <Text className="text-success text-sm font-semibold ml-1.5">
+                  Đã xác minh danh tính
                 </Text>
               </View>
             </View>
@@ -165,12 +168,12 @@ export default function AssetDetailScreen() {
       </ScrollView>
 
       {/* Bottom CTA */}
-      <View className="px-5 py-4 bg-surface border-t border-border">
+      <View className="px-5 py-5 bg-surface border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <TouchableOpacity 
-          className="bg-primary rounded-xl py-4 items-center shadow-sm"
+          className="bg-primary rounded-xl py-4 items-center shadow-md flex-row justify-center"
           onPress={() => router.push(`/asset/${id}/book`)}
         >
-          <Text className="text-white font-bold text-lg">Yêu cầu thuê</Text>
+          <Text className="text-white font-bold text-lg">Yêu cầu thuê ngay</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

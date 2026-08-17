@@ -20,12 +20,12 @@ export default function PaymentSandboxScreen() {
       });
     },
     onSuccess: () => {
-      Alert.alert('Payment Successful', 'Your payment has been processed in Sandbox mode.');
-      queryClient.invalidateQueries({ queryKey: ['rental', id] });
+      Alert.alert('Thanh toán thành công', 'Thanh toán của bạn đã được xử lý trong chế độ Sandbox.');
+      queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', id] });
       router.back();
     },
     onError: (error: any) => {
-      Alert.alert('Payment Failed', error.response?.data?.message || 'Transaction failed');
+      Alert.alert('Thanh toán thất bại', error.response?.data?.message || 'Giao dịch không thành công');
     }
   });
 
@@ -35,15 +35,15 @@ export default function PaymentSandboxScreen() {
         <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
           <ChevronLeft size={28} color="#1F2937" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-text-primary">Payment Sandbox</Text>
+        <Text className="text-lg font-bold text-text-primary">Thanh toán Sandbox</Text>
         <View className="w-10" />
       </View>
 
       <View className="flex-1 px-5 py-10 items-center">
         <CreditCard size={64} color={colors.primary.DEFAULT} className="mb-6" />
-        <Text className="text-2xl font-bold text-text-primary mb-2">Sandbox Payment</Text>
+        <Text className="text-2xl font-bold text-text-primary mb-2">Thanh toán thử nghiệm</Text>
         <Text className="text-text-secondary text-center mb-8 px-4">
-          This is a sandbox environment. No real money will be charged. Clicking the button below will simulate a successful payment transaction.
+          Đây là môi trường thử nghiệm (Sandbox). Bạn sẽ không bị trừ tiền thật. Nhấn nút bên dưới để giả lập một giao dịch thanh toán thành công.
         </Text>
 
         <TouchableOpacity 
@@ -54,7 +54,7 @@ export default function PaymentSandboxScreen() {
           {isPending ? (
              <ActivityIndicator color="white" />
           ) : (
-            <Text className="text-white font-bold text-lg">Simulate Successful Payment</Text>
+            <Text className="text-white font-bold text-lg">Giả lập Thanh toán Thành công</Text>
           )}
         </TouchableOpacity>
       </View>

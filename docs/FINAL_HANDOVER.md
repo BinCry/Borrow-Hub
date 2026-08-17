@@ -14,11 +14,12 @@ The Borrow Hub MVP has been fully audited, refactored, and finalized for product
 3. **Robustness & Stability**:
    - Implemented standard exception filtering for API stability.
    - Validated missing DTOs on backend to prevent runtime payload crashes.
-4. **UX & Mobile Polish**:
-   - Localized primary interfaces into standard Vietnamese (`vi-VN`).
+   - Localized primary interfaces into standard Vietnamese (`vi-VN`) (100% Tiếng Việt, loại bỏ màn hình prototype).
    - Standardized Loading (Skeletons) and Empty State experiences across all lists.
    - Centralized Design Tokens (`colors.ts`), replacing scattered hardcoded HEX codes across 24+ components.
-   - Fixed Layout UX issues (e.g. Keyboard blocking inputs) during Asset Creation.
+   - Fixed Layout UX issues (e.g. Keyboard blocking inputs) during Asset Creation, Chat.
+   - Migrated all data fetching to `React Query` custom hooks (`useRentals`, `useAssets`) isolated in `services/api/client.ts`.
+   - Setup robust Mock Toggle (`EXPO_PUBLIC_USE_MOCKS=true`) for standalone Frontend preview.
 
 ## Pre-Release Steps
 1. **Environment Variables**:

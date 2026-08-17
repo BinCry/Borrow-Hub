@@ -3,10 +3,10 @@ import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle } from 'lucide-react-native';
+import { LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, Star, Clock } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../services/api/client';
-import { User as UserType } from '../../types/api';
+import { User as UserType } from '../../types/domain';
 
 export default function ProfileScreen() {
   const logout = useAuthStore((state) => state.logout);
@@ -49,79 +49,100 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="px-4 py-4 bg-surface border-b border-border z-10 flex-row justify-between items-center">
         <Text className="text-2xl font-bold text-text-primary">Tài khoản</Text>
-        <TouchableOpacity className="p-2 -mr-2" onPress={() => router.push('/settings')}>
+        <TouchableOpacity className="p-2 -mr-2" onPress={() => router.push('/settings' as any)}>
           <Settings size={24} color={colors.primary.DEFAULT} />
         </TouchableOpacity>
       </View>
 
       <ScrollView className="flex-1">
         {/* Profile Header */}
-        <View className="bg-surface p-6 items-center border-b border-border">
-          <View className="w-24 h-24 rounded-full bg-primary-soft items-center justify-center mb-4 overflow-hidden">
+        <View className="bg-surface pt-6 pb-8 items-center border-b border-border shadow-sm">
+          <View className="w-28 h-28 rounded-full bg-primary-soft items-center justify-center mb-5 overflow-hidden border-4 border-white shadow-sm">
             {user?.avatarUrl ? (
               <Image source={{ uri: user.avatarUrl }} className="w-full h-full" />
             ) : (
-              <User size={40} color={colors.primary.DEFAULT} />
+              <User size={48} color={colors.primary.DEFAULT} />
             )}
           </View>
-          <Text className="text-2xl font-bold text-text-primary mb-1">
-            {isLoading ? 'Loading...' : user?.fullName}
+          <Text className="text-2xl font-extrabold text-text-primary mb-1 tracking-tight">
+            {isLoading ? 'Đang tải...' : user?.fullName || 'Người dùng'}
           </Text>
-          <Text className="text-text-secondary">{user?.email}</Text>
+          <Text className="text-text-secondary font-medium">{user?.email}</Text>
           
-          <View className="flex-row items-center mt-3 bg-primary-soft px-4 py-2 rounded-full">
-            <ShieldCheck size={16} color="#2F855A" />
-            <Text className="text-text-secondary text-xs ml-2">Độ uy tín</Text>
-            <Text className="text-success font-bold ml-1">{user?.trustScore || 0}</Text>
+          {/* Stats Bar */}
+          <View className="flex-row items-center mt-6 bg-surfaceSecondary rounded-2xl px-6 py-4 space-x-6 border border-border">
+            <View className="items-center">
+              <View className="flex-row items-center mb-1">
+                <Star size={16} color={colors.primary.DEFAULT} fill={colors.primary.DEFAULT} />
+                <Text className="text-text-primary font-bold ml-1.5 text-base">4.9</Text>
+              </View>
+              <Text className="text-text-secondary text-[11px] uppercase tracking-wider font-bold">Đánh giá</Text>
+            </View>
+            <View className="w-[1px] h-8 bg-border" />
+            <View className="items-center">
+              <View className="flex-row items-center mb-1">
+                <ShieldCheck size={16} color="#2F855A" />
+                <Text className="text-text-primary font-bold ml-1.5 text-base">{user?.trustScore || 100}</Text>
+              </View>
+              <Text className="text-text-secondary text-[11px] uppercase tracking-wider font-bold">Uy tín</Text>
+            </View>
+            <View className="w-[1px] h-8 bg-border" />
+            <View className="items-center">
+              <View className="flex-row items-center mb-1">
+                <Clock size={16} color="#4B5563" />
+                <Text className="text-text-primary font-bold ml-1.5 text-base">24</Text>
+              </View>
+              <Text className="text-text-secondary text-[11px] uppercase tracking-wider font-bold">Giao dịch</Text>
+            </View>
           </View>
         </View>
 
         {/* Menu Items */}
-        <View className="p-4">
-          <Text className="text-xs font-bold text-text-secondary uppercase mb-2 ml-2">Tài sản của tôi</Text>
-          <View className="mb-6">
-            <TouchableOpacity className="bg-surface p-4 rounded-xl mb-3 border border-border flex-row justify-between items-center" onPress={() => router.push('/asset/create')}>
+        <View className="p-5">
+          <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài sản của tôi</Text>
+          <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
+            <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/asset/create')}>
               <View className="flex-row items-center">
                 <PlusCircle size={22} color={colors.primary.DEFAULT} className="mr-3" />
-                <Text className="font-semibold text-text-primary">Tạo bài đăng</Text>
+                <Text className="font-semibold text-text-primary text-base">Tạo bài đăng mới</Text>
               </View>
               <ChevronRight size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity className="bg-surface p-4 rounded-xl border border-border flex-row justify-between items-center" onPress={() => router.push('/profile/listings')}>
+            <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center" onPress={() => router.push('/profile/listings' as any)}>
               <View className="flex-row items-center">
                 <List size={22} color={colors.primary.DEFAULT} className="mr-3" />
-                <Text className="font-semibold text-text-primary">Quản lý bài đăng</Text>
+                <Text className="font-semibold text-text-primary text-base">Quản lý bài đăng</Text>
               </View>
               <ChevronRight size={20} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
 
-          <Text className="text-xs font-bold text-text-secondary uppercase mb-2 ml-2">Tài khoản</Text>
-          <View className="mb-6">
-            <TouchableOpacity className="bg-surface p-4 rounded-xl mb-3 border border-border flex-row justify-between items-center" onPress={() => router.push('/profile/kyc')}>
+          <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài khoản</Text>
+          <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
+            <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/profile/kyc' as any)}>
               <View className="flex-row items-center">
                 <ShieldCheck size={22} color={colors.primary.DEFAULT} className="mr-3" />
-                <Text className="font-semibold text-text-primary">Xác thực danh tính (KYC)</Text>
+                <Text className="font-semibold text-text-primary text-base">Xác thực danh tính (KYC)</Text>
               </View>
               <ChevronRight size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity className="bg-surface p-4 rounded-xl mb-3 border border-border flex-row justify-between items-center" onPress={() => router.push('/support')}>
+            <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/support' as any)}>
               <View className="flex-row items-center">
                 <HelpCircle size={22} color={colors.primary.DEFAULT} className="mr-3" />
-                <Text className="font-semibold text-text-primary">Hỗ trợ</Text>
+                <Text className="font-semibold text-text-primary text-base">Hỗ trợ & CSKH</Text>
               </View>
               <ChevronRight size={20} color="#9CA3AF" />
             </TouchableOpacity>
             
             <TouchableOpacity 
-              className="bg-surface p-4 rounded-xl border border-border flex-row justify-between items-center"
+              className="px-5 py-4 flex-row justify-between items-center bg-danger/5"
               onPress={handleLogout}
             >
               <View className="flex-row items-center">
                 <LogOut size={22} color="#DC5C5C" className="mr-3" />
-                <Text className="font-semibold text-danger">Đăng xuất</Text>
+                <Text className="font-bold text-danger text-base">Đăng xuất</Text>
               </View>
             </TouchableOpacity>
           </View>

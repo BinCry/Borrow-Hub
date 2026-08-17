@@ -1,26 +1,34 @@
 import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
+import { useAssets } from '../../hooks/useAssets';
 import { AssetCard } from '../../components/AssetCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Search } from 'lucide-react-native';
+import { Search, Bell, SlidersHorizontal } from 'lucide-react-native';
+import { Image } from 'expo-image';
 
 export default function HomeScreen() {
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
-    queryKey: ['assets', 'home'],
-    queryFn: async () => {
-      const response = await apiClient.get<PaginatedResponse<Asset>>('/assets?limit=10');
-      return response.data;
-    },
-  });
+  const { data, isLoading, isError, refetch, isRefetching } = useAssets({ limit: 10 });
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="px-4 pt-4 pb-2 border-b border-border bg-surface">
-        <Text className="text-2xl font-bold text-primary">Borrow Hub</Text>
-        <Text className="text-text-secondary text-sm">Tìm món đồ bạn cần quanh đây</Text>
+      <View className="px-5 pt-2 pb-4 bg-surface z-10 shadow-sm border-b border-border">
+        <View className="flex-row justify-between items-center mb-4">
+          <View>
+            <Text className="text-2xl font-extrabold text-primary tracking-tight">Borrow Hub</Text>
+            <Text className="text-text-secondary text-sm mt-0.5">Thuê mọi thứ bạn cần quanh đây</Text>
+          </View>
+          <View className="w-10 h-10 bg-surfaceSecondary rounded-full items-center justify-center">
+            <Bell size={20} color="#4B5563" />
+          </View>
+        </View>
+
+        {/* Search Bar Mock */}
+        <View className="flex-row items-center bg-surfaceSecondary rounded-xl px-4 py-3 border border-border">
+          <Search size={20} color="#9CA3AF" />
+          <Text className="text-text-muted ml-3 flex-1 text-base">Tìm kiếm thiết bị, máy ảnh...</Text>
+          <SlidersHorizontal size={20} color="#4B5563" />
+        </View>
       </View>
 
       {isLoading ? (
@@ -60,7 +68,22 @@ export default function HomeScreen() {
             />
           }
           ListHeaderComponent={
-            <Text className="text-xl font-semibold text-text-primary mb-4">Dành cho bạn</Text>
+            <View className="mb-6">
+              {/* Premium Hero Banner */}
+              <View className="w-full h-[160px] rounded-2xl overflow-hidden mb-6 relative">
+                <Image 
+                  source={{ uri: 'https://images.unsplash.com/photo-1504280650125-635749f16d8a?q=80&w=800&auto=format&fit=crop' }} 
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="cover"
+                />
+                <View className="absolute inset-0 bg-black/40 p-5 justify-end">
+                  <Text className="text-white font-extrabold text-xl mb-1">Thiết bị cắm trại</Text>
+                  <Text className="text-white/90 text-sm font-medium">Giảm 20% cho đơn thuê cuối tuần</Text>
+                </View>
+              </View>
+              
+              <Text className="text-xl font-extrabold text-text-primary tracking-tight">Dành cho bạn</Text>
+            </View>
           }
         />
       )}
