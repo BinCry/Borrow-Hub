@@ -15,6 +15,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
   const configService = app.get(ConfigService);
   const requestLogsService = app.get(RequestLogsService);
   const requestContextService = app.get(RequestContextService);
@@ -88,7 +89,8 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, swaggerDocument);
 
   const port = Number(configService.get('PORT') ?? 3000);
-  await app.listen(port);
+  const host = configService.get<string>('HOST') ?? '0.0.0.0';
+  await app.listen(port, host);
 }
 
 void bootstrap();

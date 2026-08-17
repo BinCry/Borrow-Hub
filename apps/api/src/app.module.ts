@@ -29,12 +29,14 @@ import { RequestContextModule } from './common/request-context.module';
 import { PaymentModule } from './payment/payment.module';
 import { StorageModule } from './storage/storage.module';
 import { AppCacheModule } from './cache/cache.module';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
+      validate: validateEnv,
     }),
     AppCacheModule,
     RequestContextModule,

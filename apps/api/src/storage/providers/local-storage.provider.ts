@@ -1,4 +1,5 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { IStorageProvider, UploadOptions } from '../storage.interface';
 import { resolve, dirname } from 'path';
 import { mkdir, writeFile, unlink } from 'fs/promises';
@@ -7,7 +8,14 @@ import { mkdir, writeFile, unlink } from 'fs/promises';
 export class LocalStorageProvider implements IStorageProvider {
   private readonly logger = new Logger(LocalStorageProvider.name);
   private readonly storageRoot = resolve(process.cwd(), 'uploads');
-  private readonly baseUrl = process.env.API_URL || 'http://localhost:3000'; // For local only
+  private readonly baseUrl: string;
+
+  constructor(private readonly configService: ConfigService) {
+    this.baseUrl =
+      this.configService.get<string>('APP_URL') ??
+      this.configService.get<string>('API_URL') ??
+      'http://localhost:3000';
+  }
 
   async uploadFile(key: string, body: Buffer, _options?: UploadOptions): Promise<string> {
     try {

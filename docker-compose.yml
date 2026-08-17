@@ -37,6 +37,9 @@ services:
     container_name: toolshare-api
     env_file:
       - .env
+    environment:
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/toolshare?schema=public}
+      REDIS_URL: ${DOCKER_REDIS_URL:-redis://redis:6379}
     ports:
       - "3000:3000"
     depends_on:

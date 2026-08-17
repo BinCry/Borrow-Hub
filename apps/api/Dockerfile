@@ -1,19 +1,50 @@
-FROM node:24-alpine
+FROM node:24-alpine AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 RUN corepack enable
 
-WORKDIR /workspace
+WORKDIR /app
 
-COPY package.json pnpm-workspace.yaml tsconfig.base.json .npmrc ./
+FROM base AS deps
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc ./
 COPY apps/api/package.json apps/api/package.json
 
-RUN pnpm install --frozen-lockfile=false
+RUN pnpm install --frozen-lockfile
 
-COPY . .
+FROM deps AS build
+
+COPY apps/api ./apps/api
+
+RUN pnpm --filter toolshare-api prisma:generate
+RUN pnpm --filter toolshare-api build
+
+FROM node:24-alpine AS runner
+
+ENV NODE_ENV=production
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN corepack enable
+
+WORKDIR /app
+
+COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/tsconfig.base.json /app/.npmrc ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/prisma ./apps/api/prisma
+
+RUN mkdir -p /app/uploads && chown -R node:node /app
+
+USER node
+WORKDIR /app/apps/api
 
 EXPOSE 3000
 
-CMD ["pnpm", "--filter", "toolshare-api", "start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+
+CMD ["node", "dist/main.js"]
