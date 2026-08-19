@@ -1,4 +1,4 @@
-import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAssets } from '../../hooks/useAssets';
 import { AssetCard } from '../../components/AssetCard';
@@ -6,8 +6,10 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Search, Bell, SlidersHorizontal } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { data, isLoading, isError, refetch, isRefetching } = useAssets({ limit: 10 });
 
   return (
@@ -18,17 +20,24 @@ export default function HomeScreen() {
             <Text className="text-2xl font-extrabold text-primary tracking-tight">Borrow Hub</Text>
             <Text className="text-text-secondary text-sm mt-0.5">Thuê mọi thứ bạn cần quanh đây</Text>
           </View>
-          <View className="w-10 h-10 bg-surfaceSecondary rounded-full items-center justify-center">
+          <TouchableOpacity
+            accessibilityLabel="Mở thông báo"
+            className="w-10 h-10 bg-surfaceSecondary rounded-full items-center justify-center"
+            onPress={() => router.push('/notifications' as never)}
+          >
             <Bell size={20} color="#4B5563" />
-          </View>
+          </TouchableOpacity>
         </View>
 
-        {/* Search Bar Mock */}
-        <View className="flex-row items-center bg-surfaceSecondary rounded-xl px-4 py-3 border border-border">
+        <TouchableOpacity
+          accessibilityLabel="Tìm kiếm tài sản"
+          className="flex-row items-center bg-surfaceSecondary rounded-xl px-4 py-3 border border-border"
+          onPress={() => router.push('/discover')}
+        >
           <Search size={20} color="#9CA3AF" />
           <Text className="text-text-muted ml-3 flex-1 text-base">Tìm kiếm thiết bị, máy ảnh...</Text>
           <SlidersHorizontal size={20} color="#4B5563" />
-        </View>
+        </TouchableOpacity>
       </View>
 
       {isLoading ? (
@@ -69,16 +78,17 @@ export default function HomeScreen() {
           }
           ListHeaderComponent={
             <View className="mb-6">
-              {/* Premium Hero Banner */}
               <View className="w-full h-[160px] rounded-2xl overflow-hidden mb-6 relative">
                 <Image 
-                  source={{ uri: 'https://images.unsplash.com/photo-1504280650125-635749f16d8a?q=80&w=800&auto=format&fit=crop' }} 
+                  source={require('../../../assets/images/auth-background-v2.png')}
                   style={{ width: '100%', height: '100%' }}
                   contentFit="cover"
+                  contentPosition="center"
+                  priority="high"
                 />
-                <View className="absolute inset-0 bg-black/40 p-5 justify-end">
-                  <Text className="text-white font-extrabold text-xl mb-1">Thiết bị cắm trại</Text>
-                  <Text className="text-white/90 text-sm font-medium">Giảm 20% cho đơn thuê cuối tuần</Text>
+                <View className="absolute inset-0 bg-black/45 p-5 justify-end">
+                  <Text className="text-white font-extrabold text-xl mb-1">Mượn đúng món, dùng đúng lúc</Text>
+                  <Text className="text-white/90 text-sm font-medium">Khám phá đồ dùng hữu ích ngay trong cộng đồng</Text>
                 </View>
               </View>
               

@@ -1,4 +1,4 @@
-import { RentalStatus, AssetStatus } from '../types/domain';
+import { AssetStatus, RentalStatus } from '../types/domain';
 import { colors } from '../theme/colors';
 
 export interface StatusPresentation {
@@ -7,7 +7,10 @@ export interface StatusPresentation {
   colorHex: string;
 }
 
-export const getRentalStatusPresentation = (status: RentalStatus, isOwner: boolean = false): StatusPresentation => {
+export const getRentalStatusPresentation = (
+  status: RentalStatus,
+  isOwner = false,
+): StatusPresentation => {
   switch (status) {
     case 'PENDING_OWNER':
       return {
@@ -16,79 +19,51 @@ export const getRentalStatusPresentation = (status: RentalStatus, isOwner: boole
         colorHex: colors.warning,
       };
     case 'APPROVED':
-      return {
-        label: 'Đã chấp nhận',
-        tone: 'success',
-        colorHex: colors.success,
-      };
+      return { label: 'Đã chấp nhận', tone: 'success', colorHex: colors.success };
     case 'AWAITING_PAYMENT':
-      return {
-        label: 'Chờ thanh toán',
-        tone: 'warning',
-        colorHex: colors.warning,
-      };
+      return { label: 'Chờ thanh toán', tone: 'warning', colorHex: colors.warning };
     case 'AWAITING_SIGNATURE':
-      return {
-        label: 'Chờ ký HĐ',
-        tone: 'info',
-        colorHex: colors.info,
-      };
+      return { label: 'Chờ ký hợp đồng', tone: 'info', colorHex: colors.info };
+    case 'CONFIRMED':
+      return { label: 'Đã xác nhận', tone: 'success', colorHex: colors.success };
     case 'READY_FOR_HANDOVER':
-      return {
-        label: 'Sẵn sàng giao',
-        tone: 'info',
-        colorHex: colors.info,
-      };
+      return { label: 'Sẵn sàng bàn giao', tone: 'info', colorHex: colors.info };
     case 'ONGOING':
-      return {
-        label: 'Đang thuê',
-        tone: 'primary',
-        colorHex: colors.primary.DEFAULT,
-      };
-    case 'RETURNED':
-      return {
-        label: 'Chờ hoàn tất',
-        tone: 'info',
-        colorHex: colors.info,
-      };
+      return { label: 'Đang thuê', tone: 'primary', colorHex: colors.primary.DEFAULT };
+    case 'RETURN_PENDING':
+      return { label: 'Chờ nhận lại', tone: 'info', colorHex: colors.info };
+    case 'OVERDUE':
+      return { label: 'Quá hạn', tone: 'danger', colorHex: colors.danger };
     case 'COMPLETED':
-      return {
-        label: 'Hoàn tất',
-        tone: 'success',
-        colorHex: colors.success,
-      };
+      return { label: 'Hoàn tất', tone: 'success', colorHex: colors.success };
+    case 'DECLINED':
+      return { label: 'Đã từ chối', tone: 'danger', colorHex: colors.danger };
     case 'CANCELLED':
-      return {
-        label: 'Đã huỷ',
-        tone: 'danger',
-        colorHex: colors.danger,
-      };
+      return { label: 'Đã hủy', tone: 'danger', colorHex: colors.danger };
+    case 'EXPIRED':
+      return { label: 'Đã hết hạn', tone: 'neutral', colorHex: colors.text.muted };
     case 'DISPUTED':
-      return {
-        label: 'Khiếu nại',
-        tone: 'danger',
-        colorHex: colors.danger,
-      };
-    default:
-      return {
-        label: 'Không xác định',
-        tone: 'neutral',
-        colorHex: colors.text.muted,
-      };
+      return { label: 'Đang tranh chấp', tone: 'danger', colorHex: colors.danger };
   }
 };
 
-export const getAssetStatusPresentation = (status: AssetStatus): StatusPresentation => {
+export const getAssetStatusPresentation = (
+  status: AssetStatus,
+): StatusPresentation => {
   switch (status) {
-    case 'AVAILABLE':
-      return { label: 'Có sẵn', tone: 'success', colorHex: colors.success };
-    case 'UNAVAILABLE':
-      return { label: 'Bận', tone: 'warning', colorHex: colors.warning };
-    case 'RENTED':
-      return { label: 'Đang cho thuê', tone: 'info', colorHex: colors.info };
-    case 'HIDDEN':
-      return { label: 'Đã ẩn', tone: 'neutral', colorHex: colors.text.muted };
-    default:
-      return { label: 'Không xác định', tone: 'neutral', colorHex: colors.text.muted };
+    case 'ACTIVE':
+      return { label: 'Đang hoạt động', tone: 'success', colorHex: colors.success };
+    case 'PENDING_REVIEW':
+      return { label: 'Chờ duyệt', tone: 'warning', colorHex: colors.warning };
+    case 'PAUSED':
+      return { label: 'Tạm dừng', tone: 'warning', colorHex: colors.warning };
+    case 'REJECTED':
+      return { label: 'Bị từ chối', tone: 'danger', colorHex: colors.danger };
+    case 'SUSPENDED':
+      return { label: 'Bị khóa', tone: 'danger', colorHex: colors.danger };
+    case 'ARCHIVED':
+      return { label: 'Đã lưu trữ', tone: 'neutral', colorHex: colors.text.muted };
+    case 'DRAFT':
+      return { label: 'Bản nháp', tone: 'neutral', colorHex: colors.text.muted };
   }
 };

@@ -11,7 +11,7 @@ export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 500);
 
-  const { data, isLoading, isError } = useAssets({ query: debouncedSearch });
+  const { data, isLoading, isError } = useAssets({ keyword: debouncedSearch });
 
   return (
     <SafeAreaView className="flex-1 bg-background">

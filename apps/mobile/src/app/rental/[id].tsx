@@ -1,32 +1,35 @@
 import { colors } from '../../theme/colors';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRental, useApproveRental, useDeclineRental } from '../../hooks/useRentals';
-import { getRentalStatusPresentation } from '../../utils/status-mappers';
-import { ChevronLeft, Info, MapPin, CheckCircle2, Circle, Clock } from 'lucide-react-native';
+import { useRental, useApproveRental, useCancelRental, useDeclineRental } from '../../hooks/useRentals';
+import { ChevronLeft, CheckCircle2, Circle, Clock } from 'lucide-react-native';
 import { format } from 'date-fns';
-import { useAuthStore } from '../../store/authStore';
-import { useEffect, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../../services/api/client';
+import { User } from '../../types/domain';
 
 export default function RentalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [currentUserId, setCurrentUserId] = useState<string | null>('user-1'); // Mock current user for UI test
+  const { data: currentUser } = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => (await apiClient.get<User>('/auth/me')).data,
+  });
 
-  const { data: rental, isLoading, refetch } = useRental(id);
+  const { data: rental, isLoading } = useRental(id);
   
-  const { mutate: approveRental, isPending: isApproving } = useApproveRental();
-  const { mutate: declineRental, isPending: isDeclining } = useDeclineRental();
+  const { mutate: approveRental } = useApproveRental();
+  const { mutate: declineRental } = useDeclineRental();
+  const { mutate: cancelRental } = useCancelRental();
 
   const handleAction = ({ action, payload = {} }: { action: string, payload?: any }) => {
-    if (action === 'approve') approveRental(id);
+    if (action === 'approve') approveRental({ id });
     if (action === 'decline') declineRental({ id, reason: payload.reason || '' });
-    if (action === 'cancel') declineRental({ id, reason: payload.reason || '' }); // mock cancel as decline
+    if (action === 'cancel') cancelRental({ id, reason: payload.reason || '' });
   };
 
-  if (isLoading || !rental || !currentUserId) {
+  if (isLoading || !rental || !currentUser) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
@@ -34,8 +37,8 @@ export default function RentalDetailScreen() {
     );
   }
 
-  const isOwner = rental.ownerId === currentUserId;
-  const isRenter = rental.renterId === currentUserId;
+  const isOwner = rental.ownerId === currentUser.id;
+  const isRenter = rental.renterId === currentUser.id;
 
   const renderActionButtons = () => {
     switch (rental.status) {
@@ -67,7 +70,6 @@ export default function RentalDetailScreen() {
             </TouchableOpacity>
           );
         }
-      case 'APPROVED':
       case 'AWAITING_PAYMENT':
         if (isRenter) {
           return (
@@ -110,11 +112,20 @@ export default function RentalDetailScreen() {
           );
         }
         break;
+      case 'RETURN_PENDING':
+        return (
+          <TouchableOpacity
+            className="mt-4 w-full items-center rounded-xl bg-primary py-4"
+            onPress={() => router.push(`/rental/${id}/handover`)}
+          >
+            <Text className="font-bold text-white">
+              {isOwner ? 'Tạo mã xác nhận nhận lại' : 'Quét mã xác nhận hoàn trả'}
+            </Text>
+          </TouchableOpacity>
+        );
     }
     return null;
   };
-
-  const statusPresentation = getRentalStatusPresentation(rental.status, isOwner);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -133,9 +144,9 @@ export default function RentalDetailScreen() {
           <View className="pl-2">
             {[
               { label: 'Yêu cầu thuê', done: true, active: rental.status === 'PENDING_OWNER' },
-              { label: 'Xác nhận', done: rental.status !== 'PENDING_OWNER' && rental.status !== 'CANCELLED', active: rental.status === 'APPROVED' },
-              { label: 'Thanh toán', done: !['PENDING_OWNER', 'APPROVED', 'AWAITING_PAYMENT', 'CANCELLED'].includes(rental.status), active: rental.status === 'AWAITING_PAYMENT' },
-              { label: 'Ký hợp đồng', done: !['PENDING_OWNER', 'APPROVED', 'AWAITING_PAYMENT', 'AWAITING_SIGNATURE', 'CANCELLED'].includes(rental.status), active: rental.status === 'AWAITING_SIGNATURE' },
+              { label: 'Xác nhận', done: rental.status !== 'PENDING_OWNER' && rental.status !== 'CANCELLED', active: rental.status === 'AWAITING_PAYMENT' },
+              { label: 'Thanh toán', done: !['PENDING_OWNER', 'AWAITING_PAYMENT', 'CANCELLED'].includes(rental.status), active: rental.status === 'AWAITING_PAYMENT' },
+              { label: 'Ký hợp đồng', done: !['PENDING_OWNER', 'AWAITING_PAYMENT', 'AWAITING_SIGNATURE', 'CANCELLED'].includes(rental.status), active: rental.status === 'AWAITING_SIGNATURE' },
               { label: 'Bàn giao', done: ['ONGOING', 'COMPLETED'].includes(rental.status), active: rental.status === 'READY_FOR_HANDOVER' },
               { label: 'Hoàn trả', done: rental.status === 'COMPLETED', active: rental.status === 'ONGOING' }
             ].map((step, index, arr) => (

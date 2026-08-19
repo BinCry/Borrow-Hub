@@ -1,5 +1,5 @@
 import { colors } from '../../theme/colors';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, FlatList, Dimensions, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -7,7 +7,7 @@ import { useAsset } from '../../hooks/useAssets';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ChevronLeft, MapPin, Star, ShieldCheck, Heart, User, AlertCircle } from 'lucide-react-native';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { apiClient } from '../../services/api/client';
 import { useAuthStore } from '../../store/authStore';
 
@@ -17,13 +17,14 @@ export default function AssetDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteOverride, setFavoriteOverride] = useState<boolean | null>(null);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const { data: asset, isLoading, isError } = useAsset(id);
 
-  // Ideally this should come from the asset API response (e.g. asset.isFavorite), but we mock it or fetch separately
-  // Since the backend /assets/:id doesn't return isFavorite (it might, but we don't know), we will just allow toggling
+  const isFavorite = favoriteOverride ?? asset?.isFavorite ?? false;
+
   const toggleFavorite = async () => {
     if (!isAuthenticated) {
       router.push('/auth/login');
@@ -33,14 +34,14 @@ export default function AssetDetailScreen() {
     setIsTogglingFavorite(true);
     try {
       if (isFavorite) {
-        await apiClient.delete(`/favorites/${id}`);
-        setIsFavorite(false);
+        await apiClient.delete(`/favorites/assets/${id}`);
+        setFavoriteOverride(false);
       } else {
-        await apiClient.post(`/favorites`, { assetId: id });
-        setIsFavorite(true);
+        await apiClient.post(`/favorites/assets/${id}`);
+        setFavoriteOverride(true);
       }
-    } catch (e) {
-      console.warn('Failed to toggle favorite', e);
+    } catch {
+      Alert.alert('Không thể cập nhật', 'Vui lòng thử lại sau.');
     } finally {
       setIsTogglingFavorite(false);
     }
@@ -104,7 +105,7 @@ export default function AssetDetailScreen() {
           onPress={toggleFavorite}
           disabled={isTogglingFavorite}
         >
-          <Heart size={24} color={isFavorite ? colors.danger.DEFAULT : "#6B7280"} fill={isFavorite ? colors.danger.DEFAULT : "transparent"} />
+          <Heart size={24} color={isFavorite ? colors.danger : "#6B7280"} fill={isFavorite ? colors.danger : "transparent"} />
         </TouchableOpacity>
       </View>
 
@@ -118,6 +119,11 @@ export default function AssetDetailScreen() {
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item) => item.id}
+              onMomentumScrollEnd={(event) => {
+                setCurrentImageIndex(
+                  Math.round(event.nativeEvent.contentOffset.x / width),
+                );
+              }}
               renderItem={({ item }) => (
                 <Image
                   source={{ uri: item.url }}
@@ -133,11 +139,10 @@ export default function AssetDetailScreen() {
             </View>
           )}
           
-          {/* Pagination indicator mock */}
           {asset.images && asset.images.length > 1 && (
             <View className="absolute bottom-4 left-0 right-0 flex-row justify-center space-x-1.5">
                {asset.images.map((_, index) => (
-                  <View key={index} className={`h-2 rounded-full ${index === 0 ? 'w-5 bg-primary' : 'w-2 bg-white/60'}`} />
+                  <View key={index} className={`h-2 rounded-full ${index === currentImageIndex ? 'w-5 bg-primary' : 'w-2 bg-white/60'}`} />
                ))}
             </View>
           )}

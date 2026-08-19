@@ -1,10 +1,8 @@
 import { colors } from '../../theme/colors';
 import { Tabs } from 'expo-router';
 import { Home, Search, CalendarClock, MessageCircle, User } from 'lucide-react-native';
-import { useColorScheme } from 'react-native';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const tintColor = colors.primary.DEFAULT; // Primary color
 
   return (

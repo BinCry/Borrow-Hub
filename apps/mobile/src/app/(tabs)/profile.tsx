@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, Star, Clock } from 'lucide-react-native';
+import { LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../services/api/client';
 import { User as UserType } from '../../types/domain';
@@ -74,30 +74,32 @@ export default function ProfileScreen() {
           </Text>
           <Text className="text-text-secondary font-medium">{user?.email}</Text>
           
-          {/* Stats Bar */}
-          <View className="flex-row items-center mt-6 bg-surfaceSecondary rounded-2xl px-6 py-4 space-x-6 border border-border">
+          <View className="mt-6 flex-row items-center rounded-2xl border border-border bg-surfaceSecondary px-7 py-4">
             <View className="items-center">
               <View className="flex-row items-center mb-1">
-                <Star size={16} color={colors.primary.DEFAULT} fill={colors.primary.DEFAULT} />
-                <Text className="text-text-primary font-bold ml-1.5 text-base">4.9</Text>
+                <ShieldCheck size={16} color={colors.primary.DEFAULT} />
+                <Text className="ml-1.5 text-base font-bold text-text-primary">
+                  {user?.trustScore ?? 0}
+                </Text>
               </View>
-              <Text className="text-text-secondary text-[11px] uppercase tracking-wider font-bold">Đánh giá</Text>
+              <Text className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Điểm uy tín</Text>
             </View>
-            <View className="w-[1px] h-8 bg-border" />
-            <View className="items-center">
+            <View className="mx-7 h-8 w-px bg-border" />
+            <View className="min-w-24 items-center">
               <View className="flex-row items-center mb-1">
-                <ShieldCheck size={16} color="#2F855A" />
-                <Text className="text-text-primary font-bold ml-1.5 text-base">{user?.trustScore || 100}</Text>
+                <ShieldCheck
+                  size={16}
+                  color={
+                    user?.verificationStatus === 'VERIFIED'
+                      ? colors.success
+                      : colors.warning
+                  }
+                />
+                <Text className="ml-1.5 text-sm font-bold text-text-primary">
+                  {user?.verificationStatus === 'VERIFIED' ? 'Đã xác thực' : 'Chưa xác thực'}
+                </Text>
               </View>
-              <Text className="text-text-secondary text-[11px] uppercase tracking-wider font-bold">Uy tín</Text>
-            </View>
-            <View className="w-[1px] h-8 bg-border" />
-            <View className="items-center">
-              <View className="flex-row items-center mb-1">
-                <Clock size={16} color="#4B5563" />
-                <Text className="text-text-primary font-bold ml-1.5 text-base">24</Text>
-              </View>
-              <Text className="text-text-secondary text-[11px] uppercase tracking-wider font-bold">Giao dịch</Text>
+              <Text className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Danh tính</Text>
             </View>
           </View>
         </View>

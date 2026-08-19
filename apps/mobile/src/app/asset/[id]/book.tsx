@@ -12,15 +12,30 @@ export default function BookAssetScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  // Very simplified date selection for MVP: just select start and end
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(addDays(new Date(), 3));
 
-  const daysCount = Math.max(1, differenceInDays(endDate, startDate) + 1);
+  const daysCount = Math.max(1, differenceInDays(endDate, startDate));
 
   const { data: asset, isLoading } = useAsset(id);
 
   const { mutate: createRental, isPending: isBooking } = useCreateRental();
+
+  const moveStartDate = (days: number) => {
+    const nextStart = addDays(startDate, days);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (nextStart < today) return;
+    setStartDate(nextStart);
+    setEndDate(addDays(endDate, days));
+  };
+
+  const changeDuration = (days: number) => {
+    const minimum = asset?.minimumDurationDays ?? 1;
+    const maximum = asset?.maximumDurationDays ?? 30;
+    const nextDuration = Math.min(maximum, Math.max(minimum, daysCount + days));
+    setEndDate(addDays(startDate, nextDuration));
+  };
 
   const handleBooking = () => {
     createRental(
@@ -88,6 +103,43 @@ export default function BookAssetScreen() {
                 <CalendarIcon size={16} color={colors.primary.DEFAULT} className="mr-2" />
                 <Text className="text-text-primary font-medium">{format(endDate, 'MMM dd, yyyy')}</Text>
               </View>
+            </View>
+          </View>
+
+          <View className="mb-4 flex-row gap-3">
+            <View className="flex-1 flex-row items-center justify-between rounded-xl bg-surfaceSecondary p-2">
+              <TouchableOpacity
+                accessibilityLabel="Lùi ngày bắt đầu"
+                className="h-11 w-11 items-center justify-center rounded-lg bg-surface"
+                onPress={() => moveStartDate(-1)}
+              >
+                <Text className="text-xl font-bold text-primary">−</Text>
+              </TouchableOpacity>
+              <Text className="text-xs font-semibold text-text-secondary">Bắt đầu</Text>
+              <TouchableOpacity
+                accessibilityLabel="Tiến ngày bắt đầu"
+                className="h-11 w-11 items-center justify-center rounded-lg bg-surface"
+                onPress={() => moveStartDate(1)}
+              >
+                <Text className="text-xl font-bold text-primary">+</Text>
+              </TouchableOpacity>
+            </View>
+            <View className="flex-1 flex-row items-center justify-between rounded-xl bg-surfaceSecondary p-2">
+              <TouchableOpacity
+                accessibilityLabel="Giảm số ngày thuê"
+                className="h-11 w-11 items-center justify-center rounded-lg bg-surface"
+                onPress={() => changeDuration(-1)}
+              >
+                <Text className="text-xl font-bold text-primary">−</Text>
+              </TouchableOpacity>
+              <Text className="text-xs font-semibold text-text-secondary">{daysCount} ngày</Text>
+              <TouchableOpacity
+                accessibilityLabel="Tăng số ngày thuê"
+                className="h-11 w-11 items-center justify-center rounded-lg bg-surface"
+                onPress={() => changeDuration(1)}
+              >
+                <Text className="text-xl font-bold text-primary">+</Text>
+              </TouchableOpacity>
             </View>
           </View>
           

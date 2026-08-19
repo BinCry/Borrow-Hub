@@ -1,81 +1,170 @@
-import { colors } from '../../../theme/colors';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/services/api/client';
-import { ChevronLeft, QrCode, ClipboardCheck, ShieldCheck } from 'lucide-react-native';
+import { ChevronLeft, QrCode, ShieldCheck } from 'lucide-react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { apiClient } from '../../../services/api/client';
+import { useRental } from '../../../hooks/useRentals';
+import { colors } from '../../../theme/colors';
+import { User } from '../../../types/domain';
+
+function extractHandoverToken(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.searchParams.get('token') ?? value;
+  } catch {
+    return value.trim();
+  }
+}
 
 export default function HandoverScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-
-  const { mutate: startHandover, isPending: isStarting } = useMutation({
-    mutationFn: async () => {
-      return apiClient.post(`/rentals/${id}/handover`, {
-        type: 'DELIVERY',
-      });
-    },
-    onSuccess: (res) => {
-      const handoverId = res.data.id;
-      // Option to show QR code 
-      router.push(`/rental/${id}/qr?handoverId=${handoverId}`);
-    },
-    onError: (error: any) => {
-      Alert.alert('Thất bại', error.response?.data?.message || 'Không thể bắt đầu quá trình giao nhận');
-    }
+  const [permission, requestPermission] = useCameraPermissions();
+  const [hasScanned, setHasScanned] = useState(false);
+  const rentalQuery = useRental(id);
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => (await apiClient.get<User>('/auth/me')).data,
   });
+  const isOwner = rentalQuery.data?.ownerId === meQuery.data?.id;
+  const isReturn = rentalQuery.data?.status === 'RETURN_PENDING';
+  const startMutation = useMutation({
+    mutationFn: async () =>
+      (await apiClient.post<{ id: string }>(`/rentals/${id}/handover`, {
+        type: isReturn ? 'RETURN' : 'DELIVERY',
+      }))
+        .data,
+    onSuccess: (handover) => {
+      router.push(`/rental/${id}/qr?handoverId=${handover.id}`);
+    },
+    onError: () => {
+      Alert.alert(
+        isReturn ? 'Không thể bắt đầu hoàn trả' : 'Không thể bắt đầu bàn giao',
+        'Vui lòng kiểm tra trạng thái đơn thuê.',
+      );
+    },
+  });
+  const confirmMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiClient.post('/rentals/handover/qr/confirm', { token }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['rentals'] });
+      Alert.alert(
+        isReturn ? 'Hoàn trả thành công' : 'Bàn giao thành công',
+        isReturn
+          ? 'Tài sản đã được hai bên xác nhận hoàn trả.'
+          : 'Đơn thuê đã chuyển sang trạng thái đang thuê.',
+      );
+      router.back();
+    },
+    onError: () => {
+      setHasScanned(false);
+      Alert.alert('Mã không hợp lệ', 'Mã có thể đã hết hạn hoặc đã được sử dụng.');
+    },
+  });
+
+  const isLoading = rentalQuery.isLoading || meQuery.isLoading;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="flex-row items-center justify-between px-4 py-3 bg-surface z-10 border-b border-border">
-        <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
-          <ChevronLeft size={28} color="#1F2937" />
+      <View className="min-h-16 flex-row items-center border-b border-border bg-surface px-4 py-3">
+        <TouchableOpacity
+          accessibilityLabel="Quay lại"
+          className="min-h-11 min-w-11 items-center justify-center rounded-full"
+          onPress={() => router.back()}
+        >
+          <ChevronLeft size={28} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-text-primary">Quy trình giao nhận</Text>
-        <View className="w-10" />
+        <Text className="flex-1 text-center text-lg font-bold text-text-primary">
+          {isReturn ? 'Xác nhận hoàn trả' : 'Bàn giao tài sản'}
+        </Text>
+        <View className="w-11" />
       </View>
 
-      <View className="flex-1 px-5 py-8">
-        <View className="items-center mb-8">
-           <View className="w-20 h-20 bg-primary-soft rounded-full items-center justify-center mb-4">
-             <ShieldCheck size={40} color={colors.primary.DEFAULT} />
-           </View>
-           <Text className="text-2xl font-extrabold text-text-primary mb-2 tracking-tight text-center">Bàn giao an toàn</Text>
-           <Text className="text-text-secondary text-center leading-5">
-             Bảo vệ cả người thuê và người cho thuê bằng quy trình xác nhận điện tử được mã hóa.
-           </Text>
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         </View>
-
-        <TouchableOpacity 
-          className="bg-surface p-5 rounded-2xl border border-primary/20 mb-4 flex-row items-center shadow-sm"
-          onPress={() => startHandover()}
-          disabled={isStarting}
-        >
-          <View className="bg-primary-soft p-3 rounded-full mr-4">
-            <QrCode size={24} color={colors.primary.DEFAULT} />
+      ) : isOwner ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <View className="h-20 w-20 items-center justify-center rounded-full bg-primary-soft">
+            <ShieldCheck size={40} color={colors.primary.DEFAULT} />
           </View>
-          <View className="flex-1">
-            <Text className="text-lg font-bold text-text-primary">Tạo mã QR</Text>
-            <Text className="text-text-secondary text-sm">Chủ sở hữu tạo mã QR, Người thuê quét để xác nhận</Text>
+          <Text className="mt-5 text-center text-2xl font-extrabold text-text-primary">
+            {isReturn ? 'Tạo phiên nhận lại an toàn' : 'Tạo phiên bàn giao an toàn'}
+          </Text>
+          <Text className="mt-2 text-center leading-6 text-text-secondary">
+            Mã QR chỉ có hiệu lực trong thời gian ngắn và được khóa ngay sau lần xác nhận đầu tiên.
+          </Text>
+          <TouchableOpacity
+            className={`mt-8 min-h-14 w-full flex-row items-center justify-center rounded-xl bg-primary ${
+              startMutation.isPending ? 'opacity-70' : ''
+            }`}
+            disabled={startMutation.isPending}
+            onPress={() => startMutation.mutate()}
+          >
+            {startMutation.isPending ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <QrCode size={22} color="white" />
+                <Text className="ml-2 text-lg font-bold text-white">
+                  {isReturn ? 'Tạo mã QR nhận lại' : 'Tạo mã QR bàn giao'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      ) : !permission?.granted ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <QrCode size={64} color={colors.primary.DEFAULT} />
+          <Text className="mt-5 text-center text-xl font-bold text-text-primary">
+            Cần quyền truy cập camera
+          </Text>
+          <Text className="mt-2 text-center leading-6 text-text-secondary">
+            Camera chỉ được dùng để đọc mã QR xác nhận do chủ tài sản tạo.
+          </Text>
+          <TouchableOpacity
+            className="mt-7 min-h-14 w-full items-center justify-center rounded-xl bg-primary"
+            onPress={() => void requestPermission()}
+          >
+            <Text className="text-lg font-bold text-white">Cho phép dùng camera</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View className="flex-1 bg-black">
+          <CameraView
+            style={{ flex: 1 }}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={
+              hasScanned
+                ? undefined
+                : ({ data }) => {
+                    setHasScanned(true);
+                    confirmMutation.mutate(extractHandoverToken(data));
+                  }
+            }
+          />
+          <View className="absolute inset-x-6 bottom-8 rounded-2xl bg-black/70 p-5">
+            <Text className="text-center text-lg font-bold text-white">
+              {isReturn
+                ? 'Quét mã nhận lại trên thiết bị của chủ tài sản'
+                : 'Quét mã trên thiết bị của chủ tài sản'}
+            </Text>
+            <Text className="mt-1 text-center text-white/80">
+              Giữ mã QR nằm trọn trong khung camera.
+            </Text>
+            {confirmMutation.isPending ? (
+              <ActivityIndicator className="mt-4" color="white" />
+            ) : null}
           </View>
-        </TouchableOpacity>
-        
-        {/* Simplified manual confirmation for MVP if needed */}
-        <TouchableOpacity 
-          className="bg-surface p-5 rounded-2xl border border-border flex-row items-center"
-          onPress={() => Alert.alert('Giao nhận thủ công', 'Vui lòng sử dụng mã QR để giao nhận an toàn hơn.')}
-        >
-          <View className="bg-gray-100 p-3 rounded-full mr-4">
-            <ClipboardCheck size={24} color="#6B7280" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-lg font-bold text-text-primary text-gray-500">Xác nhận thủ công</Text>
-            <Text className="text-text-secondary text-sm text-gray-400">Tạm thời vô hiệu hóa vì lý do bảo mật</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }

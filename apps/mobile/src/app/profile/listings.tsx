@@ -7,21 +7,16 @@ import { useAuthStore } from '../../store/authStore';
 import { AssetCard } from '../../components/AssetCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
-import { Paginated, Asset } from '../../types/domain';
+import { AssetsService } from '../../services/assets/assets.service';
 
 export default function MyListingsScreen() {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  // Mock API call since useAssets doesn't have a 'mine' filter yet
   const { data, isLoading } = useQuery({
     queryKey: ['my-assets'],
     queryFn: async () => {
-      // In a real app this would be something like /assets/me or /assets?ownerId=...
-      const response = await apiClient.get<Paginated<Asset>>('/assets'); 
-      // Temporary mock slice to simulate "my" assets
-      return { ...response.data, data: response.data.data.slice(0, 2) };
+      return AssetsService.listMine();
     },
     enabled: isAuthenticated,
   });
@@ -44,7 +39,7 @@ export default function MyListingsScreen() {
         </View>
       ) : (
         <FlatList
-          data={data?.data || []}
+          data={data ?? []}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <AssetCard asset={item} />}
           contentContainerClassName="p-4"

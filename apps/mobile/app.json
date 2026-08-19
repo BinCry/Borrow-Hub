@@ -2,33 +2,33 @@
   "expo": {
     "name": "Borrow Hub",
     "slug": "borrow-hub",
+    "description": "Thuê và chia sẻ đồ dùng an toàn trong cộng đồng Borrow Hub.",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "icon": "./assets/images/app-icon-v2.png",
+    "scheme": "borrowhub",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.toolshare.app"
+      "icon": "./assets/images/app-icon-v2.png",
+      "bundleIdentifier": "com.borrowhub.app"
     },
     "android": {
-      "package": "com.toolshare.app",
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+      "package": "com.borrowhub.app",
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
       ],
-      "predictiveBackGestureEnabled": false
+      "adaptiveIcon": {
+        "backgroundColor": "#4F7C6B",
+        "foregroundImage": "./assets/images/android-icon-foreground-v2.png",
+        "monochromeImage": "./assets/images/android-icon-foreground-v2.png"
+      },
+      "predictiveBackGestureEnabled": true
     },
+    "primaryColor": "#4F7C6B",
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon-v2.png"
     },
     "plugins": [
       "expo-router",
@@ -36,11 +36,17 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#4F7C6B",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "image": "./assets/images/splash-icon-v2.png",
+          "imageWidth": 132
         }
       ],
       "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Cho phép Borrow Hub dùng camera để quét mã bàn giao."
+        }
+      ],
       "expo-image"
     ],
     "experiments": {

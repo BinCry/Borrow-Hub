@@ -1,49 +1,48 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { RentalsService } from '../services';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CreateRentalPayload, RentalsService } from '../services/rentals/rentals.service';
 
-export const useRentals = (role: 'renter' | 'owner') => {
-  return useQuery({
+export const useRentals = (role: 'renter' | 'owner') =>
+  useQuery({
     queryKey: ['rentals', 'list', role],
     queryFn: () => RentalsService.getMyRentals(role),
   });
-};
 
-export const useRental = (id: string) => {
-  return useQuery({
+export const useRental = (id: string) =>
+  useQuery({
     queryKey: ['rentals', 'detail', id],
     queryFn: () => RentalsService.getById(id),
-    enabled: !!id,
+    enabled: Boolean(id),
   });
-};
 
 export const useCreateRental = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: any) => RentalsService.create(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rentals', 'list'] });
-    },
+    mutationFn: (payload: CreateRentalPayload) => RentalsService.create(payload),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['rentals', 'list'] }),
   });
 };
 
-export const useApproveRental = () => {
+function useRentalMutation(
+  mutationFn: (variables: { id: string; reason?: string }) => Promise<unknown>,
+) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => RentalsService.approve(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', id] });
-      queryClient.invalidateQueries({ queryKey: ['rentals', 'list'] });
+    mutationFn,
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ['rentals', 'detail', variables.id],
+      });
+      void queryClient.invalidateQueries({ queryKey: ['rentals', 'list'] });
     },
   });
-};
+}
 
-export const useDeclineRental = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => RentalsService.decline(id, reason),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', id] });
-      queryClient.invalidateQueries({ queryKey: ['rentals', 'list'] });
-    },
-  });
-};
+export const useApproveRental = () =>
+  useRentalMutation(({ id }) => RentalsService.approve(id));
+
+export const useDeclineRental = () =>
+  useRentalMutation(({ id, reason }) => RentalsService.decline(id, reason ?? ''));
+
+export const useCancelRental = () =>
+  useRentalMutation(({ id, reason }) => RentalsService.cancel(id, reason ?? ''));

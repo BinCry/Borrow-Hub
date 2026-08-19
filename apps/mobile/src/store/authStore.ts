@@ -1,79 +1,127 @@
-import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { create } from 'zustand';
 
-const setTokens = async (accessToken: string, refreshToken: string) => {
+type StoredTokens = {
+  accessToken: string | null;
+  refreshToken: string | null;
+};
+
+const emptyTokens: StoredTokens = {
+  accessToken: null,
+  refreshToken: null,
+};
+
+async function setTokens(accessToken: string, refreshToken: string) {
   if (Platform.OS === 'web') {
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
-  } else {
-    await SecureStore.setItemAsync('accessToken', accessToken);
-    await SecureStore.setItemAsync('refreshToken', refreshToken);
+    return;
   }
-};
 
-const deleteTokens = async () => {
+  try {
+    await Promise.all([
+      SecureStore.setItemAsync('accessToken', accessToken),
+      SecureStore.setItemAsync('refreshToken', refreshToken),
+    ]);
+  } catch (error) {
+    await deleteTokens();
+    throw error;
+  }
+}
+
+async function deleteTokens() {
   if (Platform.OS === 'web') {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-  } else {
-    await SecureStore.deleteItemAsync('accessToken');
-    await SecureStore.deleteItemAsync('refreshToken');
+    return;
   }
-};
 
-const getTokens = async () => {
+  await Promise.all([
+    SecureStore.deleteItemAsync('accessToken'),
+    SecureStore.deleteItemAsync('refreshToken'),
+  ]);
+}
+
+async function getTokens(): Promise<StoredTokens> {
   if (Platform.OS === 'web') {
     return {
       accessToken: localStorage.getItem('accessToken'),
-      refreshToken: localStorage.getItem('refreshToken')
-    };
-  } else {
-    return {
-      accessToken: await SecureStore.getItemAsync('accessToken'),
-      refreshToken: await SecureStore.getItemAsync('refreshToken')
+      refreshToken: localStorage.getItem('refreshToken'),
     };
   }
-};
 
-interface AuthState {
-  accessToken: string | null;
-  refreshToken: string | null;
+  const [accessToken, refreshToken] = await Promise.all([
+    SecureStore.getItemAsync('accessToken'),
+    SecureStore.getItemAsync('refreshToken'),
+  ]);
+
+  return {
+    accessToken,
+    refreshToken,
+  };
+}
+
+interface AuthState extends StoredTokens {
   isAuthenticated: boolean;
   isLoading: boolean;
-  setAuth: (accessToken: string | null, refreshToken?: string | null) => void;
-  logout: () => void;
+  setAuth: (accessToken: string, refreshToken: string) => Promise<void>;
+  logout: () => Promise<void>;
   checkSession: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: null,
-  refreshToken: null,
+  ...emptyTokens,
   isAuthenticated: false,
   isLoading: true,
+
   setAuth: async (accessToken, refreshToken) => {
-    if (accessToken && refreshToken) {
-      await setTokens(accessToken, refreshToken);
-      set({ accessToken, refreshToken, isAuthenticated: true, isLoading: false });
-    } else {
+    await setTokens(accessToken, refreshToken);
+    set({
+      accessToken,
+      refreshToken,
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  },
+
+  logout: async () => {
+    try {
       await deleteTokens();
-      set({ accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
+    } finally {
+      set({
+        ...emptyTokens,
+        isAuthenticated: false,
+        isLoading: false,
+      });
     }
   },
-  logout: async () => {
-    await deleteTokens();
-    set({ accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
-  },
+
   checkSession: async () => {
     try {
-      const { accessToken, refreshToken } = await getTokens();
-      if (accessToken && refreshToken) {
-        set({ accessToken, refreshToken, isAuthenticated: true, isLoading: false });
-      } else {
-        set({ accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
+      const tokens = await getTokens();
+
+      if (tokens.accessToken && tokens.refreshToken) {
+        set({
+          ...tokens,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        return;
       }
-    } catch (e) {
-      set({ accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
+
+      await deleteTokens();
+      set({
+        ...emptyTokens,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    } catch {
+      set({
+        ...emptyTokens,
+        isAuthenticated: false,
+        isLoading: false,
+      });
     }
   },
 }));
