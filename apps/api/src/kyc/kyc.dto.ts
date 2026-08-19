@@ -1,19 +1,19 @@
 import { FaceMatchStatus, VerificationStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEnum, IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 export class SubmitKycDto {
-  @IsOptional()
-  @IsString()
-  provider?: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsIn(['CCCD', 'PASSPORT'])
+  documentType!: 'CCCD' | 'PASSPORT';
 
-  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.replace(/\s+/g, '') : value,
+  )
   @IsString()
-  providerReference?: string;
-
-  @IsString()
-  documentType!: string;
-
-  @IsString()
+  @Matches(/^[A-Za-z0-9]{8,20}$/)
   documentNumber!: string;
 }
 

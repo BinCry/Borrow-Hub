@@ -1,28 +1,36 @@
 import { Injectable } from '@nestjs/common';
-import { IStorageProvider } from './storage.interface';
 import { LocalStorageProvider } from './providers/local-storage.provider';
+import { IStorageProvider } from './storage.interface';
 
 @Injectable()
 export class StorageService {
-  private provider: IStorageProvider;
+  private readonly provider: IStorageProvider;
 
-  constructor(
-    private readonly localProvider: LocalStorageProvider,
-  ) {
-    // In production, we would conditionally instantiate S3StorageProvider based on process.env.STORAGE_PROVIDER
-    this.provider = this.localProvider;
+  constructor(localProvider: LocalStorageProvider) {
+    this.provider = localProvider;
   }
 
-  async uploadAssetImage(key: string, buffer: Buffer, mimeType: string): Promise<string> {
-    return this.provider.uploadFile(`assets/${key}`, buffer, { contentType: mimeType, isPublic: true });
+  uploadAssetImage(key: string, buffer: Buffer, mimeType: string) {
+    return this.provider.uploadFile(`assets/${key}`, buffer, {
+      contentType: mimeType,
+      isPublic: true,
+    });
   }
 
-  async uploadSensitiveDocument(key: string, buffer: Buffer, mimeType: string): Promise<string> {
-    // E.g., KYC or handovers
-    return this.provider.uploadFile(`secure/${key}`, buffer, { contentType: mimeType, isPublic: false });
+  uploadSensitiveDocument(key: string, buffer: Buffer, mimeType: string) {
+    return this.provider.uploadFile(`secure/${key}`, buffer, {
+      contentType: mimeType,
+      isPublic: false,
+    });
   }
 
-  async getSignedUrlForSensitiveDocument(key: string): Promise<string> {
-    return this.provider.getSignedUrl(`secure/${key}`);
+  getSignedUrlForSensitiveDocument(key: string) {
+    const normalizedKey = key.startsWith('secure/') ? key : `secure/${key}`;
+    return this.provider.getSignedUrl(normalizedKey);
+  }
+
+  deleteSensitiveDocument(key: string) {
+    const normalizedKey = key.startsWith('secure/') ? key : `secure/${key}`;
+    return this.provider.deleteFile(normalizedKey);
   }
 }

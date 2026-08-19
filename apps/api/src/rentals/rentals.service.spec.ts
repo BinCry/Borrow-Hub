@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   HandoverStatus,
   HandoverType,
@@ -80,6 +76,7 @@ describe('RentalsService QR handover', () => {
       findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     evidence: {
       createMany: jest.fn(),
@@ -137,6 +134,7 @@ describe('RentalsService QR handover', () => {
     });
     prisma.systemConfig.findUnique.mockResolvedValue(null);
     prisma.handoverQrSession.updateMany.mockResolvedValue({ count: 1 });
+    prisma.handover.updateMany.mockResolvedValue({ count: 1 });
     prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) =>
       callback(prisma),
     );
@@ -203,15 +201,24 @@ describe('RentalsService QR handover', () => {
     );
   });
 
-  it('rejects QR generation for non-delivery handovers', async () => {
+  it('generates QR sessions for return handovers', async () => {
     prisma.handover.findUnique.mockResolvedValue({
       ...handover,
       type: HandoverType.RETURN,
     });
+    prisma.handoverQrSession.create.mockResolvedValue({
+      id: 'qr-return',
+      token: 'return-token',
+      expiresAt: new Date('2026-08-12T10:10:00.000Z'),
+    });
 
-    await expect(
-      service.generateHandoverQr(rental.id, handover.id, ownerUser),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    const result = await service.generateHandoverQr(
+      rental.id,
+      handover.id,
+      ownerUser,
+    );
+
+    expect(result.token).toBe('return-token');
   });
 
   it('rejects expired QR tokens', async () => {
@@ -240,7 +247,7 @@ describe('RentalsService QR handover', () => {
       handover,
       rental,
     });
-    prisma.handover.update.mockResolvedValue({});
+    prisma.handover.updateMany.mockResolvedValue({ count: 1 });
     prisma.rentalRequest.update.mockResolvedValue({
       ...rental,
       status: RentalStatus.ONGOING,
@@ -252,7 +259,7 @@ describe('RentalsService QR handover', () => {
     });
 
     expect(prisma.handoverQrSession.updateMany).toHaveBeenCalled();
-    expect(prisma.handover.update).toHaveBeenCalled();
+    expect(prisma.handover.updateMany).toHaveBeenCalled();
     expect(result.status).toBe(RentalStatus.ONGOING);
   });
 

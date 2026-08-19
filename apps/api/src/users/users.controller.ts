@@ -1,12 +1,31 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
+import { Public } from '../common/decorators/public.decorator';
 import { UsersService } from './users.service';
-import { CreateAddressDto, UpdateAddressDto, UpdateProfileDto } from './users.dto';
+import {
+  AccountDeletionConfirmDto,
+  AccountDeletionRequestDto,
+  CreateAddressDto,
+  UpdateAddressDto,
+  UpdateProfileDto,
+} from './users.dto';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Public()
+  @Post('account-deletion/request')
+  requestAccountDeletion(@Body() dto: AccountDeletionRequestDto) {
+    return this.usersService.requestAccountDeletion(dto.email);
+  }
+
+  @Public()
+  @Post('account-deletion/confirm')
+  confirmAccountDeletion(@Body() dto: AccountDeletionConfirmDto) {
+    return this.usersService.confirmAccountDeletion(dto.token);
+  }
 
   @Get('me')
   getMe(@CurrentUser() currentUser: AuthenticatedUser) {
@@ -56,4 +75,3 @@ export class UsersController {
     return this.usersService.removeAddress(currentUser.id, addressId);
   }
 }
-

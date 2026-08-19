@@ -42,6 +42,11 @@ describe('RentalsService availability enforcement', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
     },
+    systemConfig: {
+      findUnique: jest.fn(),
+    },
+    $queryRaw: jest.fn(),
+    $transaction: jest.fn(),
   };
 
   const auditService = {
@@ -74,6 +79,10 @@ describe('RentalsService availability enforcement', () => {
     jest.clearAllMocks();
     prisma.asset.findUnique.mockResolvedValue(asset);
     prisma.rentalRequest.findFirst.mockResolvedValue(null);
+    prisma.systemConfig.findUnique.mockResolvedValue(null);
+    prisma.$transaction.mockImplementation(
+      async (callback: (tx: typeof prisma) => unknown) => callback(prisma),
+    );
 
     service = new RentalsService(
       prisma as never,

@@ -1,4 +1,4 @@
-import argon2 from 'argon2';
+import * as argon2 from 'argon2';
 import { PrismaClient, RoleName, VerificationStatus, FaceMatchStatus, UserStatus, AssetCondition, AssetStatus, CategoryStatus } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';

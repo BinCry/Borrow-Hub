@@ -1,10 +1,21 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RoleName } from '@prisma/client';
-import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
-import { KycService } from './kyc.service';
 import { KycReviewQueryDto, ReviewKycDto, SubmitKycDto } from './kyc.dto';
+import { KycService, KycUploadFiles } from './kyc.service';
 
 @Controller('kyc')
 export class KycController {
@@ -16,11 +27,22 @@ export class KycController {
   }
 
   @Post('submit')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'documentFront', maxCount: 1 },
+        { name: 'documentBack', maxCount: 1 },
+        { name: 'selfie', maxCount: 1 },
+      ],
+      { limits: { files: 3, fileSize: 10 * 1024 * 1024 } },
+    ),
+  )
   submit(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Body() dto: SubmitKycDto,
+    @UploadedFiles() files: KycUploadFiles,
   ) {
-    return this.kycService.submit(currentUser.id, dto);
+    return this.kycService.submit(currentUser.id, dto, files);
   }
 
   @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)

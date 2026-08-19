@@ -51,7 +51,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
       const user = await this.authService.validateAccessToken(token);
       client.data.user = user;
       client.join(this.chatEventsService.getUserRoom(user.id));
-    } catch (error) {
+    } catch {
       client.emit('chat.error', { message: 'Unauthorized' });
       client.disconnect(true);
     }

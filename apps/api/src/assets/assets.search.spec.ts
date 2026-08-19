@@ -20,10 +20,6 @@ describe('AssetsService search enhancements', () => {
     track: jest.fn(),
   };
 
-  const configService = {
-    get: jest.fn().mockReturnValue('http://localhost:3000'),
-  };
-
   const auditService = {
     create: jest.fn(),
   };
@@ -42,11 +38,11 @@ describe('AssetsService search enhancements', () => {
     jest.clearAllMocks();
     service = new AssetsService(
       prisma as never,
-      configService as never,
       analyticsService as never,
       auditService as never,
       notificationsService as never,
       riskService as never,
+      { uploadAssetImage: jest.fn() } as never,
     );
   });
 

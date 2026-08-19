@@ -5,6 +5,7 @@ describe('AssetsService availability filters', () => {
   const prisma = {
     asset: {
       findMany: jest.fn(),
+      count: jest.fn(),
       findUnique: jest.fn(),
     },
     review: {
@@ -17,10 +18,6 @@ describe('AssetsService availability filters', () => {
 
   const analyticsService = {
     track: jest.fn(),
-  };
-
-  const configService = {
-    get: jest.fn().mockReturnValue('http://localhost:3000'),
   };
 
   const auditService = {
@@ -78,14 +75,15 @@ describe('AssetsService availability filters', () => {
     ]);
     prisma.review.groupBy.mockResolvedValue([]);
     prisma.rentalRequest.groupBy.mockResolvedValue([]);
+    prisma.asset.count.mockResolvedValue(1);
 
     service = new AssetsService(
       prisma as never,
-      configService as never,
       analyticsService as never,
       auditService as never,
       notificationsService as never,
       riskService as never,
+      { uploadAssetImage: jest.fn() } as never,
     );
   });
 

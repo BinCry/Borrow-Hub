@@ -99,6 +99,7 @@ enum SignatureMethod {
 
 enum PaymentProvider {
   SANDBOX
+  SEPAY
   BANK_TRANSFER
   QR
   E_WALLET
@@ -282,8 +283,10 @@ model User {
   fullName         String            @map("full_name")
   avatarUrl        String?           @map("avatar_url")
   dateOfBirth      DateTime?         @map("date_of_birth")
-  passwordResetToken String?         @unique @map("password_reset_token")
+  passwordResetTokenHash String?     @unique @map("password_reset_token_hash")
   passwordResetExpiresAt DateTime?   @map("password_reset_expires_at")
+  accountDeletionTokenHash String?   @unique @map("account_deletion_token_hash")
+  accountDeletionExpiresAt DateTime? @map("account_deletion_expires_at")
   emailVerifiedAt  DateTime?         @map("email_verified_at")
   phoneVerifiedAt  DateTime?         @map("phone_verified_at")
   status           UserStatus        @default(ACTIVE)
@@ -323,6 +326,8 @@ model User {
   requestLogs      RequestLog[]
   notifications    Notification[]
   auditLogs        AuditLog[]
+
+  @@index([status, createdAt])
 }
 
 model UserAddress {
@@ -352,6 +357,9 @@ model UserVerification {
   verificationStatus   VerificationStatus @default(NOT_STARTED) @map("verification_status")
   documentType         String?            @map("document_type")
   maskedDocumentNumber String?            @map("masked_document_number")
+  documentFrontKey     String?            @map("document_front_key")
+  documentBackKey      String?            @map("document_back_key")
+  selfieKey            String?            @map("selfie_key")
   nameVerified         Boolean            @default(false) @map("name_verified")
   dateOfBirthVerified  Boolean            @default(false) @map("date_of_birth_verified")
   faceMatchStatus      FaceMatchStatus    @default(NOT_AVAILABLE) @map("face_match_status")
@@ -509,8 +517,7 @@ model AssetAvailability {
   createdAt        DateTime         @default(now()) @map("created_at")
   asset            Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
-  @@index([assetId])
-  @@index([startAt, endAt])
+  @@index([assetId, availabilityType, startAt, endAt], map: "asset_avail_asset_type_start_end_idx")
   @@map("asset_availability")
 }
 
@@ -546,11 +553,10 @@ model RentalRequest {
   supportTickets SupportTicket[]
   handoverQrSessions HandoverQrSession[]
 
-  @@index([assetId])
-  @@index([ownerId])
-  @@index([renterId])
-  @@index([status])
-  @@index([startAt, endAt])
+  @@index([assetId, status, startAt, endAt])
+  @@index([ownerId, status, createdAt])
+  @@index([renterId, status, createdAt])
+  @@index([status, createdAt])
   @@map("rental_requests")
 }
 
@@ -597,6 +603,7 @@ model Payment {
   amount                Int
   currency              String          @default("VND")
   status                PaymentStatus   @default(PENDING)
+  metadata              Json?
   paidAt                DateTime?       @map("paid_at")
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
@@ -606,6 +613,7 @@ model Payment {
 
   @@index([rentalId])
   @@index([payerId])
+  @@index([status, createdAt])
   @@map("payments")
 }
 
@@ -620,7 +628,7 @@ model Refund {
   payment     Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@index([paymentId])
-  @@index([status])
+  @@index([status, createdAt])
   @@map("refunds")
 }
 
@@ -639,8 +647,8 @@ model Payout {
   rental           RentalRequest @relation(fields: [rentalId], references: [id], onDelete: Cascade)
   owner            User          @relation("PayoutOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
-  @@index([ownerId])
-  @@index([status])
+  @@index([ownerId, status, createdAt])
+  @@index([status, scheduledAt])
   @@map("payouts")
 }
 
@@ -738,9 +746,9 @@ model Dispute {
   supportTickets    SupportTicket[]
 
   @@index([rentalId])
-  @@index([openedById])
-  @@index([assignedToId])
-  @@index([status])
+  @@index([openedById, status, createdAt])
+  @@index([assignedToId, status, createdAt])
+  @@index([status, createdAt])
   @@map("disputes")
 }
 
@@ -755,7 +763,6 @@ model DisputeEvidence {
   evidence     Evidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
 
   @@unique([disputeId, evidenceId])
-  @@index([disputeId])
   @@index([uploadedById])
   @@index([evidenceId])
   @@map("dispute_evidences")
@@ -772,9 +779,8 @@ model DisputeEvent {
   dispute   Dispute          @relation(fields: [disputeId], references: [id], onDelete: Cascade)
   actor     User?            @relation("DisputeEventActor", fields: [actorId], references: [id], onDelete: SetNull)
 
-  @@index([disputeId])
+  @@index([disputeId, createdAt])
   @@index([actorId])
-  @@index([eventType])
   @@map("dispute_events")
 }
 
@@ -806,7 +812,7 @@ model Conversation {
   members   ConversationMember[]
   messages  Message[]
 
-  @@index([createdAt])
+  @@index([updatedAt])
   @@map("conversations")
 }
 
@@ -856,10 +862,10 @@ model Report {
   assignedTo        User?            @relation("ReportAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
   supportTickets    SupportTicket[]
 
-  @@index([reporterId])
-  @@index([assignedToId])
+  @@index([reporterId, status, createdAt])
+  @@index([assignedToId, status, createdAt])
   @@index([targetType, targetId])
-  @@index([status])
+  @@index([status, createdAt])
   @@map("reports")
 }
 
@@ -884,13 +890,12 @@ model SupportTicket {
   report       Report?               @relation(fields: [reportId], references: [id], onDelete: SetNull)
   events       SupportTicketEvent[]
 
-  @@index([requesterId])
-  @@index([assignedToId])
+  @@index([requesterId, status, updatedAt])
+  @@index([assignedToId, status, updatedAt])
   @@index([rentalId])
   @@index([disputeId])
   @@index([reportId])
-  @@index([status])
-  @@index([priority])
+  @@index([status, priority, updatedAt])
   @@map("support_tickets")
 }
 
@@ -905,9 +910,8 @@ model SupportTicketEvent {
   ticket    SupportTicket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   actor     User?                  @relation("SupportTicketEventActor", fields: [actorId], references: [id], onDelete: SetNull)
 
-  @@index([ticketId])
+  @@index([ticketId, createdAt])
   @@index([actorId])
-  @@index([eventType])
   @@map("support_ticket_events")
 }
 
@@ -923,7 +927,6 @@ model ProhibitedAssetRule {
   createdBy    User?    @relation("ProhibitedAssetRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([isActive])
-  @@index([keyword])
   @@map("prohibited_asset_rules")
 }
 
@@ -945,9 +948,8 @@ model RiskIncident {
   createdBy         User?              @relation("RiskIncidentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   resolvedBy        User?              @relation("RiskIncidentResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
 
-  @@index([targetType, targetId])
-  @@index([level])
-  @@index([status])
+  @@index([targetType, targetId, status])
+  @@index([status, level, createdAt])
   @@index([createdById])
   @@index([resolvedById])
   @@map("risk_incidents")
@@ -1002,7 +1004,7 @@ model RequestLog {
   @@index([requestId])
   @@index([userId, createdAt])
   @@index([statusCode, createdAt])
-  @@index([endpoint, createdAt])
+  @@index([createdAt])
   @@map("request_logs")
 }
 
@@ -1032,5 +1034,6 @@ model AuditLog {
 
   @@index([actorId])
   @@index([entityType, entityId])
+  @@index([createdAt])
   @@map("audit_logs")
 }

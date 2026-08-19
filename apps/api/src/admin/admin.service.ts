@@ -2,14 +2,16 @@ import {
   BadRequestException,
   Inject,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import argon2 from 'argon2';
+import * as argon2 from 'argon2';
 import {
   DisputeStatus,
   PayoutStatus,
+  Prisma,
   RefundStatus,
   ReportStatus,
   ReviewStatus,
@@ -32,6 +34,28 @@ import {
 } from './admin.dto';
 import { RequestLogQueryDto } from '../request-logs/request-logs.dto';
 import type { Cache } from 'cache-manager';
+
+const adminUserSelect = {
+  id: true,
+  email: true,
+  phone: true,
+  fullName: true,
+  avatarUrl: true,
+  dateOfBirth: true,
+  emailVerifiedAt: true,
+  phoneVerifiedAt: true,
+  status: true,
+  trustScore: true,
+  lastLoginAt: true,
+  createdAt: true,
+  updatedAt: true,
+  verification: true,
+  userRoles: {
+    include: {
+      role: true,
+    },
+  },
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class AdminService {
@@ -295,14 +319,7 @@ export class AdminService {
   listUsers() {
     return this.remember(CACHE_KEYS.adminUsers, CACHE_TTL_MS.adminUsers, () =>
       this.prisma.user.findMany({
-        include: {
-          verification: true,
-          userRoles: {
-            include: {
-              role: true,
-            },
-          },
-        },
+        select: adminUserSelect,
         orderBy: [{ createdAt: 'desc' }],
       }),
     );
@@ -334,15 +351,34 @@ export class AdminService {
 
     const existing = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
     });
 
     if (!existing) {
       throw new NotFoundException('User not found');
     }
 
+    const targetIsSuperAdmin = existing.userRoles.some(
+      (userRole) => userRole.role.name === RoleName.SUPER_ADMIN,
+    );
+    const actorIsSuperAdmin = actor.roles.includes(RoleName.SUPER_ADMIN);
+
+    if (targetIsSuperAdmin && !actorIsSuperAdmin) {
+      throw new ForbiddenException(
+        'Only a super admin can change a super admin account status',
+      );
+    }
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { status: dto.status },
+      select: adminUserSelect,
     });
 
     await this.auditService.create({
@@ -412,14 +448,7 @@ export class AdminService {
 
       return tx.user.findUniqueOrThrow({
         where: { id: userId },
-        include: {
-          verification: true,
-          userRoles: {
-            include: {
-              role: true,
-            },
-          },
-        },
+        select: adminUserSelect,
       });
     });
 
@@ -495,14 +524,7 @@ export class AdminService {
           },
         },
       },
-      include: {
-        verification: true,
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
-      },
+      select: adminUserSelect,
     });
 
     await this.auditService.create({

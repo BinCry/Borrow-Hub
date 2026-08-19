@@ -9,7 +9,7 @@ export const CACHE_TTL_MS = {
 
 export const CACHE_KEYS = {
   adminDashboard: 'admin:dashboard',
-  adminUsers: 'admin:users',
+  adminUsers: 'admin:users:v2',
   adminRoles: 'admin:roles',
   adminSystemConfigs: 'admin:system-configs',
   adminAuditLogs: 'admin:audit-logs',

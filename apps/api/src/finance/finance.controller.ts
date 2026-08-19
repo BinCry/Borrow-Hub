@@ -7,6 +7,7 @@ import {
   PayoutQueryDto,
   RefundQueryDto,
   UpdatePayoutStatusDto,
+  UpdateRefundStatusDto,
 } from './finance.dto';
 import { FinanceService } from './finance.service';
 
@@ -46,6 +47,15 @@ export class FinanceController {
     @Body() dto: CreateRefundDto,
   ) {
     return this.financeService.createRefund(paymentId, currentUser, dto);
+  }
+
+  @Patch('refunds/:refundId/status')
+  updateRefundStatus(
+    @Param('refundId') refundId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: UpdateRefundStatusDto,
+  ) {
+    return this.financeService.updateRefundStatus(refundId, currentUser, dto);
   }
 
   @Get('payouts/my')

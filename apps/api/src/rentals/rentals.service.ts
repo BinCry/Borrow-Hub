@@ -3,9 +3,11 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { createHash, randomBytes } from 'crypto';
 import {
   AnalyticsEventType,
   AssetStatus,
@@ -49,8 +51,20 @@ import {
   UploadRentalEvidenceDto,
 } from './rentals.dto';
 
+const RESERVED_RENTAL_STATUSES: RentalStatus[] = [
+  RentalStatus.AWAITING_PAYMENT,
+  RentalStatus.AWAITING_SIGNATURE,
+  RentalStatus.CONFIRMED,
+  RentalStatus.READY_FOR_HANDOVER,
+  RentalStatus.ONGOING,
+  RentalStatus.RETURN_PENDING,
+  RentalStatus.OVERDUE,
+];
+
 @Injectable()
 export class RentalsService {
+  private readonly logger = new Logger(RentalsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
@@ -59,6 +73,7 @@ export class RentalsService {
     private readonly notificationsService: NotificationsService,
     private readonly riskService: RiskService,
     private readonly trustScoreService: TrustScoreService,
+    private readonly configService?: ConfigService,
   ) {}
 
   async create(currentUser: AuthenticatedUser, dto: CreateRentalRequestDto) {
@@ -116,16 +131,7 @@ export class RentalsService {
       const overlapping = await tx.rentalRequest.findFirst({
         where: {
           assetId: asset.id,
-          status: {
-            in: [
-              RentalStatus.AWAITING_SIGNATURE,
-              RentalStatus.CONFIRMED,
-              RentalStatus.READY_FOR_HANDOVER,
-              RentalStatus.ONGOING,
-              RentalStatus.RETURN_PENDING,
-              RentalStatus.OVERDUE,
-            ],
-          },
+          status: { in: RESERVED_RENTAL_STATUSES },
           startAt: { lt: endAt },
           endAt: { gt: startAt },
         },
@@ -229,8 +235,110 @@ export class RentalsService {
   async getPaymentIntent(rentalId: string, currentUser: AuthenticatedUser) {
     const rental = await this.findAccessibleRental(rentalId, currentUser);
     this.assertRenter(rental.renterId, currentUser);
+    const paymentProvider = this.getConfiguredPaymentProvider();
+    const baseIntent = this.buildPaymentIntent(rental, paymentProvider);
 
-    return this.buildPaymentIntent(rental);
+    if (!baseIntent.isPayable) {
+      return baseIntent;
+    }
+
+    const paymentWindowMinutes = await this.getNumericConfig(
+      'payment_window_minutes',
+      30,
+    );
+    const expiresAt = new Date(
+      rental.updatedAt.getTime() + paymentWindowMinutes * 60 * 1000,
+    );
+
+    if (expiresAt <= new Date()) {
+      await this.prisma.rentalRequest.updateMany({
+        where: {
+          id: rental.id,
+          status: RentalStatus.AWAITING_PAYMENT,
+        },
+        data: { status: RentalStatus.EXPIRED },
+      });
+      throw new ConflictException('The payment window has expired');
+    }
+
+    const paymentCode = this.buildPaymentCode(rental.id);
+    const providerTransactionId = `intent:${paymentProvider}:${paymentCode}`;
+    const payment = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "rental_requests" WHERE id = ${rental.id} FOR UPDATE`;
+      const lockedRental = await tx.rentalRequest.findUnique({
+        where: { id: rental.id },
+        select: { status: true },
+      });
+
+      if (lockedRental?.status !== RentalStatus.AWAITING_PAYMENT) {
+        throw new ConflictException('Rental is no longer awaiting payment');
+      }
+
+      const existing = await tx.payment.findFirst({
+        where: {
+          rentalId: rental.id,
+          provider: paymentProvider,
+          status: {
+            in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING],
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existing) {
+        return existing;
+      }
+
+      return tx.payment.create({
+        data: {
+          rentalId: rental.id,
+          payerId: rental.renterId,
+          provider: paymentProvider,
+          providerTransactionId,
+          amount: rental.totalAmount,
+          currency: rental.currency,
+          status: PaymentStatus.PENDING,
+        },
+      });
+    });
+
+    if (paymentProvider === PaymentProvider.SEPAY) {
+      const accountNumber = this.configService?.getOrThrow<string>(
+        'SEPAY_ACCOUNT_NUMBER',
+      );
+      const bankName =
+        this.configService?.getOrThrow<string>('SEPAY_BANK_NAME');
+      const accountName =
+        this.configService?.getOrThrow<string>('SEPAY_ACCOUNT_NAME');
+      const qrUrl = new URL('https://vietqr.app/img');
+      qrUrl.searchParams.set('acc', accountNumber ?? '');
+      qrUrl.searchParams.set('bank', bankName ?? '');
+      qrUrl.searchParams.set('amount', String(rental.totalAmount));
+      qrUrl.searchParams.set('des', paymentCode);
+      qrUrl.searchParams.set('template', 'compact');
+      qrUrl.searchParams.set('showinfo', 'true');
+      qrUrl.searchParams.set('holder', accountName ?? '');
+
+      return {
+        ...baseIntent,
+        paymentId: payment.id,
+        paymentCode,
+        expiresAt: expiresAt.toISOString(),
+        qrUrl: qrUrl.toString(),
+        bankAccount: {
+          accountNumber,
+          accountName,
+          bankName,
+        },
+      };
+    }
+
+    return {
+      ...baseIntent,
+      paymentId: payment.id,
+      paymentCode,
+      expiresAt: expiresAt.toISOString(),
+    };
   }
 
   async approve(
@@ -240,15 +348,62 @@ export class RentalsService {
   ) {
     const rental = await this.findAccessibleRental(rentalId, currentUser);
     this.assertOwner(rental.ownerId, currentUser);
-    this.assertStatus(rental.status, [RentalStatus.PENDING_OWNER]);
+    const paymentWindowMinutes = await this.getNumericConfig(
+      'payment_window_minutes',
+      30,
+    );
+    const expiredBefore = new Date(
+      Date.now() - paymentWindowMinutes * 60 * 1000,
+    );
 
-    const updated = await this.prisma.rentalRequest.update({
-      where: { id: rentalId },
-      data: {
-        status: RentalStatus.AWAITING_PAYMENT,
-        message: dto.ownerMessage ?? rental.message,
-      },
-      include: this.rentalInclude(),
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "assets" WHERE id = ${rental.assetId} FOR UPDATE`;
+      await tx.rentalRequest.updateMany({
+        where: {
+          assetId: rental.assetId,
+          status: RentalStatus.AWAITING_PAYMENT,
+          updatedAt: { lt: expiredBefore },
+        },
+        data: { status: RentalStatus.EXPIRED },
+      });
+
+      const lockedRental = await tx.rentalRequest.findUnique({
+        where: { id: rentalId },
+        include: this.rentalInclude(),
+      });
+
+      if (!lockedRental) {
+        throw new NotFoundException('Rental request not found');
+      }
+
+      this.assertOwner(lockedRental.ownerId, currentUser);
+      this.assertStatus(lockedRental.status, [RentalStatus.PENDING_OWNER]);
+
+      const overlap = await tx.rentalRequest.findFirst({
+        where: {
+          id: { not: lockedRental.id },
+          assetId: lockedRental.assetId,
+          status: { in: RESERVED_RENTAL_STATUSES },
+          startAt: { lt: lockedRental.endAt },
+          endAt: { gt: lockedRental.startAt },
+        },
+        select: { id: true },
+      });
+
+      if (overlap) {
+        throw new ConflictException(
+          'Another booking already reserves this asset for the selected period',
+        );
+      }
+
+      return tx.rentalRequest.update({
+        where: { id: lockedRental.id },
+        data: {
+          status: RentalStatus.AWAITING_PAYMENT,
+          message: dto.ownerMessage ?? lockedRental.message,
+        },
+        include: this.rentalInclude(),
+      });
     });
 
     await this.notificationsService.createMany([rental.renterId], {
@@ -484,31 +639,109 @@ export class RentalsService {
     currentUser: AuthenticatedUser,
     dto: RecordPaymentDto,
   ) {
+    if (
+      this.configService?.get<string>('NODE_ENV') === 'production' ||
+      this.getConfiguredPaymentProvider() !== PaymentProvider.SANDBOX
+    ) {
+      throw new ForbiddenException(
+        'Direct payment recording is only available in sandbox environments',
+      );
+    }
+
     const rental = await this.findAccessibleRental(rentalId, currentUser);
     this.assertRenter(rental.renterId, currentUser);
-    this.assertStatus(rental.status, [RentalStatus.AWAITING_PAYMENT]);
-    const paymentIntent = this.buildPaymentIntent(rental);
+    const paymentIntent = await this.getPaymentIntent(rentalId, currentUser);
 
-    if (!paymentIntent.isPayable) {
+    if (
+      !paymentIntent.isPayable ||
+      !('paymentId' in paymentIntent) ||
+      !paymentIntent.paymentId
+    ) {
       throw new ConflictException('Rental does not require payment');
     }
 
-    const contractNumber = await this.generateContractNumber();
-    const contractSnapshot = this.buildContractSnapshot(rental);
-    const contractHash = `hash-${rental.id}-v1`;
+    const providerTransactionId = `sandbox:${
+      dto.providerTransactionId ?? randomBytes(12).toString('hex')
+    }`;
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      await tx.payment.create({
+    return this.settleVerifiedPayment(
+      paymentIntent.paymentId,
+      providerTransactionId,
+      {
+        sandbox: true,
+      },
+    );
+  }
+
+  async settleVerifiedPayment(
+    paymentId: string,
+    providerTransactionId: string,
+    paymentMetadata?: Prisma.InputJsonObject,
+  ) {
+    const paymentForCommission = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: {
+        rental: {
+          select: {
+            rentalFee: true,
+          },
+        },
+      },
+    });
+
+    if (!paymentForCommission) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    const commissionAmount = await this.getOwnerCommissionAmount(
+      paymentForCommission.rental.rentalFee,
+    );
+    const settlement = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "payments" WHERE id = ${paymentId} FOR UPDATE`;
+      const payment = await tx.payment.findUnique({
+        where: { id: paymentId },
+      });
+
+      if (!payment) {
+        throw new NotFoundException('Payment not found');
+      }
+
+      const rental = await tx.rentalRequest.findUnique({
+        where: { id: payment.rentalId },
+        include: this.rentalInclude(),
+      });
+
+      if (!rental) {
+        throw new NotFoundException('Rental request not found');
+      }
+
+      if (payment.status === PaymentStatus.SUCCESS) {
+        return { rental, newlySettled: false };
+      }
+
+      this.assertStatus(rental.status, [RentalStatus.AWAITING_PAYMENT]);
+
+      if (
+        payment.payerId !== rental.renterId ||
+        payment.amount !== rental.totalAmount ||
+        payment.currency !== rental.currency
+      ) {
+        throw new ConflictException('Payment does not match the rental balance');
+      }
+
+      const contractSnapshot = this.buildContractSnapshot(rental);
+      const contractHash = createHash('sha256')
+        .update(JSON.stringify(contractSnapshot))
+        .digest('hex');
+      const contractNumber = this.generateContractNumber(rental.id);
+
+      await tx.payment.update({
+        where: { id: payment.id },
         data: {
-          rentalId: rental.id,
-          payerId: currentUser.id,
-          provider: PaymentProvider.SANDBOX,
-          providerTransactionId:
-            dto.providerTransactionId ??
-            `sandbox-${rental.id}-${Date.now().toString()}`,
-          amount: paymentIntent.amountDue,
+          providerTransactionId,
           status: PaymentStatus.SUCCESS,
           paidAt: new Date(),
+          ...(paymentMetadata ? { metadata: paymentMetadata } : {}),
         },
       });
 
@@ -516,20 +749,16 @@ export class RentalsService {
         where: { rentalId: rental.id },
         update: {
           grossAmount: rental.rentalFee,
-          commissionAmount: await this.getOwnerCommissionAmount(rental.rentalFee),
-          netAmount:
-            rental.rentalFee -
-            (await this.getOwnerCommissionAmount(rental.rentalFee)),
+          commissionAmount,
+          netAmount: rental.rentalFee - commissionAmount,
           status: PayoutStatus.PENDING,
         },
         create: {
           rentalId: rental.id,
           ownerId: rental.ownerId,
           grossAmount: rental.rentalFee,
-          commissionAmount: await this.getOwnerCommissionAmount(rental.rentalFee),
-          netAmount:
-            rental.rentalFee -
-            (await this.getOwnerCommissionAmount(rental.rentalFee)),
+          commissionAmount,
+          netAmount: rental.rentalFee - commissionAmount,
           status: PayoutStatus.PENDING,
         },
       });
@@ -553,18 +782,24 @@ export class RentalsService {
         },
       });
 
-      return tx.rentalRequest.update({
+      const updatedRental = await tx.rentalRequest.update({
         where: { id: rental.id },
         data: {
           status: RentalStatus.AWAITING_SIGNATURE,
         },
         include: this.rentalInclude(),
       });
+
+      return { rental: updatedRental, newlySettled: true };
     });
 
-    await this.notificationsService.createMany(
-      [rental.renterId],
-      {
+    if (!settlement.newlySettled) {
+      return settlement.rental;
+    }
+
+    const rental = settlement.rental;
+    const sideEffects = await Promise.allSettled([
+      this.notificationsService.createMany([rental.renterId], {
         type: NotificationType.PAYMENT_SUCCESS,
         metadata: {
           rentalId: rental.id,
@@ -574,51 +809,68 @@ export class RentalsService {
         content: `Thanh toán cho đơn thuê "${rental.asset.title}" đã được ghi nhận thành công.`,
         referenceType: 'rental',
         referenceId: rental.id,
-      },
-    );
-
-    await this.notificationsService.createMany(
-      [rental.ownerId, rental.renterId],
-      {
-        type: NotificationType.CONTRACT_READY,
-        metadata: {
-          rentalId: rental.id,
-          assetId: rental.assetId,
+      }),
+      this.notificationsService.createMany(
+        [rental.ownerId, rental.renterId],
+        {
+          type: NotificationType.CONTRACT_READY,
+          metadata: {
+            rentalId: rental.id,
+            assetId: rental.assetId,
+          },
+          title: 'Hợp đồng điện tử đã sẵn sàng',
+          content: `Đơn thuê "${rental.asset.title}" đang chờ hai bên ký hợp đồng.`,
+          referenceType: 'rental',
+          referenceId: rental.id,
         },
-        title: 'Hợp đồng điện tử đã sẵn sàng',
-        content: `Đơn thuê "${rental.asset.title}" đang chờ hai bên ký hợp đồng.`,
-        referenceType: 'rental',
-        referenceId: rental.id,
-      },
-    );
-
-    await this.notificationsService.createMany(
-      [rental.ownerId, rental.renterId],
-      {
-        type: NotificationType.SIGNATURE_REQUIRED,
-        metadata: {
-          rentalId: rental.id,
-          assetId: rental.assetId,
+      ),
+      this.notificationsService.createMany(
+        [rental.ownerId, rental.renterId],
+        {
+          type: NotificationType.SIGNATURE_REQUIRED,
+          metadata: {
+            rentalId: rental.id,
+            assetId: rental.assetId,
+          },
+          title: 'Cần ký hợp đồng điện tử',
+          content: `Đơn thuê "${rental.asset.title}" đang chờ chữ ký của các bên liên quan.`,
+          referenceType: 'rental',
+          referenceId: rental.id,
         },
-        title: 'Cần ký hợp đồng điện tử',
-        content: `Đơn thuê "${rental.asset.title}" đang chờ chữ ký của các bên liên quan.`,
-        referenceType: 'rental',
-        referenceId: rental.id,
-      },
-    );
+      ),
+      this.auditService.create({
+        action: 'payment.settled',
+        entityType: 'payment',
+        entityId: paymentId,
+        afterData: {
+          rentalId: rental.id,
+          providerTransactionId,
+          amount: rental.totalAmount,
+        },
+      }),
+      this.analyticsService.track({
+        eventType: AnalyticsEventType.PAYMENT_COMPLETED,
+        userId: rental.renterId,
+        entityType: 'rental',
+        entityId: rental.id,
+        metadata: {
+          totalAmount: rental.totalAmount,
+          status: rental.status,
+        },
+      }),
+    ]);
 
-    await this.analyticsService.track({
-      eventType: AnalyticsEventType.PAYMENT_COMPLETED,
-      userId: currentUser.id,
-      entityType: 'rental',
-      entityId: updated.id,
-      metadata: {
-        totalAmount: updated.totalAmount,
-        status: updated.status,
-      },
-    });
+    for (const sideEffect of sideEffects) {
+      if (sideEffect.status === 'rejected') {
+        const message =
+          sideEffect.reason instanceof Error
+            ? sideEffect.reason.message
+            : 'Unknown side-effect error';
+        this.logger.error(`Post-payment side effect failed: ${message}`);
+      }
+    }
 
-    return updated;
+    return rental;
   }
 
   async signContract(
@@ -893,12 +1145,8 @@ export class RentalsService {
     this.assertOwner(rental.ownerId, currentUser);
     const handover = await this.findRentalHandover(rental.id, handoverId);
 
-    if (handover.type !== HandoverType.DELIVERY) {
-      throw new BadRequestException('QR handover is only supported for delivery');
-    }
-
     if (handover.status !== HandoverStatus.PENDING) {
-      throw new ConflictException('Handover QR can only be generated for pending delivery');
+      throw new ConflictException('Handover QR can only be generated for a pending session');
     }
 
     const ttlMinutes = await this.getNumericConfig('handover_qr_ttl_minutes', 10);
@@ -945,7 +1193,7 @@ export class RentalsService {
       rentalId: rental.id,
       token: session.token,
       expiresAt: session.expiresAt,
-      qrPayload: `toolshare://handover/confirm?token=${session.token}`,
+      qrPayload: `borrowhub://handover/confirm?token=${session.token}`,
     };
   }
 
@@ -975,10 +1223,6 @@ export class RentalsService {
       throw new ConflictException('Handover QR has expired');
     }
 
-    if (session.handover.type !== HandoverType.DELIVERY) {
-      throw new BadRequestException('Handover QR only supports delivery confirmation');
-    }
-
     this.assertRenter(session.rental.renterId, currentUser);
 
     const claim = await this.prisma.handoverQrSession.updateMany({
@@ -998,53 +1242,14 @@ export class RentalsService {
       throw new ConflictException('Handover QR is no longer available');
     }
 
+    let updated: Awaited<ReturnType<RentalsService['finalizeHandoverConfirmation']>>;
     try {
-      const updated = await this.finalizeHandoverConfirmation(
+      updated = await this.finalizeHandoverConfirmation(
         session.rental,
         session.handover,
         currentUser,
         dto.notes,
       );
-
-      await this.notificationsService.createMany(
-        [session.rental.ownerId].filter((userId) => userId !== currentUser.id),
-        {
-          type: NotificationType.HANDOVER_COMPLETED,
-          metadata: {
-            rentalId: session.rental.id,
-            assetId: session.rental.assetId,
-          },
-          title: 'Bàn giao hoàn tất qua QR',
-          content: `Tài sản "${session.rental.asset.title}" đã được xác nhận bàn giao bằng QR.`,
-          referenceType: 'rental',
-          referenceId: session.rental.id,
-        },
-      );
-
-      await this.auditService.create({
-        actorId: currentUser.id,
-        action: 'handover.qr.confirm',
-        entityType: 'handover_qr_session',
-        entityId: session.id,
-        afterData: {
-          rentalId: session.rental.id,
-          handoverId: session.handover.id,
-        },
-      });
-
-      await this.analyticsService.track({
-        eventType: AnalyticsEventType.HANDOVER_COMPLETED,
-        userId: currentUser.id,
-        entityType: 'handover',
-        entityId: session.handover.id,
-        metadata: {
-          rentalId: session.rental.id,
-          type: session.handover.type,
-          source: 'qr',
-        },
-      });
-
-      return updated;
     } catch (error) {
       await this.prisma.handoverQrSession.update({
         where: { id: session.id },
@@ -1054,6 +1259,65 @@ export class RentalsService {
       });
       throw error;
     }
+
+    const isReturn = session.handover.type === HandoverType.RETURN;
+    await Promise.allSettled([
+      this.notificationsService.createMany(
+        [session.rental.ownerId].filter((userId) => userId !== currentUser.id),
+        {
+          type: isReturn
+            ? NotificationType.RETURN_COMPLETED
+            : NotificationType.HANDOVER_COMPLETED,
+          metadata: {
+            rentalId: session.rental.id,
+            assetId: session.rental.assetId,
+          },
+          title: isReturn
+            ? 'Hoàn trả hoàn tất qua QR'
+            : 'Bàn giao hoàn tất qua QR',
+          content: isReturn
+            ? `Tài sản "${session.rental.asset.title}" đã được xác nhận hoàn trả bằng QR.`
+            : `Tài sản "${session.rental.asset.title}" đã được xác nhận bàn giao bằng QR.`,
+          referenceType: 'rental',
+          referenceId: session.rental.id,
+        },
+      ),
+      this.auditService.create({
+        actorId: currentUser.id,
+        action: 'handover.qr.confirm',
+        entityType: 'handover_qr_session',
+        entityId: session.id,
+        afterData: {
+          rentalId: session.rental.id,
+          handoverId: session.handover.id,
+          type: session.handover.type,
+        },
+      }),
+      this.analyticsService.track({
+        eventType: isReturn
+          ? AnalyticsEventType.RETURN_COMPLETED
+          : AnalyticsEventType.HANDOVER_COMPLETED,
+        userId: currentUser.id,
+        entityType: 'handover',
+        entityId: session.handover.id,
+        metadata: {
+          rentalId: session.rental.id,
+          type: session.handover.type,
+          source: 'qr',
+        },
+      }),
+      ...(isReturn
+        ? [
+            this.chatService.appendSystemMessageForRental(
+              session.rental.id,
+              currentUser.id,
+              'Asset marked returned.',
+            ),
+          ]
+        : []),
+    ]);
+
+    return updated;
   }
 
   async requestReturn(rentalId: string, currentUser: AuthenticatedUser) {
@@ -1486,21 +1750,30 @@ export class RentalsService {
     currentUser: AuthenticatedUser,
     notes?: string,
   ) {
-    if (handover.type === HandoverType.DELIVERY) {
-      this.assertRenter(rental.renterId, currentUser);
-    } else {
-      this.assertOwner(rental.ownerId, currentUser);
-    }
+    this.assertRenter(rental.renterId, currentUser);
+
+    const expectedRentalStatus =
+      handover.type === HandoverType.DELIVERY
+        ? RentalStatus.READY_FOR_HANDOVER
+        : RentalStatus.RETURN_PENDING;
+    this.assertStatus(rental.status, [expectedRentalStatus]);
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.handover.update({
-        where: { id: handover.id },
+      const claimed = await tx.handover.updateMany({
+        where: {
+          id: handover.id,
+          status: HandoverStatus.PENDING,
+        },
         data: {
           status: HandoverStatus.CONFIRMED,
           confirmedAt: new Date(),
           notes: notes ?? handover.notes,
         },
       });
+
+      if (claimed.count === 0) {
+        throw new ConflictException('Handover session has already been confirmed');
+      }
 
       if (handover.type === HandoverType.DELIVERY) {
         return tx.rentalRequest.update({
@@ -1595,7 +1868,7 @@ export class RentalsService {
       return;
     }
 
-    const coveringWindow = await this.prisma.assetAvailability.findFirst({
+    const coveringWindow = await prisma.assetAvailability.findFirst({
       where: {
         assetId,
         availabilityType: AvailabilityType.AVAILABLE,
@@ -1716,22 +1989,13 @@ export class RentalsService {
     };
   }
 
-  private async generateContractNumber() {
+  private generateContractNumber(rentalId: string) {
     const now = new Date();
     const yyyy = now.getUTCFullYear();
     const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(now.getUTCDate()).padStart(2, '0');
-    const prefix = `TS-${yyyy}${mm}${dd}`;
-
-    const count = await this.prisma.rentalContract.count({
-      where: {
-        contractNumber: {
-          startsWith: prefix,
-        },
-      },
-    });
-
-    return `${prefix}-${String(count + 1).padStart(4, '0')}`;
+    const suffix = rentalId.replace(/[^a-z0-9]/gi, '').slice(-10).toUpperCase();
+    return `BH-${yyyy}${mm}${dd}-${suffix}`;
   }
 
   private buildContractSnapshot(
@@ -1765,6 +2029,7 @@ export class RentalsService {
 
   private buildPaymentIntent(
     rental: Awaited<ReturnType<RentalsService['findAccessibleRental']>>,
+    paymentProvider = this.getConfiguredPaymentProvider(),
   ) {
     const completedPaymentStatuses: PaymentStatus[] = [
       PaymentStatus.SUCCESS,
@@ -1783,7 +2048,7 @@ export class RentalsService {
       rentalId: rental.id,
       assetId: rental.assetId,
       status: rental.status,
-      paymentProvider: PaymentProvider.SANDBOX,
+      paymentProvider,
       currency: rental.currency,
       amountDue,
       totalAmount: rental.totalAmount,
@@ -1793,6 +2058,17 @@ export class RentalsService {
       lateFee: rental.lateFee,
       isPayable: amountDue > 0,
     };
+  }
+
+  private buildPaymentCode(rentalId: string) {
+    const suffix = rentalId.replace(/[^a-z0-9]/gi, '').slice(-12).toUpperCase();
+    return `BH${suffix}`;
+  }
+
+  private getConfiguredPaymentProvider() {
+    return this.configService?.get<boolean>('SEPAY_ENABLED')
+      ? PaymentProvider.SEPAY
+      : PaymentProvider.SANDBOX;
   }
 
   private rentalInclude() {

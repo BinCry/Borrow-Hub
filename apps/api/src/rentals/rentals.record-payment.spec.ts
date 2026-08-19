@@ -28,10 +28,13 @@ describe('RentalsService recordPayment', () => {
     renterId: renterUser.id,
     startAt: new Date('2026-08-20T02:00:00.000Z'),
     endAt: new Date('2026-08-22T02:00:00.000Z'),
+    updatedAt: new Date(),
     rentalFee: 600000,
     serviceFee: 30000,
     deliveryFee: 0,
+    lateFee: 0,
     totalAmount: 630000,
+    currency: 'VND',
     status: RentalStatus.AWAITING_PAYMENT,
     asset: {
       id: 'asset-1',
@@ -57,82 +60,58 @@ describe('RentalsService recordPayment', () => {
     reviews: [],
   };
 
+  const pendingPayment = {
+    id: 'payment-1',
+    rentalId: rental.id,
+    payerId: renterUser.id,
+    provider: PaymentProvider.SANDBOX,
+    providerTransactionId: 'intent:SANDBOX:BHRENTAL1',
+    amount: rental.totalAmount,
+    currency: 'VND',
+    status: PaymentStatus.PENDING,
+  };
+
   const prisma = {
-    asset: {
-      findUnique: jest.fn(),
-    },
     rentalRequest: {
       findUnique: jest.fn(),
       update: jest.fn(),
-      create: jest.fn(),
-      findFirst: jest.fn(),
+      updateMany: jest.fn(),
     },
     payment: {
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     payout: {
       upsert: jest.fn(),
-      update: jest.fn(),
     },
     rentalContract: {
       upsert: jest.fn(),
-      count: jest.fn(),
-      update: jest.fn(),
-    },
-    contractSignature: {
-      findMany: jest.fn(),
-      upsert: jest.fn(),
-    },
-    handover: {
-      create: jest.fn(),
-      update: jest.fn(),
-      findUnique: jest.fn(),
-    },
-    handoverQrSession: {
-      findUnique: jest.fn(),
-      updateMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    refund: {
-      create: jest.fn(),
-    },
-    user: {
-      update: jest.fn(),
     },
     systemConfig: {
       findUnique: jest.fn(),
     },
-    dispute: {
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      findUniqueOrThrow: jest.fn(),
-    },
-    payoutQrSession: undefined,
+    $queryRaw: jest.fn(),
     $transaction: jest.fn(),
   };
 
   const auditService = {
     create: jest.fn(),
   };
-
   const analyticsService = {
     track: jest.fn(),
   };
-
   const chatService = {
     appendSystemMessageForRental: jest.fn(),
   };
-
   const notificationsService = {
     createMany: jest.fn(),
   };
-
   const riskService = {
     assessRentalCreation: jest.fn(),
     assessCancellationPattern: jest.fn(),
   };
-
   const trustScoreService = {
     recalculateUserTrustScore: jest.fn(),
   };
@@ -141,15 +120,22 @@ describe('RentalsService recordPayment', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.rentalRequest.findUnique.mockResolvedValue(rental);
+    prisma.rentalRequest.findUnique.mockImplementation(
+      ({ select }: { select?: { status?: boolean } }) =>
+        select?.status ? { status: RentalStatus.AWAITING_PAYMENT } : rental,
+    );
     prisma.rentalRequest.update.mockResolvedValue({
       ...rental,
       status: RentalStatus.AWAITING_SIGNATURE,
     });
-    prisma.rentalContract.count.mockResolvedValue(0);
+    prisma.payment.findFirst.mockResolvedValue(null);
+    prisma.payment.create.mockResolvedValue(pendingPayment);
+    prisma.payment.findUnique
+      .mockResolvedValueOnce({ rental: { rentalFee: rental.rentalFee } })
+      .mockResolvedValueOnce(pendingPayment);
     prisma.systemConfig.findUnique.mockResolvedValue(null);
-    prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) =>
-      callback(prisma),
+    prisma.$transaction.mockImplementation(
+      async (callback: (tx: typeof prisma) => unknown) => callback(prisma),
     );
     service = new RentalsService(
       prisma as never,
@@ -162,40 +148,39 @@ describe('RentalsService recordPayment', () => {
     );
   });
 
-  it('emits payment, contract-ready, and signature-required notifications after recording payment', async () => {
+  it('settles a sandbox payment once and emits payment and contract notifications', async () => {
     await service.recordPayment(rental.id, renterUser, {
       providerTransactionId: 'sandbox-rental-1',
     });
 
     expect(prisma.payment.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
+      data: {
         rentalId: rental.id,
         payerId: renterUser.id,
         provider: PaymentProvider.SANDBOX,
-        providerTransactionId: 'sandbox-rental-1',
+        providerTransactionId: 'intent:SANDBOX:BHRENTAL1',
         amount: rental.totalAmount,
+        currency: 'VND',
+        status: PaymentStatus.PENDING,
+      },
+    });
+    expect(prisma.payment.update).toHaveBeenCalledWith({
+      where: { id: pendingPayment.id },
+      data: expect.objectContaining({
+        providerTransactionId: 'sandbox:sandbox-rental-1',
         status: PaymentStatus.SUCCESS,
         paidAt: expect.any(Date),
+        metadata: { sandbox: true },
       }),
     });
-    expect(notificationsService.createMany).toHaveBeenNthCalledWith(1, [renterUser.id], {
-      type: 'PAYMENT_SUCCESS',
-      title: 'Thanh toán thành công',
-      content: 'Thanh toán cho đơn thuê "Canon R6" đã được ghi nhận thành công.',
-      metadata: {
-        rentalId: rental.id,
-        assetId: rental.assetId,
-      },
-      referenceType: 'rental',
-      referenceId: rental.id,
-    });
     expect(notificationsService.createMany).toHaveBeenNthCalledWith(
-      2,
-      [ownerUser.id, renterUser.id],
+      1,
+      [renterUser.id],
       {
-        type: 'CONTRACT_READY',
-        title: 'Hợp đồng điện tử đã sẵn sàng',
-        content: 'Đơn thuê "Canon R6" đang chờ hai bên ký hợp đồng.',
+        type: 'PAYMENT_SUCCESS',
+        title: 'Thanh toán thành công',
+        content:
+          'Thanh toán cho đơn thuê "Canon R6" đã được ghi nhận thành công.',
         metadata: {
           rentalId: rental.id,
           assetId: rental.assetId,
@@ -205,19 +190,14 @@ describe('RentalsService recordPayment', () => {
       },
     );
     expect(notificationsService.createMany).toHaveBeenNthCalledWith(
+      2,
+      [ownerUser.id, renterUser.id],
+      expect.objectContaining({ type: 'CONTRACT_READY' }),
+    );
+    expect(notificationsService.createMany).toHaveBeenNthCalledWith(
       3,
       [ownerUser.id, renterUser.id],
-      {
-        type: 'SIGNATURE_REQUIRED',
-        title: 'Cần ký hợp đồng điện tử',
-        content: 'Đơn thuê "Canon R6" đang chờ chữ ký của các bên liên quan.',
-        metadata: {
-          rentalId: rental.id,
-          assetId: rental.assetId,
-        },
-        referenceType: 'rental',
-        referenceId: rental.id,
-      },
+      expect.objectContaining({ type: 'SIGNATURE_REQUIRED' }),
     );
     expect(analyticsService.track).toHaveBeenCalled();
   });

@@ -1,10 +1,25 @@
 import {
   IsBoolean,
   IsDateString,
+  IsEmail,
   IsNumber,
   IsOptional,
   IsString,
+  Length,
+  MaxLength,
 } from 'class-validator';
+
+export class AccountDeletionRequestDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+}
+
+export class AccountDeletionConfirmDto {
+  @IsString()
+  @Length(64, 64)
+  token!: string;
+}
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -51,4 +66,3 @@ export class CreateAddressDto {
 }
 
 export class UpdateAddressDto extends CreateAddressDto {}
-

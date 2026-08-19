@@ -15,10 +15,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { mkdir, writeFile } from 'fs/promises';
-import { dirname, extname, resolve } from 'path';
+import { extname } from 'path';
 import sharp from 'sharp';
 import { PrismaService } from '../database/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -32,6 +30,7 @@ import type { AuthenticatedUser } from '../common/interfaces/authenticated-reque
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RiskService } from '../risk/risk.service';
+import { StorageService } from '../storage/storage.service';
 
 type SearchAssetRecord = Prisma.AssetGetPayload<{
   include: {
@@ -82,6 +81,8 @@ type UploadedAssetImageFile = {
   buffer: Buffer;
 };
 
+const MAX_ADVANCED_SEARCH_CANDIDATES = 2_000;
+
 const SUPPORTED_ASSET_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -94,11 +95,11 @@ const SUPPORTED_ASSET_IMAGE_MIME_TYPES = new Set([
 export class AssetsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService,
     private readonly analyticsService: AnalyticsService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
     private readonly riskService: RiskService,
+    private readonly storageService: StorageService,
   ) {}
 
   async search(currentUser: AuthenticatedUser | null, query: SearchAssetsQueryDto) {
@@ -161,30 +162,37 @@ export class AssetsService {
       ];
     }
 
-    const items = await this.prisma.asset.findMany({
-      where,
-      include: {
-        category: true,
-        images: {
-          orderBy: [{ sortOrder: 'asc' }],
-        },
-        accessories: true,
-        owner: {
-          select: {
-            id: true,
-            fullName: true,
-            trustScore: true,
-          },
-        },
-      },
-      orderBy: [{ createdAt: 'desc' }],
-    });
+    const requiresAdvancedRanking = this.requiresAdvancedRanking(query);
+    const include = this.searchAssetInclude();
+    let total: number;
+    let paginatedItems: EnrichedSearchAsset[];
 
-    const enrichedItems = await this.enrichSearchAssets(items, currentUser, query);
-    const filteredItems = this.filterSearchAssets(enrichedItems, query);
-    const sortedItems = this.sortSearchAssets(filteredItems, query.sort);
-    const total = sortedItems.length;
-    const paginatedItems = sortedItems.slice(skip, skip + limit);
+    if (requiresAdvancedRanking) {
+      const items = await this.prisma.asset.findMany({
+        where,
+        include,
+        orderBy: [{ createdAt: 'desc' }],
+        take: MAX_ADVANCED_SEARCH_CANDIDATES,
+      });
+      const enrichedItems = await this.enrichSearchAssets(items, currentUser, query);
+      const filteredItems = this.filterSearchAssets(enrichedItems, query);
+      const sortedItems = this.sortSearchAssets(filteredItems, query.sort);
+      total = sortedItems.length;
+      paginatedItems = sortedItems.slice(skip, skip + limit);
+    } else {
+      const [items, count] = await Promise.all([
+        this.prisma.asset.findMany({
+          where,
+          include,
+          orderBy: this.buildDatabaseSearchOrder(query.sort),
+          skip,
+          take: limit,
+        }),
+        this.prisma.asset.count({ where }),
+      ]);
+      total = count;
+      paginatedItems = await this.enrichSearchAssets(items, currentUser, query);
+    }
 
     await this.analyticsService.track({
       eventType: AnalyticsEventType.SEARCH_PERFORMED,
@@ -268,7 +276,24 @@ export class AssetsService {
       },
     });
 
-    return this.sanitizeLocationFields(asset, currentUser ?? null);
+    const isFavorite = currentUser
+      ? Boolean(
+          await this.prisma.favoriteAsset.findUnique({
+            where: {
+              userId_assetId: {
+                userId: currentUser.id,
+                assetId: asset.id,
+              },
+            },
+            select: { createdAt: true },
+          }),
+        )
+      : false;
+
+    return {
+      ...this.sanitizeLocationFields(asset, currentUser ?? null),
+      isFavorite,
+    };
   }
 
   async listMine(currentUser: AuthenticatedUser) {
@@ -302,23 +327,25 @@ export class AssetsService {
       throw new BadRequestException('Uploaded image is empty');
     }
 
-    const fileKey = this.buildAssetUploadFileKey(currentUser.id, { ...file, originalname: file.originalname.replace(/\.[^/.]+$/, "") + '.webp' });
-    const uploadsRoot = resolve(__dirname, '..', '..', 'uploads');
-    const outputPath = resolve(uploadsRoot, fileKey);
-
-    await mkdir(dirname(outputPath), { recursive: true });
-    
-    // Resize & Convert to WebP using sharp
+    const fileKey = this.buildAssetUploadFileKey(currentUser.id, {
+      ...file,
+      originalname: `${file.originalname.replace(/\.[^/.]+$/, '')}.webp`,
+      mimetype: 'image/webp',
+    });
     const optimizedBuffer = await sharp(file.buffer)
-      .resize({ width: 1200, withoutEnlargement: true }) // Max width 1200px
-      .webp({ quality: 80 }) // Convert to webp with 80% quality
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 82 })
       .toBuffer();
-
-    await writeFile(outputPath, optimizedBuffer);
+    const url = await this.storageService.uploadAssetImage(
+      fileKey,
+      optimizedBuffer,
+      'image/webp',
+    );
 
     return {
-      url: this.buildPublicUploadUrl(fileKey),
-      fileKey,
+      url,
+      fileKey: `assets/${fileKey}`,
     };
   }
 
@@ -791,6 +818,44 @@ export class AssetsService {
     }));
   }
 
+  private searchAssetInclude() {
+    return {
+      category: true,
+      images: {
+        orderBy: [{ sortOrder: 'asc' as const }],
+      },
+      accessories: true,
+      owner: {
+        select: {
+          id: true,
+          fullName: true,
+          trustScore: true,
+        },
+      },
+    } satisfies Prisma.AssetInclude;
+  }
+
+  private requiresAdvancedRanking(query: SearchAssetsQueryDto) {
+    return Boolean(
+      query.deliveryMethod ||
+        query.minRating !== undefined ||
+        query.radiusKm !== undefined ||
+        ['nearest', 'highest-rating', 'most-rented'].includes(query.sort ?? ''),
+    );
+  }
+
+  private buildDatabaseSearchOrder(sort: SearchAssetsQueryDto['sort']) {
+    if (sort === 'lowest-price') {
+      return [{ pricePerDay: 'asc' as const }, { createdAt: 'desc' as const }];
+    }
+
+    if (sort === 'highest-price') {
+      return [{ pricePerDay: 'desc' as const }, { createdAt: 'desc' as const }];
+    }
+
+    return [{ createdAt: 'desc' as const }];
+  }
+
   private filterSearchAssets(
     items: EnrichedSearchAsset[],
     query: SearchAssetsQueryDto,
@@ -928,7 +993,7 @@ export class AssetsService {
       extname(file.originalname).toLowerCase() ||
       '.jpg';
 
-    return `assets/${userId}/${Date.now()}-${randomUUID()}${extension}`;
+    return `${userId}/${Date.now()}-${randomUUID()}${extension}`;
   }
 
   private resolveImageExtension(mimetype: string) {
@@ -945,11 +1010,6 @@ export class AssetsService {
       default:
         return '.jpg';
     }
-  }
-
-  private buildPublicUploadUrl(fileKey: string) {
-    const appUrl = this.configService.get<string>('APP_URL') ?? 'http://localhost:3000';
-    return `${appUrl.replace(/\/+$/, '')}/uploads/${fileKey.replace(/\\/g, '/')}`;
   }
 
   private normalizeDeliveryOptions(deliveryOptions: Prisma.JsonValue | null) {

@@ -1,6 +1,6 @@
 import { PaymentStatus, PayoutStatus, RefundStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class PaymentQueryDto {
   @IsOptional()
@@ -38,4 +38,9 @@ export class CreateRefundDto {
 export class UpdatePayoutStatusDto {
   @IsEnum(PayoutStatus)
   status!: PayoutStatus;
+}
+
+export class UpdateRefundStatusDto {
+  @IsIn([RefundStatus.COMPLETED, RefundStatus.FAILED, RefundStatus.REJECTED])
+  status!: RefundStatus;
 }

@@ -90,12 +90,135 @@ function requireSecret(raw: Record<string, unknown>, key: string): string {
   return value;
 }
 
+function parseBoolean(raw: Record<string, unknown>, key: string): boolean {
+  const value = requireString(raw, key).toLowerCase();
+
+  if (value === 'true') {
+    return true;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  throw new Error(`${key} must be either true or false`);
+}
+
+function booleanWithDefault(
+  raw: Record<string, unknown>,
+  key: string,
+  fallback: boolean,
+) {
+  return getString(raw, key) ? parseBoolean(raw, key) : fallback;
+}
+
+function integerWithDefault(
+  raw: Record<string, unknown>,
+  key: string,
+  minimum: number,
+  fallback: number,
+) {
+  return getString(raw, key)
+    ? requireInteger(raw, key, minimum)
+    : fallback;
+}
+
+function readMailConfig(raw: Record<string, unknown>, nodeEnv: string) {
+  const mailKeys = [
+    'SMTP_HOST',
+    'SMTP_PORT',
+    'SMTP_SECURE',
+    'SMTP_USER',
+    'SMTP_PASSWORD',
+    'SMTP_FROM',
+    'PASSWORD_RESET_URL',
+    'ACCOUNT_DELETION_URL',
+    'SUPPORT_EMAIL',
+  ];
+  const hasMailConfiguration = mailKeys.some((key) => getString(raw, key));
+
+  if (nodeEnv !== 'production' && !hasMailConfiguration) {
+    return {
+      SMTP_HOST: undefined,
+      SMTP_PORT: undefined,
+      SMTP_SECURE: undefined,
+      SMTP_USER: undefined,
+      SMTP_PASSWORD: undefined,
+      SMTP_FROM: undefined,
+      PASSWORD_RESET_URL: undefined,
+      ACCOUNT_DELETION_URL: undefined,
+      SUPPORT_EMAIL: undefined,
+    };
+  }
+
+  const smtpUser = getString(raw, 'SMTP_USER');
+  const smtpPassword = getString(raw, 'SMTP_PASSWORD');
+
+  if ((smtpUser && !smtpPassword) || (!smtpUser && smtpPassword)) {
+    throw new Error('SMTP_USER and SMTP_PASSWORD must be provided together');
+  }
+
+  return {
+    SMTP_HOST: requireString(raw, 'SMTP_HOST'),
+    SMTP_PORT: requireInteger(raw, 'SMTP_PORT', 1),
+    SMTP_SECURE: parseBoolean(raw, 'SMTP_SECURE'),
+    SMTP_USER: smtpUser,
+    SMTP_PASSWORD: smtpPassword,
+    SMTP_FROM: requireString(raw, 'SMTP_FROM'),
+    PASSWORD_RESET_URL: requireUrl(raw, 'PASSWORD_RESET_URL'),
+    ACCOUNT_DELETION_URL: requireUrl(raw, 'ACCOUNT_DELETION_URL'),
+    SUPPORT_EMAIL: requireString(raw, 'SUPPORT_EMAIL'),
+  };
+}
+
+function readSepayConfig(raw: Record<string, unknown>, nodeEnv: string) {
+  const enabled = booleanWithDefault(
+    raw,
+    'SEPAY_ENABLED',
+    nodeEnv === 'production',
+  );
+
+  if (nodeEnv === 'production' && !enabled) {
+    throw new Error('SEPAY_ENABLED must be true in production');
+  }
+
+  if (!enabled) {
+    return {
+      SEPAY_ENABLED: false,
+      SEPAY_ACCOUNT_NUMBER: undefined,
+      SEPAY_ACCOUNT_NAME: undefined,
+      SEPAY_BANK_NAME: undefined,
+      SEPAY_WEBHOOK_SECRET: undefined,
+    };
+  }
+
+  return {
+    SEPAY_ENABLED: true,
+    SEPAY_ACCOUNT_NUMBER: requireString(raw, 'SEPAY_ACCOUNT_NUMBER'),
+    SEPAY_ACCOUNT_NAME: requireString(raw, 'SEPAY_ACCOUNT_NAME'),
+    SEPAY_BANK_NAME: requireString(raw, 'SEPAY_BANK_NAME'),
+    SEPAY_WEBHOOK_SECRET: requireSecret(raw, 'SEPAY_WEBHOOK_SECRET'),
+  };
+}
+
 export function validateEnv(raw: Record<string, unknown>) {
   const nodeEnv = getString(raw, 'NODE_ENV') ?? 'development';
 
   if (!ALLOWED_NODE_ENVS.has(nodeEnv)) {
     throw new Error('NODE_ENV must be one of development, test, production');
   }
+
+  const mailConfig = readMailConfig(raw, nodeEnv);
+  const sepayConfig = readSepayConfig(raw, nodeEnv);
+  const corsOrigins =
+    nodeEnv === 'production'
+      ? requireString(raw, 'CORS_ORIGINS')
+      : (getString(raw, 'CORS_ORIGINS') ??
+        'http://localhost:8081,http://localhost:19006');
+  const storageSigningSecret =
+    nodeEnv === 'production'
+      ? requireSecret(raw, 'STORAGE_SIGNING_SECRET')
+      : getString(raw, 'STORAGE_SIGNING_SECRET');
 
   return {
     NODE_ENV: nodeEnv,
@@ -122,5 +245,23 @@ export function validateEnv(raw: Record<string, unknown>) {
     POSTGRES_USER: getString(raw, 'POSTGRES_USER'),
     POSTGRES_PASSWORD: getString(raw, 'POSTGRES_PASSWORD'),
     API_PORT: getString(raw, 'API_PORT'),
+    CORS_ORIGINS: corsOrigins,
+    STORAGE_SIGNING_SECRET: storageSigningSecret,
+    UPLOADS_DIR: getString(raw, 'UPLOADS_DIR'),
+    LOGS_DIR: getString(raw, 'LOGS_DIR'),
+    LOG_TO_FILES: booleanWithDefault(raw, 'LOG_TO_FILES', false),
+    SWAGGER_ENABLED: booleanWithDefault(
+      raw,
+      'SWAGGER_ENABLED',
+      nodeEnv !== 'production',
+    ),
+    REQUEST_LOG_RETENTION_DAYS: integerWithDefault(
+      raw,
+      'REQUEST_LOG_RETENTION_DAYS',
+      1,
+      30,
+    ),
+    ...sepayConfig,
+    ...mailConfig,
   };
 }
