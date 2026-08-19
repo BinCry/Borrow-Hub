@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Xóa tài khoản — Borrow Hub</title>
+    <style>
+      :root { color: #18322a; background: #edf3ef; font-family: Inter, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; line-height: 1.55; }
+      main { width: min(560px, calc(100% - 32px)); margin: 32px auto; padding: clamp(24px, 6vw, 48px); border: 1px solid #d9e4de; border-radius: 28px; background: #fff; box-shadow: 0 24px 70px rgba(30, 64, 51, .1); }
+      .mark { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 16px; color: #fff; background: #4f7c6b; font-weight: 900; }
+      h1 { margin: 20px 0 8px; font-size: clamp(28px, 7vw, 40px); line-height: 1.15; }
+      p { color: #52675f; }
+      label { display: block; margin: 24px 0 8px; font-weight: 800; }
+      input { width: 100%; min-height: 52px; padding: 0 15px; border: 1px solid #cbd9d2; border-radius: 14px; color: #18322a; background: #fbfdfc; font: inherit; }
+      input:focus { outline: 3px solid rgba(79,124,107,.2); border-color: #4f7c6b; }
+      button { width: 100%; min-height: 52px; margin-top: 14px; border: 0; border-radius: 14px; color: #fff; background: #b4443d; font: 800 16px/1 system-ui, sans-serif; cursor: pointer; }
+      button:disabled { opacity: .55; cursor: wait; }
+      a { color: #2f6753; font-weight: 700; }
+      .status { min-height: 24px; margin-top: 16px; font-weight: 700; }
+      .warning { padding: 14px 16px; border-radius: 14px; background: #fff5e5; color: #725325; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">BH</div>
+      <section id="request-panel">
+        <h1>Yêu cầu xóa tài khoản</h1>
+        <p>Nhập email đăng ký Borrow Hub. Chúng tôi sẽ gửi liên kết xác nhận có hiệu lực trong 60 phút.</p>
+        <p class="warning">Nếu còn đơn thuê đang hoạt động, bạn cần hoàn tất hoặc hủy đơn trước khi tài khoản có thể được xóa.</p>
+        <form id="request-form">
+          <label for="email">Email tài khoản</label>
+          <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required />
+          <button type="submit">Gửi liên kết xác nhận</button>
+        </form>
+      </section>
+
+      <section id="confirm-panel" hidden>
+        <h1>Xác nhận xóa vĩnh viễn</h1>
+        <p>Thao tác sẽ vô hiệu hóa tài khoản, xóa địa chỉ và tài liệu KYC, đồng thời ẩn danh dữ liệu nhận dạng. Một số hồ sơ giao dịch có thể được giữ khi pháp luật hoặc xử lý tranh chấp yêu cầu.</p>
+        <button id="confirm-button" type="button">Xóa tài khoản của tôi</button>
+      </section>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <p><a href="/privacy">Đọc chính sách quyền riêng tư</a> · <a href="mailto:{{placeholder "http.vars.support_email"}}">Liên hệ hỗ trợ</a></p>
+    </main>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const requestPanel = document.getElementById('request-panel');
+      const confirmPanel = document.getElementById('confirm-panel');
+      const requestForm = document.getElementById('request-form');
+      const confirmButton = document.getElementById('confirm-button');
+      const status = document.getElementById('status');
+
+      if (token && /^[a-f0-9]{64}$/i.test(token)) {
+        requestPanel.hidden = true;
+        confirmPanel.hidden = false;
+      }
+
+      requestForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = requestForm.querySelector('button');
+        button.disabled = true;
+        status.textContent = 'Đang gửi yêu cầu…';
+        try {
+          await fetch('/api/v1/users/account-deletion/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: document.getElementById('email').value.trim() }),
+          });
+          requestForm.reset();
+          status.textContent = 'Nếu email tồn tại, liên kết xác nhận đã được gửi. Hãy kiểm tra cả thư rác.';
+        } catch {
+          status.textContent = 'Không thể gửi yêu cầu lúc này. Vui lòng thử lại sau.';
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      confirmButton.addEventListener('click', async () => {
+        confirmButton.disabled = true;
+        status.textContent = 'Đang xử lý…';
+        try {
+          const response = await fetch('/api/v1/users/account-deletion/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.message || 'Yêu cầu không hợp lệ hoặc đã hết hạn.');
+          }
+          confirmPanel.hidden = true;
+          status.textContent = 'Tài khoản Borrow Hub đã được xóa. Bạn có thể đóng trang này.';
+          window.history.replaceState({}, '', '/account-deletion');
+        } catch (error) {
+          status.textContent = error instanceof Error ? error.message : 'Không thể xóa tài khoản lúc này.';
+          confirmButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

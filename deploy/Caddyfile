@@ -1,0 +1,44 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	request_body {
+		max_size 16MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	vars support_email "{$SUPPORT_EMAIL}"
+
+	handle /privacy* {
+		root * /srv/public
+		rewrite * /privacy.html
+		templates
+		file_server
+	}
+
+	handle /account-deletion* {
+		root * /srv/public
+		rewrite * /account-deletion.html
+		templates
+		file_server
+	}
+
+	handle {
+		reverse_proxy api:3000
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

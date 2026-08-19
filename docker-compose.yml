@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: toolshare-postgres
     environment:
       POSTGRES_DB: toolshare
       POSTGRES_USER: postgres
@@ -18,7 +17,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: toolshare-redis
     ports:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
@@ -34,14 +32,17 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: toolshare-api
+      target: build
     env_file:
-      - .env
+      - ${ENV_FILE:-.env}
     environment:
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/toolshare?schema=public}
-      REDIS_URL: ${DOCKER_REDIS_URL:-redis://redis:6379}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/toolshare?schema=public
+      REDIS_URL: redis://redis:6379
+      UPLOADS_DIR: /app/uploads
     ports:
       - "3000:3000"
+    volumes:
+      - api-uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,3 +53,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  api-uploads:

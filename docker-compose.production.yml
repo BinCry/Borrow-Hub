@@ -1,62 +1,89 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: borrowhub-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
-    container_name: borrowhub-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
     volumes:
       - redis-data:/data
+    networks:
+      - data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
   migrate:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
       target: build
-    container_name: borrowhub-api-migrate
     env_file:
-      - .env
+      - ${ENV_FILE:-.env}
     environment:
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public}
-      REDIS_URL: ${DOCKER_REDIS_URL:-redis://redis:6379}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:?DOCKER_DATABASE_URL is required}
+    networks:
+      - data
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["pnpm", "--filter", "toolshare-api", "exec", "prisma", "migrate", "deploy"]
+    command: ["pnpm", "--filter", "toolshare-api", "prisma:migrate:deploy"]
     restart: "no"
+    security_opt:
+      - no-new-privileges:true
 
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
       target: runner
-    container_name: borrowhub-api
     env_file:
-      - .env
+      - ${ENV_FILE:-.env}
     environment:
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public}
-      REDIS_URL: ${DOCKER_REDIS_URL:-redis://redis:6379}
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: ${DOCKER_DATABASE_URL:?DOCKER_DATABASE_URL is required}
+      REDIS_URL: ${DOCKER_REDIS_URL:?DOCKER_REDIS_URL is required}
+      UPLOADS_DIR: /app/uploads
+      LOG_TO_FILES: "false"
+      SWAGGER_ENABLED: "false"
     restart: unless-stopped
+    init: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,11 +92,68 @@ services:
       migrate:
         condition: service_completed_successfully
     ports:
-      - "${API_PORT:-3000}:3000"
+      - "${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-3000}:3000"
     volumes:
       - api-uploads:/app/uploads
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    networks:
+      - data
+      - edge
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:?SUPPORT_EMAIL is required}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/public:/srv/public:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - edge
+    depends_on:
+      api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
 volumes:
   postgres-data:
   redis-data:
   api-uploads:
+  caddy-data:
+  caddy-config:
+
+networks:
+  data:
+    internal: true
+  edge:

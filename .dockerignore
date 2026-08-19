@@ -1,6 +1,10 @@
 .git
 .gitignore
 .pnpm-store
+.npm-cache
+.corepack
+.tmp
+.prisma-cache
 node_modules
 dist
 coverage
@@ -14,5 +18,7 @@ apps/api/coverage
 apps/api/prisma/dev.db
 apps/api/prisma/dev.db-journal
 apps/api/test-results
+uploads
+logs
 apps/mobile
 docs

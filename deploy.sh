@@ -1,30 +1,36 @@
 #!/usr/bin/env bash
-set -e
+set -Eeuo pipefail
 
-echo "🚀 Bắt đầu quá trình Deploy Borrow Hub..."
+COMPOSE_FILE="docker-compose.production.yml"
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:${API_PORT:-3000}/api/v1/health}"
 
-# 1. Kéo code mới nhất từ nhánh main (giả định dùng git)
-echo "📦 Đang kéo code mới nhất..."
-git pull origin main || echo "⚠️ Không thể git pull, bỏ qua bước này..."
-
-# 2. Cài đặt dependencies và chuẩn bị Prisma
-echo "🔧 Đang cài đặt dependencies..."
-pnpm install --frozen-lockfile
-
-# 3. Tạo/Cập nhật file .env từ .env.example (nếu chưa có)
-if [ ! -f .env ]; then
-  echo "📄 Không tìm thấy .env, đang copy từ .env.example..."
-  cp .env.example .env
+if [[ ! -f .env ]]; then
+  echo "Missing .env. Copy .env.example to .env and replace every placeholder first." >&2
+  exit 1
 fi
 
-# 4. Chạy Prisma migrations
-echo "🗄️ Đang apply database migrations..."
-pnpm --filter toolshare-api prisma:generate
-# Nếu production, nên dùng prisma migrate deploy thay vì db push, nhưng đây là môi trường staging:
-pnpm --filter toolshare-api prisma:db:push --accept-data-loss || echo "⚠️ Database push failed, check your connection."
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker is not installed or is not available in PATH." >&2
+  exit 1
+fi
 
-# 5. Build và khởi động lại Docker compose
-echo "🐳 Đang khởi động Docker containers..."
-docker-compose -f docker-compose.production.yml up -d --build
+docker compose -f "$COMPOSE_FILE" config --quiet
+docker compose -f "$COMPOSE_FILE" pull postgres redis caddy
+docker compose -f "$COMPOSE_FILE" build migrate api
+docker compose -f "$COMPOSE_FILE" up -d postgres redis
+docker compose -f "$COMPOSE_FILE" run --rm migrate
+docker compose -f "$COMPOSE_FILE" up -d --no-deps api
+docker compose -f "$COMPOSE_FILE" up -d caddy
 
-echo "✅ Deploy hoàn tất! Ứng dụng đang chạy ở cổng 3000."
+for attempt in $(seq 1 30); do
+  if curl --fail --silent --show-error "$HEALTH_URL" >/dev/null; then
+    echo "Borrow Hub API is healthy at $HEALTH_URL"
+    docker compose -f "$COMPOSE_FILE" ps
+    exit 0
+  fi
+  sleep 2
+done
+
+echo "API did not become healthy. Recent logs:" >&2
+docker compose -f "$COMPOSE_FILE" logs --tail=100 api >&2
+exit 1
