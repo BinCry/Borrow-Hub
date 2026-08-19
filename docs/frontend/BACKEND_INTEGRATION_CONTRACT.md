@@ -1,93 +1,33 @@
-# Hợp đồng Tích hợp Frontend - Backend (Backend Integration Contract)
+# Hợp đồng tích hợp Mobile — API
 
-Tài liệu này xác định các hợp đồng API và domain model mà Frontend (mobile app) hiện đang sử dụng thông qua các Mock API. Backend Engineer (Codex) cần dựa vào đây để thiết kế API thực tế.
+## Tổng quan
 
-## 1. Domain Models
+Ứng dụng Expo kết nối trực tiếp NestJS API qua `EXPO_PUBLIC_API_URL`, mặc định có prefix `/api/v1`. Chế độ mock đã được gỡ bỏ; kiểu dữ liệu hiện hành nằm tại `apps/mobile/src/types/domain/index.ts`, còn DTO và Swagger nằm trong `apps/api/src`.
 
-### 1.1 Asset (Tài sản)
-Định nghĩa một tài sản được đăng cho thuê:
-```typescript
-interface Asset {
-  id: string;
-  title: string;
-  description: string;
-  pricePerDay: number;
-  ownerId: string;
-  categoryId: string;
-  images: string[];
-  location: {
-    city: string;
-    district: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  condition: 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' | 'WORN';
-  status: 'AVAILABLE' | 'RENTED' | 'MAINTENANCE' | 'HIDDEN';
-  minimumDurationDays: number;
-  maximumDurationDays?: number;
-  estimatedValue: number;
-  rating?: number;
-  reviewCount?: number;
-}
-```
+## Quy ước chung
 
-### 1.2 Rental (Đơn thuê)
-Định nghĩa một giao dịch thuê tài sản:
-```typescript
-interface Rental {
-  id: string;
-  assetId: string;
-  renterId: string;
-  ownerId: string;
-  startDate: string; // ISO 8601
-  endDate: string; // ISO 8601
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'READY_FOR_HANDOVER' | 'ACTIVE' | 'RETURN_REQUESTED' | 'COMPLETED' | 'DISPUTED';
-  totalPrice: number;
-  paymentStatus: 'PENDING' | 'HELD' | 'RELEASED' | 'REFUNDED';
-  handoverMethod: 'MEETUP' | 'DELIVERY';
-}
-```
+- Header xác thực: `Authorization: Bearer <access-token>`.
+- Access token hết hạn được làm mới một lần bằng refresh token lưu trong SecureStore; các request đồng thời dùng chung một hàng đợi refresh.
+- Danh sách phân trang trả `{ data, meta }` với `page`, `limit`, `total`, `totalPages`.
+- Thời gian dùng ISO 8601; tiền tệ dùng số nguyên VND.
+- Mobile production bắt buộc đặt `EXPO_PUBLIC_API_URL=https://<DOMAIN>/api/v1`.
 
-### 1.3 User (Người dùng)
-Định nghĩa người dùng trong hệ thống:
-```typescript
-interface User {
-  id: string;
-  fullName: string;
-  phoneNumber: string;
-  email?: string;
-  avatarUrl?: string;
-  rating?: number;
-  kycStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
-}
-```
+## Luồng end-to-end đã kết nối
 
-## 2. API Endpoints cần thiết
+- Auth: đăng ký, đăng nhập, refresh/logout, quên/đặt lại mật khẩu.
+- Assets: danh mục, tìm kiếm/phân trang, chi tiết, tài sản của tôi, upload ảnh và tạo bài.
+- Rentals: tạo, duyệt/từ chối/hủy, hợp đồng, payment intent/VietQR, trạng thái thanh toán, bàn giao và hoàn trả QR.
+- Chat và thông báo: danh sách hội thoại/tin nhắn, gửi tin, đọc thông báo.
+- Hồ sơ: thông tin người dùng, KYC multipart, địa chỉ, cài đặt và xóa tài khoản.
+- Hỗ trợ: tạo/xem phiếu hỗ trợ; backend còn cung cấp reports/disputes/admin cho vận hành.
 
-Frontend hiện đang sử dụng `services/api/client.ts`. Backend cần expose các RESTful endpoints sau (prefix `/api/v1`):
+## Cache và preload
 
-### 2.1 Auth
-- `POST /auth/login`: Nhận số điện thoại/password -> Trả về `{ accessToken, user }`.
-- `POST /auth/register`: Đăng ký tài khoản.
-- `POST /auth/forgot-password`: Yêu cầu cấp lại mật khẩu.
+React Query giữ cache 10 phút, dữ liệu mặc định fresh 45 giây. Root layout preload danh sách Home, category, ảnh cover và — khi đã đăng nhập — hồ sơ, đơn thuê hai vai trò, hội thoại và thông báo. Preload không giữ splash quá 1,4 giây.
 
-### 2.2 Assets (Tài sản)
-- `GET /assets`: Lấy danh sách tài sản (Hỗ trợ phân trang, lọc theo category, city, giá).
-- `GET /assets/:id`: Lấy chi tiết tài sản.
-- `POST /assets`: Tạo bài đăng mới.
+## Nguồn cấu hình
 
-### 2.3 Rentals (Đơn thuê)
-- `GET /rentals?role=renter|owner`: Lấy danh sách đơn thuê của tôi (theo vai trò).
-- `GET /rentals/:id`: Chi tiết đơn thuê.
-- `POST /rentals`: Tạo yêu cầu thuê.
-- `POST /rentals/:id/approve`: Chủ sở hữu đồng ý đơn thuê.
-- `POST /rentals/:id/decline`: Chủ sở hữu từ chối đơn thuê.
-- `POST /rentals/:id/sign`: Ký hợp đồng.
-- `POST /rentals/:id/pay`: Thanh toán (Sandbox).
-- `POST /rentals/:id/handover`: Bắt đầu quá trình giao nhận (Trả về QR/ID).
-- `POST /rentals/:id/return-request`: Yêu cầu trả lại đồ.
-
-## 3. Quy trình Tích hợp (Handoff)
-- Frontend hiện đã triển khai cờ `EXPO_PUBLIC_USE_MOCKS=true`.
-- Khi Backend sẵn sàng, chỉ cần đổi `EXPO_PUBLIC_USE_MOCKS=false` trong `.env`.
-- Frontend sử dụng React Query, nên việc cache và invalidation đã được xử lý. API responses cần trả về đúng chuẩn JSON, ví dụ bọc trong `{ data: ..., meta: ... }` cho các request có phân trang.
+- Mobile: `apps/mobile/.env.example`.
+- API/VPS: `.env.example`.
+- EAS: `apps/mobile/eas.json`.
+- Production compose: `docker-compose.production.yml`.
