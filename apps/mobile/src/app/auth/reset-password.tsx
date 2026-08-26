@@ -1,13 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AxiosError } from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCircle2, ChevronLeft, Eye, EyeOff, KeyRound } from 'lucide-react-native';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  KeyRound,
+} from 'lucide-react-native';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -37,11 +42,37 @@ const resetSchema = z
 
 type ResetForm = z.infer<typeof resetSchema>;
 
+type ApiErrorResponse = {
+  error?: {
+    message?: string | string[];
+  };
+  message?: string | string[];
+};
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const response = (
+    error as {
+      response?: {
+        data?: ApiErrorResponse;
+      };
+    }
+  ).response?.data;
+  const message = response?.error?.message ?? response?.message;
+
+  if (Array.isArray(message)) {
+    return message.join('\n');
+  }
+
+  return typeof message === 'string' && message.trim().length > 0 ? message : fallback;
+}
+
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
   const {
     control,
     handleSubmit,
@@ -53,26 +84,21 @@ export default function ResetPasswordScreen() {
 
   const submit = handleSubmit(async ({ password }) => {
     if (!token) {
-      Alert.alert('Liên kết không hợp lệ', 'Token đặt lại mật khẩu bị thiếu.');
+      setSubmitError('Token đặt lại mật khẩu bị thiếu.');
       return;
     }
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await apiClient.post('/auth/reset-password', { token, newPassword: password });
-      Alert.alert(
-        'Đổi mật khẩu thành công',
-        'Bạn có thể đăng nhập bằng mật khẩu mới.',
-        [{ text: 'Đăng nhập', onPress: () => router.replace('/auth/login') }],
-      );
+      setIsSuccess(true);
     } catch (error) {
-      const message =
-        error instanceof AxiosError
-          ? (error.response?.data as { message?: string } | undefined)?.message
-          : undefined;
-      Alert.alert(
-        'Không thể đổi mật khẩu',
-        message ?? 'Liên kết có thể đã hết hạn hoặc đã được sử dụng.',
+      setSubmitError(
+        getApiErrorMessage(
+          error,
+          'Liên kết có thể đã hết hạn hoặc đã được sử dụng.',
+        ),
       );
     } finally {
       setIsSubmitting(false);
@@ -107,7 +133,27 @@ export default function ResetPasswordScreen() {
               Chọn mật khẩu riêng biệt, có chữ hoa, chữ thường và chữ số.
             </Text>
 
-            {!token ? (
+            {isSuccess ? (
+              <View className="mt-8 rounded-2xl border border-success/30 bg-success/10 p-5">
+                <View className="flex-row items-center">
+                  <CheckCircle2 size={22} color={colors.success} />
+                  <Text className="ml-2 flex-1 font-bold text-text-primary">
+                    Mật khẩu đã được cập nhật
+                  </Text>
+                </View>
+                <Text className="mt-2 leading-5 text-text-secondary">
+                  Bạn có thể đăng nhập lại bằng mật khẩu mới. Các phiên cũ đã được vô hiệu hóa.
+                </Text>
+                <Pressable
+                  className="mt-5 min-h-12 items-center justify-center rounded-xl bg-primary"
+                  onPress={() => router.replace('/auth/login')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Đăng nhập"
+                >
+                  <Text className="font-bold text-white">Đăng nhập</Text>
+                </Pressable>
+              </View>
+            ) : !token ? (
               <View className="mt-8 rounded-2xl border border-danger/30 bg-danger/10 p-5">
                 <Text className="font-bold text-danger">Liên kết đặt lại không hợp lệ</Text>
                 <Text className="mt-1 leading-5 text-text-secondary">
@@ -122,6 +168,18 @@ export default function ResetPasswordScreen() {
               </View>
             ) : (
               <View className="mt-8 gap-5">
+                {submitError ? (
+                  <View
+                    className="flex-row rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3"
+                    accessibilityRole="alert"
+                  >
+                    <AlertCircle size={20} color={colors.danger} />
+                    <Text className="ml-3 flex-1 text-sm leading-5 text-danger">
+                      {submitError}
+                    </Text>
+                  </View>
+                ) : null}
+
                 <PasswordField
                   control={control}
                   name="password"

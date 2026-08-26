@@ -1,4 +1,4 @@
-import { AxiosError, InternalAxiosRequestConfig, create } from 'axios';
+import { AxiosError, AxiosHeaders, InternalAxiosRequestConfig, create } from 'axios';
 import { useAuthStore } from '../../store/authStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
@@ -57,7 +57,12 @@ function processQueue(error: unknown, accessToken?: string) {
 }
 
 function isAuthenticationRequest(url?: string) {
-  return url === '/auth/login' || url === '/auth/refresh';
+  if (!url) {
+    return false;
+  }
+
+  const path = url.replace(/^https?:\/\/[^/]+/i, '');
+  return path.endsWith('/auth/login') || path.endsWith('/auth/refresh');
 }
 
 apiClient.interceptors.response.use(
@@ -78,6 +83,7 @@ apiClient.interceptors.response.use(
       return new Promise<string>((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((accessToken) => {
+        originalRequest.headers = originalRequest.headers ?? new AxiosHeaders();
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       });
@@ -103,6 +109,7 @@ apiClient.interceptors.response.use(
       await useAuthStore.getState().setAuth(accessToken, nextRefreshToken);
       processQueue(null, accessToken);
 
+      originalRequest.headers = originalRequest.headers ?? new AxiosHeaders();
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       return apiClient(originalRequest);
     } catch (refreshError: unknown) {

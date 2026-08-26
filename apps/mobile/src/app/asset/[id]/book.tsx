@@ -7,6 +7,7 @@ import { useCreateRental } from '@/hooks/useRentals';
 import { useState } from 'react';
 import { ChevronLeft, Calendar as CalendarIcon, Info } from 'lucide-react-native';
 import { addDays, differenceInDays, format } from 'date-fns';
+import { EmptyState } from '../../../components/ui/EmptyState';
 
 export default function BookAssetScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,7 +18,7 @@ export default function BookAssetScreen() {
 
   const daysCount = Math.max(1, differenceInDays(endDate, startDate));
 
-  const { data: asset, isLoading } = useAsset(id);
+  const { data: asset, isLoading, isError, refetch } = useAsset(id);
 
   const { mutate: createRental, isPending: isBooking } = useCreateRental();
 
@@ -57,10 +58,30 @@ export default function BookAssetScreen() {
     );
   };
 
-  if (isLoading || !asset) {
+  if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+      </SafeAreaView>
+    );
+  }
+
+  if (isError || !asset) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-row items-center justify-between px-4 py-3 bg-surface z-10 border-b border-border">
+          <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
+            <ChevronLeft size={28} color="#1F2937" />
+          </TouchableOpacity>
+          <Text className="text-lg font-bold text-text-primary">Yêu cầu thuê</Text>
+          <View className="w-10" />
+        </View>
+        <EmptyState
+          title="Không thể tải tài sản"
+          description="Tài sản có thể đã bị gỡ hoặc kết nối mạng đang gián đoạn."
+          buttonText="Thử lại"
+          onPress={() => void refetch()}
+        />
       </SafeAreaView>
     );
   }

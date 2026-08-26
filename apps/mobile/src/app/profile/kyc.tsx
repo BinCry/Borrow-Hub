@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { apiClient } from '../../services/api/client';
 import { colors } from '../../theme/colors';
 
@@ -144,6 +145,13 @@ export default function KycScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         </View>
+      ) : statusQuery.isError ? (
+        <EmptyState
+          title="Không thể tải trạng thái KYC"
+          description="Kiểm tra kết nối rồi thử lại để tiếp tục xác thực danh tính."
+          buttonText="Thử lại"
+          onPress={() => void statusQuery.refetch()}
+        />
       ) : (
         <KeyboardAvoidingView
           className="flex-1"

@@ -13,7 +13,7 @@ export default function MyListingsScreen() {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-assets'],
     queryFn: async () => {
       return AssetsService.listMine();
@@ -37,6 +37,13 @@ export default function MyListingsScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         </View>
+      ) : isError ? (
+        <EmptyState
+          title="Không thể tải bài đăng"
+          description="Kiểm tra kết nối rồi thử lại để xem các tài sản bạn đang cho thuê."
+          buttonText="Thử lại"
+          onPress={() => void refetch()}
+        />
       ) : (
         <FlatList
           data={data ?? []}
