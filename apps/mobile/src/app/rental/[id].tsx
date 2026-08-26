@@ -8,16 +8,27 @@ import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../services/api/client';
 import { User } from '../../types/domain';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 export default function RentalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data: currentUser } = useQuery({
+  const {
+    data: currentUser,
+    isLoading: isLoadingMe,
+    isError: isMeError,
+    refetch: refetchMe,
+  } = useQuery({
     queryKey: ['me'],
     queryFn: async () => (await apiClient.get<User>('/auth/me')).data,
   });
 
-  const { data: rental, isLoading } = useRental(id);
+  const {
+    data: rental,
+    isLoading: isLoadingRental,
+    isError: isRentalError,
+    refetch: refetchRental,
+  } = useRental(id);
   
   const { mutate: approveRental } = useApproveRental();
   const { mutate: declineRental } = useDeclineRental();
@@ -29,10 +40,33 @@ export default function RentalDetailScreen() {
     if (action === 'cancel') cancelRental({ id, reason: payload.reason || '' });
   };
 
-  if (isLoading || !rental || !currentUser) {
+  if (isLoadingRental || isLoadingMe) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+      </SafeAreaView>
+    );
+  }
+
+  if (isRentalError || isMeError || !rental || !currentUser) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-row items-center justify-between px-4 py-3 bg-surface z-10 border-b border-border">
+          <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
+            <ChevronLeft size={28} color="#1F2937" />
+          </TouchableOpacity>
+          <Text className="text-lg font-bold text-text-primary">Chi tiết đơn thuê</Text>
+          <View className="w-10" />
+        </View>
+        <EmptyState
+          title="Không thể tải đơn thuê"
+          description="Đơn thuê có thể không tồn tại, bạn không có quyền xem hoặc kết nối đang gián đoạn."
+          buttonText="Thử lại"
+          onPress={() => {
+            void refetchRental();
+            void refetchMe();
+          }}
+        />
       </SafeAreaView>
     );
   }

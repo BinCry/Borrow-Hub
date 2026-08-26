@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { apiClient } from '../../services/api/client';
 import { ChatService } from '../../services/chat/chat.service';
 import { colors } from '../../theme/colors';
@@ -57,7 +58,8 @@ export default function ChatScreen() {
   const otherUser = conversation?.members.find(
     (member) => member.userId !== meQuery.data?.id,
   )?.user;
-  const canSend = Boolean(message.trim()) && !sendMutation.isPending;
+  const hasError = messagesQuery.isError || conversationQuery.isError || meQuery.isError;
+  const canSend = Boolean(message.trim()) && !sendMutation.isPending && !hasError;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -90,18 +92,29 @@ export default function ChatScreen() {
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
           </View>
-        ) : messagesQuery.isError || conversationQuery.isError ? (
-          <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-center font-semibold text-danger">
-              Không thể tải tin nhắn. Vui lòng thử lại.
-            </Text>
-          </View>
+        ) : hasError ? (
+          <EmptyState
+            title="Không thể tải cuộc trò chuyện"
+            description="Tin nhắn chưa được tải do kết nối hoặc quyền truy cập. Thử lại sau vài giây."
+            buttonText="Thử lại"
+            onPress={() => {
+              void conversationQuery.refetch();
+              void messagesQuery.refetch();
+              void meQuery.refetch();
+            }}
+          />
         ) : (
           <FlatList
             data={messagesQuery.data ?? []}
             keyExtractor={(item) => item.id}
             className="flex-1 px-4"
             contentContainerStyle={{ paddingVertical: 16 }}
+            ListEmptyComponent={
+              <EmptyState
+                title="Chưa có tin nhắn"
+                description="Bắt đầu trao đổi về lịch nhận, tình trạng tài sản hoặc thông tin bàn giao."
+              />
+            }
             onContentSizeChange={() => undefined}
             renderItem={({ item }) => {
               const isMe = item.senderId === meQuery.data?.id;
