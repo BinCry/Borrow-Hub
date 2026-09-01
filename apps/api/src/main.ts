@@ -275,8 +275,8 @@ async function bootstrap() {
 
   if (configService.get<boolean>('SWAGGER_ENABLED')) {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Borrow Hub API')
-      .setDescription('Backend API for the Borrow Hub rental marketplace')
+      .setTitle('RentLoop API')
+      .setDescription('Backend API for the RentLoop P2P creative gear rental platform')
       .setVersion('1.0.0')
       .addBearerAuth()
       .build();
