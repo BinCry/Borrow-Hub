@@ -30,6 +30,7 @@ enum FaceMatchStatus {
 
 enum RoleName {
   USER
+  PARTNER
   MODERATOR
   CUSTOMER_SUPPORT
   DISPUTE_OFFICER
@@ -326,6 +327,7 @@ model User {
   requestLogs      RequestLog[]
   notifications    Notification[]
   auditLogs        AuditLog[]
+  partnerHandovers Handover[]        @relation("PartnerHandover")
 
   @@index([status, createdAt])
 }
@@ -460,6 +462,7 @@ model Asset {
   availability        AssetAvailability[]
   rentalRequests      RentalRequest[]
   favoritedBy         FavoriteAsset[]
+  passports           AssetPassport[]
 
   @@index([categoryId])
   @@index([ownerId])
@@ -535,6 +538,7 @@ model RentalRequest {
   serviceFee     Int            @map("service_fee")
   deliveryFee    Int            @default(0) @map("delivery_fee")
   lateFee        Int            @default(0) @map("late_fee")
+  depositAmount  Int            @default(0) @map("deposit_amount")
   totalAmount    Int            @map("total_amount")
   status         RentalStatus   @default(PENDING_OWNER)
   createdAt      DateTime       @default(now()) @map("created_at")
@@ -658,14 +662,17 @@ model Handover {
   type        HandoverType
   status      HandoverStatus @default(PENDING)
   notes       String?
+  partnerId   String?        @map("partner_id")
   initiatedAt DateTime       @default(now()) @map("initiated_at")
   confirmedAt DateTime?      @map("confirmed_at")
   rental      RentalRequest  @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  partner     User?          @relation("PartnerHandover", fields: [partnerId], references: [id], onDelete: SetNull)
   items       HandoverItem[]
   evidences   Evidence[]
   qrSessions  HandoverQrSession[]
 
   @@index([rentalId])
+  @@index([partnerId])
   @@map("handovers")
 }
 
@@ -1037,3 +1044,16 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+model AssetPassport {
+  id                String   @id @default(cuid())
+  assetId           String   @map("asset_id")
+  version           Int      @default(1)
+  conditionSnapshot Json     @map("condition_snapshot")
+  createdAt         DateTime @default(now()) @map("created_at")
+  asset             Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@map("asset_passports")
+}
+
