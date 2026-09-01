@@ -356,7 +356,10 @@ export class AuthService {
     });
 
     if (!delivered) {
-      if (this.configService.get<string>('NODE_ENV') === 'production') {
+      const nodeEnv = this.configService.get<string>('NODE_ENV');
+      const isDevEnvironment = nodeEnv === 'development' || nodeEnv === 'test';
+
+      if (!isDevEnvironment) {
         await this.prisma.user.updateMany({
           where: {
             id: user.id,

@@ -14,8 +14,8 @@ const emptyTokens: StoredTokens = {
 
 async function setTokens(accessToken: string, refreshToken: string) {
   if (Platform.OS === 'web') {
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
+    sessionStorage.setItem('accessToken', accessToken);
+    sessionStorage.setItem('refreshToken', refreshToken);
     return;
   }
 
@@ -32,8 +32,8 @@ async function setTokens(accessToken: string, refreshToken: string) {
 
 async function deleteTokens() {
   if (Platform.OS === 'web') {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
     return;
   }
 
@@ -46,8 +46,8 @@ async function deleteTokens() {
 async function getTokens(): Promise<StoredTokens> {
   if (Platform.OS === 'web') {
     return {
-      accessToken: localStorage.getItem('accessToken'),
-      refreshToken: localStorage.getItem('refreshToken'),
+      accessToken: sessionStorage.getItem('accessToken'),
+      refreshToken: sessionStorage.getItem('refreshToken'),
     };
   }
 

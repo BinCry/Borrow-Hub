@@ -18,14 +18,5 @@
     "prisma:generate": "pnpm --filter toolshare-api prisma:generate",
     "prisma:migrate": "pnpm --filter toolshare-api prisma:migrate",
     "prisma:seed": "pnpm --filter toolshare-api prisma:seed"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/engines",
-      "argon2",
-      "esbuild",
-      "prisma",
-      "unrs-resolver"
-    ]
   }
 }
