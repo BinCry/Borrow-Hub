@@ -23,7 +23,10 @@
         "foregroundImage": "./assets/images/android-icon-foreground-v2.png",
         "monochromeImage": "./assets/images/android-icon-foreground-v2.png"
       },
-      "predictiveBackGestureEnabled": true
+      "predictiveBackGestureEnabled": true,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "primaryColor": "#4F7C6B",
     "web": {
@@ -52,6 +55,18 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c677627f-707a-4214-bdad-9e4b294f9e40"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c677627f-707a-4214-bdad-9e4b294f9e40"
     }
   }
 }
