@@ -50,7 +50,8 @@
           "cameraPermission": "Cho phép Borrow Hub dùng camera để quét mã bàn giao."
         }
       ],
-      "expo-image"
+      "expo-image",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
