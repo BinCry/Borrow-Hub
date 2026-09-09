@@ -18,3 +18,4 @@ apps/api/coverage/
 apps/api/prisma/dev.db
 apps/api/prisma/dev.db-journal
 apps/api/test-results/
+apps/mobile/.expo-export-test*/
