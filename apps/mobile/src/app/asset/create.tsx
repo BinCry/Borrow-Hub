@@ -25,7 +25,7 @@ import { colors } from '../../theme/colors';
 
 const createAssetSchema = z.object({
   title: z.string().trim().min(5, 'Tiêu đề phải có ít nhất 5 ký tự').max(120),
-  description: z.string().trim().min(20, 'Mô tả phải có ít nhất 20 ký tự').max(3000),
+  description: z.string().trim().min(5, 'Mô tả phải có ít nhất 5 ký tự').max(3000),
   pricePerDay: z.string().refine(
     (value) => Number.isInteger(Number(value)) && Number(value) > 0,
     'Giá thuê phải là số nguyên dương',
@@ -262,6 +262,15 @@ export default function CreateListingScreen() {
               onPress={() => void categoriesQuery.refetch()}
             >
               <Text className="font-semibold text-danger">Tải lại danh mục</Text>
+            </TouchableOpacity>
+          ) : (categoriesQuery.data ?? []).length === 0 ? (
+            <TouchableOpacity
+              className="mb-5 min-h-12 items-center justify-center rounded-xl border border-border bg-surface px-4"
+              onPress={() => void categoriesQuery.refetch()}
+            >
+              <Text className="text-center font-semibold text-text-secondary">
+                Chưa có danh mục. Chạm để tải lại
+              </Text>
             </TouchableOpacity>
           ) : (
             <Controller

@@ -1,17 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { MessageCircle } from 'lucide-react-native';
 import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChatService } from '../../services/chat/chat.service';
 import { apiClient } from '../../services/api/client';
+import { ChatService } from '../../services/chat/chat.service';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { User } from '../../types/domain';
 
 export default function MessagesScreen() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const logout = useAuthStore((state) => state.logout);
   const router = useRouter();
   const conversationsQuery = useQuery({
     queryKey: ['conversations'],
@@ -24,6 +26,10 @@ export default function MessagesScreen() {
     enabled: isAuthenticated,
   });
 
+  const goToLogin = () => {
+    void logout().finally(() => router.push('/auth/login'));
+  };
+
   if (!isAuthenticated) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background px-6">
@@ -33,7 +39,7 @@ export default function MessagesScreen() {
         </Text>
         <TouchableOpacity
           className="mt-6 min-h-12 w-full items-center justify-center rounded-xl bg-primary"
-          onPress={() => router.push('/auth/login')}
+          onPress={goToLogin}
         >
           <Text className="font-bold text-white">Đăng nhập</Text>
         </TouchableOpacity>
@@ -43,6 +49,10 @@ export default function MessagesScreen() {
 
   const isLoading = conversationsQuery.isLoading || meQuery.isLoading;
   const hasError = conversationsQuery.isError || meQuery.isError;
+  const isUnauthorized =
+    (isAxiosError(conversationsQuery.error) &&
+      conversationsQuery.error.response?.status === 401) ||
+    (isAxiosError(meQuery.error) && meQuery.error.response?.status === 401);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -58,16 +68,27 @@ export default function MessagesScreen() {
         <View className="flex-1 items-center justify-center px-6">
           <MessageCircle size={48} color={colors.text.muted} />
           <Text className="mt-4 text-center font-semibold text-text-primary">
-            Không thể tải cuộc trò chuyện
+            {isUnauthorized ? 'Phiên đăng nhập đã hết hạn' : 'Không thể tải cuộc trò chuyện'}
+          </Text>
+          <Text className="mt-2 text-center text-text-secondary">
+            {isUnauthorized
+              ? 'Bạn đăng nhập lại một lần là xem được tin nhắn.'
+              : 'Kiểm tra mạng rồi thử tải lại sau vài giây.'}
           </Text>
           <TouchableOpacity
             className="mt-5 min-h-12 rounded-xl bg-primary px-6 items-center justify-center"
-            onPress={() => {
-              void conversationsQuery.refetch();
-              void meQuery.refetch();
-            }}
+            onPress={
+              isUnauthorized
+                ? goToLogin
+                : () => {
+                    void conversationsQuery.refetch();
+                    void meQuery.refetch();
+                  }
+            }
           >
-            <Text className="font-bold text-white">Thử lại</Text>
+            <Text className="font-bold text-white">
+              {isUnauthorized ? 'Đăng nhập lại' : 'Thử lại'}
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (

@@ -15,19 +15,23 @@ export default function DiscoverScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="px-4 py-4 bg-surface border-b border-border z-10">
-        <View className="flex-row items-center space-x-2">
-          <View className="flex-1 flex-row items-center bg-background rounded-lg px-3 py-2 border border-border">
+      <View className="px-4 py-3 bg-surface border-b border-border z-10">
+        <View className="flex-row items-center">
+          <View className="mr-3 h-14 min-w-0 flex-1 flex-row items-center rounded-xl border border-border bg-background px-3">
             <Search size={20} color="#9CA3AF" />
             <TextInput
               className="flex-1 ml-2 text-base text-text-primary h-12"
               placeholder="Tìm kiếm tài sản..."
+              placeholderTextColor={colors.text.muted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
             />
           </View>
-          <TouchableOpacity className="bg-primary-soft p-3 rounded-lg">
+          <TouchableOpacity
+            accessibilityLabel="Bộ lọc"
+            className="h-12 w-12 items-center justify-center rounded-xl border border-border bg-primary-soft"
+          >
             <SlidersHorizontal size={20} color={colors.primary.DEFAULT} />
           </TouchableOpacity>
         </View>

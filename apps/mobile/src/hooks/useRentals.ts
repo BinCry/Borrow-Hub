@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CreateRentalPayload, RentalsService } from '../services/rentals/rentals.service';
 
-export const useRentals = (role: 'renter' | 'owner') =>
+export const useRentals = (role: 'renter' | 'owner', enabled = true) =>
   useQuery({
     queryKey: ['rentals', 'list', role],
     queryFn: () => RentalsService.getMyRentals(role),
+    enabled,
   });
 
 export const useRental = (id: string) =>
