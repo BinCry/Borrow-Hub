@@ -1,5 +1,5 @@
 import { isAxiosError } from 'axios';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import { ArrowRight, CalendarClock, LogIn, WifiOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
@@ -16,7 +16,6 @@ import { colors } from '../../theme/colors';
 import { getRentalStatusPresentation } from '../../utils/status-mappers';
 
 export default function RentalsScreen() {
-  const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const logout = useAuthStore((state) => state.logout);
   const [activeTab, setActiveTab] = useState<'renter' | 'owner'>('renter');
