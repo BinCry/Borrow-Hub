@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "RentLoop",
-    "slug": "rentloop",
+    "slug": "borrow-hub",
     "description": "Thuê và chia sẻ đồ dùng an toàn trong cộng đồng RentLoop.",
     "version": "1.0.0",
     "orientation": "portrait",
