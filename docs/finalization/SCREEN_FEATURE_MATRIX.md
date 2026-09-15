@@ -24,5 +24,10 @@
 | **Chat** | Conversation List | Yes | Partial | Unknown |
 | | Chat Room | Yes | Partial | Unknown |
 | **Notifications**| Notification Center | No | No | Unknown |
+| **Admin** | Admin Dashboard | Yes | Partial | Yes |
+| | User Management | Yes | Partial | Yes |
+| | KYC Review | Yes | Partial | Yes |
+| | Listing Moderation | Yes | Partial | Yes |
+| | Dispute List / Detail Resolution | Yes | Partial | Yes |
 
 *Note: "Backend Ready" column will be updated in Phase 3 after UI ↔ Backend Contract Audit.*

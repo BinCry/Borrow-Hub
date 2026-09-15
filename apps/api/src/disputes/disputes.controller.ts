@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { RoleName } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import {
   AcceptDamageReportDto,
@@ -29,6 +31,17 @@ export class DisputesController {
     @Body() dto: CreateDisputeDto,
   ) {
     return this.disputesService.create(currentUser, dto);
+  }
+
+  @Roles(
+    RoleName.DISPUTE_OFFICER,
+    RoleName.CUSTOMER_SUPPORT,
+    RoleName.ADMIN,
+    RoleName.SUPER_ADMIN,
+  )
+  @Get('admin')
+  listForStaff(@Query() query: DisputeQueryDto) {
+    return this.disputesService.listForStaff(query);
   }
 
   @Get(':disputeId')

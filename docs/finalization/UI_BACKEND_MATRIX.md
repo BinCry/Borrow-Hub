@@ -13,5 +13,9 @@
 | **Profile** | Load User Info | `GET /users/me` | `GET /auth/me` or `/users/me`| TBD | Update auth context |
 | **Listings (Owner)**| View My Assets | `GET /assets/my` | `GET /assets/my` | TBD | Implement |
 | **KYC** | Submit Doc | `POST /kyc/submit` | `POST /kyc` | TBD | Verify abstraction provider |
+| **Admin Dashboard** | View operational metrics | `GET /admin/dashboard` | `GET /admin/dashboard` | Integrated | Mobile admin dashboard implemented |
+| **Admin KYC Review** | Review identity requests | `GET /kyc/admin/requests`, `PATCH /kyc/admin/users/:userId/status` | Same | Integrated | Mobile review screen implemented |
+| **Admin Listing Moderation** | Review submitted listings | `GET /assets?status=PENDING_REVIEW`, `PATCH /assets/:assetId/moderate` | Same | Integrated | Mobile moderation screen implemented |
+| **Admin Dispute Resolution** | List and resolve disputes | `GET /disputes/admin`, `GET /disputes/:id`, `POST /disputes/:id/respond`, `PATCH /disputes/:id/status` | Same | Integrated | Mobile list/detail resolution screens implemented |
 
 *Note: "Contract Match" will be updated as each domain is actively integrated during Phases 5-13.*

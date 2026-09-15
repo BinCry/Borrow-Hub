@@ -18,5 +18,11 @@
 | **Bàn giao (Handover)** | `app/rental/[id]/handover.tsx`| Checklist bàn giao, chụp ảnh | Cả hai | NEEDS_POLISH | 🟨 | 🟨 | ❌ | ❌ |
 | **Mã QR (QR Code)** | `app/rental/[id]/qr.tsx` | Quét QR xác nhận bàn giao | Cả hai | NEEDS_POLISH | 🟨 | 🟨 | ❌ | ❌ |
 | **Trả đồ (Return)** | `app/rental/[id]/return.tsx` | Đánh giá tình trạng lúc trả, xác nhận | Cả hai | NEEDS_POLISH | 🟨 | 🟨 | ❌ | ❌ |
+| **Admin Dashboard** | `app/admin/index.tsx` | Tổng quan vận hành, điều hướng quản trị | Admin | FUNCTIONAL | 🟨 | 🟨 | 🟨 | ✅ |
+| **Admin Users** | `app/admin/users.tsx` | Xem người dùng, khóa/mở tài khoản | Admin | FUNCTIONAL | 🟨 | 🟨 | 🟨 | ✅ |
+| **Admin KYC Review** | `app/admin/kyc.tsx` | Duyệt/từ chối hồ sơ xác minh danh tính | Admin | FUNCTIONAL | 🟨 | 🟨 | 🟨 | ✅ |
+| **Admin Listing Moderation** | `app/admin/listings.tsx` | Duyệt/từ chối bài đăng tài sản | Admin | FUNCTIONAL | 🟨 | 🟨 | 🟨 | ✅ |
+| **Admin Dispute List** | `app/admin/disputes/index.tsx` | Lọc và xem danh sách tranh chấp | Admin/Support | FUNCTIONAL | 🟨 | 🟨 | 🟨 | ✅ |
+| **Admin Dispute Detail** | `app/admin/disputes/[id].tsx` | Xem timeline, bằng chứng và cập nhật trạng thái xử lý tranh chấp | Admin/Support | FUNCTIONAL | 🟨 | 🟨 | 🟨 | ✅ |
 
 *(Note: 🟨 = Đã có nền tảng nhưng cần tinh chỉnh thêm theo tiêu chuẩn mới, ❌ = Chưa hoàn thiện, ✅ = Hoàn thiện)*

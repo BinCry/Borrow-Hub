@@ -192,6 +192,14 @@ export class DisputesService {
     });
   }
 
+  listForStaff(query: DisputeQueryDto) {
+    return this.prisma.dispute.findMany({
+      where: query.status ? { status: query.status } : undefined,
+      include: this.disputeInclude(),
+      orderBy: [{ createdAt: 'desc' }],
+    });
+  }
+
   async getById(disputeId: string, currentUser: AuthenticatedUser) {
     return this.findAccessibleDispute(disputeId, currentUser);
   }

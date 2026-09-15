@@ -174,6 +174,101 @@ export type ModerateAssetPayload = {
   reason?: string;
 };
 
+export type AdminDisputeStatus =
+  | 'OPEN'
+  | 'WAITING_RESPONSE'
+  | 'UNDER_REVIEW'
+  | 'RESOLVED'
+  | 'REJECTED'
+  | 'CLOSED';
+
+export type AdminDisputeEventType =
+  | 'OPENED'
+  | 'RESPONSE_ADDED'
+  | 'EVIDENCE_ATTACHED'
+  | 'ASSIGNED'
+  | 'STATUS_CHANGED'
+  | 'RESOLVED'
+  | 'NOTE';
+
+type AdminDisputeUser = {
+  id: string;
+  fullName: string;
+  email?: string | null;
+};
+
+export type AdminDispute = {
+  id: string;
+  rentalId: string;
+  openedById: string;
+  assignedToId?: string | null;
+  reason: string;
+  description: string;
+  status: AdminDisputeStatus;
+  resolutionSummary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string | null;
+  rental: {
+    id: string;
+    ownerId: string;
+    renterId: string;
+    status: string;
+    startAt?: string;
+    endAt?: string;
+    asset: {
+      id: string;
+      title: string;
+      pricePerDay?: number;
+    };
+    owner: AdminDisputeUser;
+    renter: AdminDisputeUser;
+    handovers?: {
+      id: string;
+      type: string;
+      status: string;
+      confirmedAt?: string | null;
+      createdAt: string;
+    }[];
+    payout?: {
+      id: string;
+      status: string;
+      amount?: number;
+    } | null;
+  };
+  openedBy: AdminDisputeUser;
+  assignedTo?: AdminDisputeUser | null;
+  evidences: {
+    id: string;
+    createdAt: string;
+    evidence: {
+      id: string;
+      type: string;
+      fileUrl: string;
+      createdAt: string;
+    };
+    uploadedBy: AdminDisputeUser;
+  }[];
+  events: {
+    id: string;
+    eventType: AdminDisputeEventType;
+    content: string;
+    metadata?: Record<string, unknown> | null;
+    createdAt: string;
+    actor?: AdminDisputeUser | null;
+  }[];
+};
+
+export type UpdateDisputeStatusPayload = {
+  status: AdminDisputeStatus;
+  resolutionSummary?: string;
+  note?: string;
+};
+
+export type RespondDisputePayload = {
+  content: string;
+};
+
 export const AdminService = {
   async getDashboard() {
     const response = await apiClient.get<AdminDashboard>('/admin/dashboard');
@@ -225,6 +320,34 @@ export const AdminService = {
 
   async moderateAsset(assetId: string, payload: ModerateAssetPayload) {
     const response = await apiClient.patch<AdminAsset>(`/assets/${assetId}/moderate`, payload);
+    return response.data;
+  },
+
+  async listDisputes(status?: AdminDisputeStatus) {
+    const response = await apiClient.get<AdminDispute[]>('/disputes/admin', {
+      params: status ? { status } : undefined,
+    });
+    return response.data;
+  },
+
+  async getDispute(disputeId: string) {
+    const response = await apiClient.get<AdminDispute>(`/disputes/${disputeId}`);
+    return response.data;
+  },
+
+  async respondDispute(disputeId: string, payload: RespondDisputePayload) {
+    const response = await apiClient.post<AdminDispute>(
+      `/disputes/${disputeId}/respond`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async updateDisputeStatus(disputeId: string, payload: UpdateDisputeStatusPayload) {
+    const response = await apiClient.patch<AdminDispute>(
+      `/disputes/${disputeId}/status`,
+      payload,
+    );
     return response.data;
   },
 };

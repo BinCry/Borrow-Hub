@@ -6,6 +6,7 @@ import {
   Banknote,
   ChevronLeft,
   PackageCheck,
+  ShieldAlert,
   ShieldCheck,
   Users,
 } from 'lucide-react-native';
@@ -108,6 +109,7 @@ export default function AdminDashboardScreen() {
           onUsersPress={() => router.push('/admin/users' as any)}
           onKycPress={() => router.push('/admin/kyc' as any)}
           onListingsPress={() => router.push('/admin/listings' as any)}
+          onDisputesPress={() => router.push('/admin/disputes' as any)}
           onCreateStaffPress={() => router.push('/admin/create-user' as any)}
         />
       )}
@@ -123,6 +125,7 @@ function DashboardContent({
   onUsersPress,
   onKycPress,
   onListingsPress,
+  onDisputesPress,
   onCreateStaffPress,
 }: {
   data: AdminDashboard;
@@ -132,6 +135,7 @@ function DashboardContent({
   onUsersPress: () => void;
   onKycPress: () => void;
   onListingsPress: () => void;
+  onDisputesPress: () => void;
   onCreateStaffPress: () => void;
 }) {
   return (
@@ -158,6 +162,12 @@ function DashboardContent({
           label="Duyệt bài"
           value={`${data.marketplace.activeListings}`}
           onPress={onListingsPress}
+        />
+        <AdminAction
+          icon={ShieldAlert}
+          label="Tranh chấp"
+          value={`${data.risk.openDisputes}`}
+          onPress={onDisputesPress}
         />
         {canCreateStaff ? (
           <AdminAction
