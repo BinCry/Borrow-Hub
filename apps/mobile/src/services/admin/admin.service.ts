@@ -269,6 +269,168 @@ export type RespondDisputePayload = {
   content: string;
 };
 
+export type AdminReviewStatus = 'PUBLISHED' | 'HIDDEN';
+
+export type AdminReview = {
+  id: string;
+  rentalId: string;
+  reviewerId: string;
+  revieweeId: string;
+  rating: number;
+  comment?: string | null;
+  status: AdminReviewStatus;
+  createdAt: string;
+  updatedAt: string;
+  reviewer?: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+  };
+  reviewee?: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+  };
+  rental?: {
+    id: string;
+    assetId: string;
+  };
+};
+
+export type AdminReportStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED' | 'CLOSED';
+export type AdminReportTargetType = 'USER' | 'ASSET' | 'REVIEW' | 'CHAT_MESSAGE';
+export type AdminReportAction =
+  | 'NONE'
+  | 'WARN_REPORTED_USER'
+  | 'SUSPEND_REPORTED_USER'
+  | 'HIDE_ASSET'
+  | 'HIDE_REVIEW'
+  | 'HIDE_CHAT_MESSAGE';
+
+export type AdminReport = {
+  id: string;
+  reporterId: string;
+  targetType: AdminReportTargetType;
+  targetId: string;
+  reason: string;
+  description: string;
+  status: AdminReportStatus;
+  assignedToId?: string | null;
+  resolutionSummary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string | null;
+  reporter?: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+  };
+  assignedTo?: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+  } | null;
+};
+
+export type UpdateReportStatusPayload = {
+  status: AdminReportStatus;
+  action?: AdminReportAction;
+  actionNote?: string;
+  resolutionSummary?: string;
+};
+
+export type AdminPaymentStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'REFUNDED'
+  | 'PARTIALLY_REFUNDED';
+export type AdminRefundStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REJECTED';
+export type AdminPayoutStatus = 'PENDING' | 'SCHEDULED' | 'PAID' | 'BLOCKED' | 'CANCELLED';
+
+export type AdminPayment = {
+  id: string;
+  rentalId: string;
+  payerId: string;
+  provider: string;
+  providerTransactionId: string;
+  amount: number;
+  currency: string;
+  status: AdminPaymentStatus;
+  paidAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  payer?: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+  };
+  refunds: {
+    id: string;
+    paymentId: string;
+    amount: number;
+    reason: string;
+    status: AdminRefundStatus;
+    createdAt: string;
+    completedAt?: string | null;
+  }[];
+  rental: {
+    id: string;
+    ownerId: string;
+    asset: {
+      id: string;
+      title: string;
+    };
+    owner: {
+      id: string;
+      fullName: string;
+      email?: string | null;
+    };
+    payout?: {
+      id: string;
+      status: AdminPayoutStatus;
+    } | null;
+  };
+};
+
+export type AdminPayout = {
+  id: string;
+  rentalId: string;
+  ownerId: string;
+  grossAmount: number;
+  commissionAmount: number;
+  netAmount: number;
+  status: AdminPayoutStatus;
+  scheduledAt?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  owner?: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+  };
+  rental: {
+    id: string;
+    asset: {
+      id: string;
+      title: string;
+    };
+    renter: {
+      id: string;
+      fullName: string;
+      email?: string | null;
+    };
+    payments?: AdminPayment[];
+  };
+};
+
+export type CreateRefundPayload = {
+  amount: number;
+  reason: string;
+};
+
 export const AdminService = {
   async getDashboard() {
     const response = await apiClient.get<AdminDashboard>('/admin/dashboard');
@@ -348,6 +510,72 @@ export const AdminService = {
       `/disputes/${disputeId}/status`,
       payload,
     );
+    return response.data;
+  },
+
+  async listReviews() {
+    const response = await apiClient.get<AdminReview[]>('/reviews/admin/all');
+    return response.data;
+  },
+
+  async moderateReview(reviewId: string, status: AdminReviewStatus) {
+    const response = await apiClient.patch<AdminReview>(`/reviews/${reviewId}/moderate`, {
+      status,
+    });
+    return response.data;
+  },
+
+  async listReports(status?: AdminReportStatus) {
+    const response = await apiClient.get<AdminReport[]>('/reports/my', {
+      params: {
+        role: 'all',
+        ...(status ? { status } : {}),
+      },
+    });
+    return response.data;
+  },
+
+  async updateReportStatus(reportId: string, payload: UpdateReportStatusPayload) {
+    const response = await apiClient.patch<AdminReport>(`/reports/${reportId}/status`, payload);
+    return response.data;
+  },
+
+  async listPayments(status?: AdminPaymentStatus) {
+    const response = await apiClient.get<AdminPayment[]>('/finance/payments/my', {
+      params: {
+        role: 'all',
+        ...(status ? { status } : {}),
+      },
+    });
+    return response.data;
+  },
+
+  async createRefund(paymentId: string, payload: CreateRefundPayload) {
+    const response = await apiClient.post<AdminPayment>(
+      `/finance/payments/${paymentId}/refunds`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async updateRefundStatus(refundId: string, status: AdminRefundStatus) {
+    const response = await apiClient.patch<AdminPayment>(`/finance/refunds/${refundId}/status`, {
+      status,
+    });
+    return response.data;
+  },
+
+  async listPayouts(status?: AdminPayoutStatus) {
+    const response = await apiClient.get<AdminPayout[]>('/finance/payouts/my', {
+      params: status ? { status } : undefined,
+    });
+    return response.data;
+  },
+
+  async updatePayoutStatus(payoutId: string, status: AdminPayoutStatus) {
+    const response = await apiClient.patch<AdminPayout>(`/finance/payouts/${payoutId}/status`, {
+      status,
+    });
     return response.data;
   },
 };

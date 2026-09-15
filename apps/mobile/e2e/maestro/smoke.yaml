@@ -1,0 +1,5 @@
+appId: com.rentloop.app
+---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd

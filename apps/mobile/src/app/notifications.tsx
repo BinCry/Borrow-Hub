@@ -27,6 +27,7 @@ export default function NotificationsScreen() {
     queryKey: ['notifications'],
     queryFn: async () =>
       (await apiClient.get<Notification[]>('/notifications')).data,
+    refetchInterval: 30_000,
   });
   const markReadMutation = useMutation({
     mutationFn: (id: string) => apiClient.post(`/notifications/${id}/read`),

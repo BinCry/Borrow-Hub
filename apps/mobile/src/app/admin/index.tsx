@@ -5,9 +5,11 @@ import {
   AlertTriangle,
   Banknote,
   ChevronLeft,
+  Flag,
   PackageCheck,
   ShieldAlert,
   ShieldCheck,
+  Star,
   Users,
 } from 'lucide-react-native';
 import {
@@ -110,6 +112,9 @@ export default function AdminDashboardScreen() {
           onKycPress={() => router.push('/admin/kyc' as any)}
           onListingsPress={() => router.push('/admin/listings' as any)}
           onDisputesPress={() => router.push('/admin/disputes' as any)}
+          onReviewsPress={() => router.push('/admin/reviews' as any)}
+          onReportsPress={() => router.push('/admin/reports' as any)}
+          onFinancePress={() => router.push('/admin/finance' as any)}
           onCreateStaffPress={() => router.push('/admin/create-user' as any)}
         />
       )}
@@ -126,6 +131,9 @@ function DashboardContent({
   onKycPress,
   onListingsPress,
   onDisputesPress,
+  onReviewsPress,
+  onReportsPress,
+  onFinancePress,
   onCreateStaffPress,
 }: {
   data: AdminDashboard;
@@ -136,6 +144,9 @@ function DashboardContent({
   onKycPress: () => void;
   onListingsPress: () => void;
   onDisputesPress: () => void;
+  onReviewsPress: () => void;
+  onReportsPress: () => void;
+  onFinancePress: () => void;
   onCreateStaffPress: () => void;
 }) {
   return (
@@ -168,6 +179,24 @@ function DashboardContent({
           label="Tranh chấp"
           value={`${data.risk.openDisputes}`}
           onPress={onDisputesPress}
+        />
+        <AdminAction
+          icon={Star}
+          label="Review"
+          value="Mod"
+          onPress={onReviewsPress}
+        />
+        <AdminAction
+          icon={Flag}
+          label="Report"
+          value={`${data.risk.openReports}`}
+          onPress={onReportsPress}
+        />
+        <AdminAction
+          icon={Banknote}
+          label="Tài chính"
+          value={formatMoney(data.finance.gmv)}
+          onPress={onFinancePress}
         />
         {canCreateStaff ? (
           <AdminAction

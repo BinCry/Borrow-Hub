@@ -22,7 +22,11 @@ import '../global.css';
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { apiClient } from '../services/api/client';
 import { AssetsService } from '../services/assets/assets.service';
-import { ChatService } from '../services/chat/chat.service';
+import { ChatService, type ChatMessage, type Conversation } from '../services/chat/chat.service';
+import {
+  connectRealtime,
+  RealtimeNotificationPayload,
+} from '../services/realtime/realtime.service';
 import { RentalsService } from '../services/rentals/rentals.service';
 import { useAuthStore } from '../store/authStore';
 import { colors } from '../theme/colors';
@@ -34,6 +38,13 @@ SplashScreen.setOptions({ duration: 320, fade: true });
 const HOME_FILTERS = { limit: 10 } as const;
 const STARTUP_WARMUP_LIMIT_MS = 1_400;
 const MINIMUM_NATIVE_SPLASH_MS = 420;
+
+type AppNotification = {
+  id: string;
+  readAt?: string | null;
+  createdAt: string;
+  [key: string]: unknown;
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -173,6 +184,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <RealtimeBridge />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="auth" />
@@ -183,6 +195,106 @@ export default function RootLayout() {
       </ThemeProvider>
     </QueryClientProvider>
   );
+}
+
+function RealtimeBridge() {
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) {
+      return;
+    }
+
+    const connection = connectRealtime(accessToken, {
+      onChatMessage: ({ conversationId, message }) => {
+        if (!isChatMessage(message)) {
+          void queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+          return;
+        }
+
+        queryClient.setQueryData<ChatMessage[]>(
+          ['messages', conversationId],
+          (current = []) => mergeById(current, message),
+        );
+        void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        void queryClient.invalidateQueries({ queryKey: ['conversations', conversationId] });
+      },
+      onConversationCreated: ({ conversation }) => {
+        if (!isConversation(conversation)) {
+          void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          return;
+        }
+
+        queryClient.setQueryData<Conversation[]>(
+          ['conversations'],
+          (current = []) => mergeById(current, conversation),
+        );
+      },
+      onNotificationCreated: (payload) => {
+        updateNotificationCache(payload, 'created');
+      },
+      onNotificationRead: (payload) => {
+        updateNotificationCache(payload, 'read');
+      },
+      onNotificationsReadAll: () => {
+        const readAt = new Date().toISOString();
+        queryClient.setQueryData<AppNotification[]>(
+          ['notifications'],
+          (current = []) => current.map((item) => ({ ...item, readAt })),
+        );
+      },
+    });
+
+    return () => {
+      connection.disconnect();
+    };
+  }, [accessToken, isAuthenticated]);
+
+  return null;
+}
+
+function updateNotificationCache(
+  payload: RealtimeNotificationPayload,
+  mode: 'created' | 'read',
+) {
+  const notification = payload.notification;
+
+  if (!isNotification(notification)) {
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    return;
+  }
+
+  queryClient.setQueryData<AppNotification[]>(
+    ['notifications'],
+    (current = []) => {
+      const next = mergeById(current, notification);
+      return mode === 'created'
+        ? next.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+        : next;
+    },
+  );
+}
+
+function mergeById<T extends { id: string }>(current: T[], item: T) {
+  const withoutDuplicate = current.filter((candidate) => candidate.id !== item.id);
+  return [...withoutDuplicate, item];
+}
+
+function isChatMessage(value: unknown): value is ChatMessage {
+  return isObjectWithId(value) && typeof value.conversationId === 'string';
+}
+
+function isConversation(value: unknown): value is Conversation {
+  return isObjectWithId(value) && typeof value.rentalId === 'string';
+}
+
+function isNotification(value: unknown): value is AppNotification {
+  return isObjectWithId(value) && typeof value.createdAt === 'string';
+}
+
+function isObjectWithId(value: unknown): value is { id: string; [key: string]: unknown } {
+  return typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'string';
 }
 
 function LaunchExperience({ onFinished }: { onFinished: () => void }) {

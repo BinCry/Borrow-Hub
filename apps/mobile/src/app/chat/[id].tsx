@@ -34,7 +34,7 @@ export default function ChatScreen() {
     queryKey: ['messages', id],
     queryFn: () => ChatService.listMessages(id),
     enabled: Boolean(id),
-    refetchInterval: 5_000,
+    refetchInterval: 30_000,
   });
   const meQuery = useQuery({
     queryKey: ['me'],

@@ -3,6 +3,7 @@ import { NotificationType, Prisma, RentalStatus } from '@prisma/client';
 import { ChatTimelineService } from '../chat/chat-timeline.service';
 import { PrismaService } from '../database/prisma.service';
 import { RunReminderJobsDto } from './notifications.dto';
+import { NotificationsEventsService } from './notifications-events.service';
 
 type NotificationMetadata = Record<string, string | number | boolean | null>;
 
@@ -24,6 +25,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly chatTimelineService: ChatTimelineService,
+    private readonly notificationsEventsService: NotificationsEventsService,
   ) {}
 
   async createMany(
@@ -36,13 +38,23 @@ export class NotificationsService {
 
     const normalizedPayload = this.normalizePayload(payload);
 
-    await this.prisma.notification.createMany({
-      data: userIds.map((userId) => ({
-        userId,
-        ...normalizedPayload,
-        metadata: normalizedPayload.metadata as Prisma.InputJsonValue | undefined,
-      })),
-    });
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const notification = await this.prisma.notification.create({
+          data: {
+            userId,
+            ...normalizedPayload,
+            metadata:
+              normalizedPayload.metadata as Prisma.InputJsonValue | undefined,
+          },
+        });
+
+        this.notificationsEventsService.emitCreated(
+          userId,
+          this.serializeNotification(notification),
+        );
+      }),
+    );
   }
 
   async createManyUnique(
@@ -70,7 +82,7 @@ export class NotificationsService {
         continue;
       }
 
-      await this.prisma.notification.create({
+      const notification = await this.prisma.notification.create({
         data: {
           userId,
           ...normalizedPayload,
@@ -78,6 +90,10 @@ export class NotificationsService {
             normalizedPayload.metadata as Prisma.InputJsonValue | undefined,
         },
       });
+      this.notificationsEventsService.emitCreated(
+        userId,
+        this.serializeNotification(notification),
+      );
       createdCount += 1;
     }
 
@@ -109,7 +125,9 @@ export class NotificationsService {
       data: { readAt: new Date() },
     });
 
-    return this.serializeNotification(updated);
+    const serialized = this.serializeNotification(updated);
+    this.notificationsEventsService.emitRead(userId, serialized);
+    return serialized;
   }
 
   async markAllAsRead(userId: string): Promise<{ count: number }> {
@@ -122,6 +140,8 @@ export class NotificationsService {
         readAt: new Date(),
       },
     });
+
+    this.notificationsEventsService.emitReadAll(userId);
 
     return { count: result.count };
   }

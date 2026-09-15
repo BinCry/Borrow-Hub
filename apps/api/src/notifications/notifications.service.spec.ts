@@ -23,6 +23,12 @@ describe('NotificationsService', () => {
     appendSystemMessageForRental: jest.fn(),
   };
 
+  const notificationsEventsService = {
+    emitCreated: jest.fn(),
+    emitRead: jest.fn(),
+    emitReadAll: jest.fn(),
+  };
+
   let service: NotificationsService;
 
   beforeEach(() => {
@@ -49,6 +55,7 @@ describe('NotificationsService', () => {
     service = new NotificationsService(
       prisma as never,
       chatTimelineService as never,
+      notificationsEventsService as never,
     );
   });
 
@@ -68,6 +75,37 @@ describe('NotificationsService', () => {
           reminderType: NotificationType.RENTAL_TOMORROW,
         },
       },
+    );
+  });
+
+  it('emits realtime events when notifications are created', async () => {
+    prisma.notification.create.mockResolvedValueOnce({
+      id: 'notification-2',
+      userId: 'user-1',
+      type: NotificationType.SYSTEM,
+      title: 'Realtime',
+      content: 'Realtime notification',
+      metadata: null,
+      referenceType: null,
+      referenceId: null,
+      readAt: null,
+      createdAt: new Date('2026-08-12T00:00:00.000Z'),
+      updatedAt: new Date('2026-08-12T00:00:00.000Z'),
+    });
+
+    await service.createMany(['user-1'], {
+      type: NotificationType.SYSTEM,
+      title: 'Realtime',
+      content: 'Realtime notification',
+    });
+
+    expect(notificationsEventsService.emitCreated).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        id: 'notification-2',
+        title: 'Realtime',
+        body: 'Realtime notification',
+      }),
     );
   });
 
