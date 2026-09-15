@@ -105,6 +105,7 @@ export default function AdminDashboardScreen() {
           refreshing={dashboardQuery.isRefetching || meQuery.isRefetching}
           onRefresh={refetch}
           onUsersPress={() => router.push('/admin/users' as any)}
+          onKycPress={() => router.push('/admin/kyc' as any)}
           onCreateStaffPress={() => router.push('/admin/create-user' as any)}
         />
       )}
@@ -118,6 +119,7 @@ function DashboardContent({
   refreshing,
   onRefresh,
   onUsersPress,
+  onKycPress,
   onCreateStaffPress,
 }: {
   data: AdminDashboard;
@@ -125,6 +127,7 @@ function DashboardContent({
   refreshing: boolean;
   onRefresh: () => void;
   onUsersPress: () => void;
+  onKycPress: () => void;
   onCreateStaffPress: () => void;
 }) {
   return (
@@ -139,6 +142,12 @@ function DashboardContent({
           label="Người dùng"
           value={`${data.users.total}`}
           onPress={onUsersPress}
+        />
+        <AdminAction
+          icon={ShieldCheck}
+          label="Duyệt KYC"
+          value={`${data.users.total - data.users.verified}`}
+          onPress={onKycPress}
         />
         {canCreateStaff ? (
           <AdminAction
@@ -225,7 +234,7 @@ function AdminAction({
 }) {
   return (
     <TouchableOpacity
-      className="min-h-24 flex-1 justify-between rounded-2xl border border-border bg-surface p-4"
+      className="min-h-24 w-[47%] justify-between rounded-2xl border border-border bg-surface p-4"
       onPress={onPress}
     >
       <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-soft">

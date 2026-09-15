@@ -10,6 +10,13 @@ export type AdminRole =
   | 'SUPER_ADMIN';
 
 export type AdminUserStatus = 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'DELETED';
+export type KycVerificationStatus =
+  | 'NOT_STARTED'
+  | 'PENDING'
+  | 'VERIFIED'
+  | 'REJECTED'
+  | 'REQUIRES_REVIEW';
+export type KycFaceMatchStatus = 'MATCHED' | 'NOT_MATCHED' | 'REVIEW_REQUIRED';
 
 export type AdminDashboard = {
   users: {
@@ -84,6 +91,38 @@ export type CreateInternalUserPayload = {
   roles: AdminRole[];
 };
 
+export type AdminKycRequest = {
+  id: string;
+  userId: string;
+  provider: string;
+  providerReference?: string | null;
+  verificationStatus: KycVerificationStatus;
+  documentType: 'CCCD' | 'PASSPORT';
+  maskedDocumentNumber: string;
+  faceMatchStatus: KycFaceMatchStatus;
+  nameVerified: boolean;
+  dateOfBirthVerified: boolean;
+  verifiedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    trustScore: number;
+  };
+  documentFrontUrl?: string | null;
+  documentBackUrl?: string | null;
+  selfieUrl?: string | null;
+};
+
+export type ReviewKycPayload = {
+  verificationStatus: KycVerificationStatus;
+  faceMatchStatus?: KycFaceMatchStatus;
+  reviewNote?: string;
+};
+
 export const AdminService = {
   async getDashboard() {
     const response = await apiClient.get<AdminDashboard>('/admin/dashboard');
@@ -104,6 +143,21 @@ export const AdminService = {
 
   async createInternalUser(payload: CreateInternalUserPayload) {
     const response = await apiClient.post<AdminUser>('/admin/internal-users', payload);
+    return response.data;
+  },
+
+  async listKycRequests(status?: KycVerificationStatus) {
+    const response = await apiClient.get<AdminKycRequest[]>('/kyc/admin/requests', {
+      params: status ? { status } : undefined,
+    });
+    return response.data;
+  },
+
+  async reviewKycRequest(userId: string, payload: ReviewKycPayload) {
+    const response = await apiClient.patch<AdminKycRequest>(
+      `/kyc/admin/users/${userId}/status`,
+      payload,
+    );
     return response.data;
   },
 };
