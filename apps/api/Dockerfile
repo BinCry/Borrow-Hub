@@ -10,6 +10,7 @@ FROM base AS deps
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc ./
 COPY apps/api/package.json apps/api/package.json
+COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
