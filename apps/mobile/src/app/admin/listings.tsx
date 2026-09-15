@@ -89,6 +89,7 @@ export default function AdminListingsScreen() {
       AdminService.moderateAsset(assetId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {

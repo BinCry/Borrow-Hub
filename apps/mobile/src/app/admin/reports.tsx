@@ -74,6 +74,7 @@ export default function AdminReportsScreen() {
       AdminService.updateReportStatus(reportId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {

@@ -171,6 +171,9 @@ export default function CreateListingScreen() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['my-assets'] });
       void queryClient.invalidateQueries({ queryKey: ['assets'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
       Alert.alert(
         'Đã gửi bài đăng',
         'Bài đăng đang chờ kiểm duyệt trước khi xuất hiện trên trang khám phá.',

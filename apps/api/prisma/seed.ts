@@ -109,23 +109,23 @@ async function seedSystemConfigs() {
 async function seedCategories() {
   const electronics = await prisma.category.upsert({
     where: { slug: 'electronics' },
-    update: { name: 'Electronics', status: CategoryStatus.ACTIVE },
-    create: { name: 'Electronics', slug: 'electronics', status: CategoryStatus.ACTIVE },
+    update: { name: 'Đồ điện tử', status: CategoryStatus.ACTIVE },
+    create: { name: 'Đồ điện tử', slug: 'electronics', status: CategoryStatus.ACTIVE },
   });
 
   const tools = await prisma.category.upsert({
     where: { slug: 'tools' },
-    update: { name: 'Tools', status: CategoryStatus.ACTIVE },
-    create: { name: 'Tools', slug: 'tools', status: CategoryStatus.ACTIVE },
+    update: { name: 'Dụng cụ', status: CategoryStatus.ACTIVE },
+    create: { name: 'Dụng cụ', slug: 'tools', status: CategoryStatus.ACTIVE },
   });
 
   const categorySeeds = [
-    { slug: 'camera', name: 'Camera', parentId: electronics.id },
-    { slug: 'projector', name: 'Projector', parentId: electronics.id },
-    { slug: 'speaker', name: 'Speaker', parentId: electronics.id },
-    { slug: 'drill', name: 'Drill', parentId: tools.id },
-    { slug: 'saw', name: 'Saw', parentId: tools.id },
-    { slug: 'measuring-tool', name: 'Measuring Tool', parentId: tools.id },
+    { slug: 'camera', name: 'Máy ảnh', parentId: electronics.id },
+    { slug: 'projector', name: 'Máy chiếu', parentId: electronics.id },
+    { slug: 'speaker', name: 'Loa', parentId: electronics.id },
+    { slug: 'drill', name: 'Máy khoan', parentId: tools.id },
+    { slug: 'saw', name: 'Máy cưa', parentId: tools.id },
+    { slug: 'measuring-tool', name: 'Dụng cụ đo lường', parentId: tools.id },
   ];
 
   for (const category of categorySeeds) {

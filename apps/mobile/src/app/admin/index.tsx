@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { useAdminQueueCounts } from '../../hooks/useAdminQueueCounts';
 import { apiClient } from '../../services/api/client';
 import { AdminDashboard, AdminService } from '../../services/admin/admin.service';
 import { colors } from '../../theme/colors';
@@ -58,24 +59,12 @@ export default function AdminDashboardScreen() {
     queryFn: AdminService.getDashboard,
     enabled: isAdmin(meQuery.data),
   });
-  const pendingKycQuery = useQuery({
-    queryKey: ['admin', 'kyc', 'PENDING'],
-    queryFn: () => AdminService.listKycRequests('PENDING'),
-    enabled: isAdmin(meQuery.data),
-  });
-  const reviewKycQuery = useQuery({
-    queryKey: ['admin', 'kyc', 'REQUIRES_REVIEW'],
-    queryFn: () => AdminService.listKycRequests('REQUIRES_REVIEW'),
-    enabled: isAdmin(meQuery.data),
-  });
-  const pendingKycCount =
-    (pendingKycQuery.data?.length ?? 0) + (reviewKycQuery.data?.length ?? 0);
+  const queueCounts = useAdminQueueCounts({ enabled: isAdmin(meQuery.data) });
 
   const refetch = () => {
     void meQuery.refetch();
     void dashboardQuery.refetch();
-    void pendingKycQuery.refetch();
-    void reviewKycQuery.refetch();
+    queueCounts.refetch();
   };
 
   return (
@@ -119,14 +108,9 @@ export default function AdminDashboardScreen() {
       ) : (
         <DashboardContent
           data={dashboardQuery.data}
-          pendingKycCount={pendingKycCount}
+          queueCounts={queueCounts.counts}
           canCreateStaff={isSuperAdmin(meQuery.data)}
-          refreshing={
-            dashboardQuery.isRefetching ||
-            meQuery.isRefetching ||
-            pendingKycQuery.isRefetching ||
-            reviewKycQuery.isRefetching
-          }
+          refreshing={dashboardQuery.isRefetching || meQuery.isRefetching || queueCounts.isRefetching}
           onRefresh={refetch}
           onUsersPress={() => router.push('/admin/users' as any)}
           onKycPress={() => router.push('/admin/kyc' as any)}
@@ -144,7 +128,7 @@ export default function AdminDashboardScreen() {
 
 function DashboardContent({
   data,
-  pendingKycCount,
+  queueCounts,
   canCreateStaff,
   refreshing,
   onRefresh,
@@ -158,7 +142,7 @@ function DashboardContent({
   onCreateStaffPress,
 }: {
   data: AdminDashboard;
-  pendingKycCount: number;
+  queueCounts: ReturnType<typeof useAdminQueueCounts>['counts'];
   canCreateStaff: boolean;
   refreshing: boolean;
   onRefresh: () => void;
@@ -187,19 +171,19 @@ function DashboardContent({
         <AdminAction
           icon={ShieldCheck}
           label="Duyệt KYC"
-          value={`${pendingKycCount}`}
+          value={`${queueCounts.pendingKyc}`}
           onPress={onKycPress}
         />
         <AdminAction
           icon={PackageCheck}
           label="Duyệt bài"
-          value={`${data.marketplace.activeListings}`}
+          value={`${queueCounts.pendingListings}`}
           onPress={onListingsPress}
         />
         <AdminAction
           icon={ShieldAlert}
           label="Tranh chấp"
-          value={`${data.risk.openDisputes}`}
+          value={`${queueCounts.openDisputes}`}
           onPress={onDisputesPress}
         />
         <AdminAction
@@ -211,7 +195,7 @@ function DashboardContent({
         <AdminAction
           icon={Flag}
           label="Report"
-          value={`${data.risk.openReports}`}
+          value={`${queueCounts.openReports}`}
           onPress={onReportsPress}
         />
         <AdminAction

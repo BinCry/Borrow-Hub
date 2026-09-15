@@ -79,6 +79,7 @@ export default function AdminKycScreen() {
       AdminService.reviewKycRequest(userId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'kyc'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     },

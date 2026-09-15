@@ -74,6 +74,7 @@ export default function AdminDisputeDetailScreen() {
       setNote('');
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dispute', id] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'disputes'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {

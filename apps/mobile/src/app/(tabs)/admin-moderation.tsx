@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { useAdminQueueCounts } from '../../hooks/useAdminQueueCounts';
 import { AdminDashboard, AdminService } from '../../services/admin/admin.service';
 import { colors } from '../../theme/colors';
 
@@ -28,21 +29,11 @@ export default function AdminModerationTab() {
     queryKey: ['admin', 'dashboard'],
     queryFn: AdminService.getDashboard,
   });
-  const pendingKycQuery = useQuery({
-    queryKey: ['admin', 'kyc', 'PENDING'],
-    queryFn: () => AdminService.listKycRequests('PENDING'),
-  });
-  const reviewKycQuery = useQuery({
-    queryKey: ['admin', 'kyc', 'REQUIRES_REVIEW'],
-    queryFn: () => AdminService.listKycRequests('REQUIRES_REVIEW'),
-  });
-  const pendingKycCount =
-    (pendingKycQuery.data?.length ?? 0) + (reviewKycQuery.data?.length ?? 0);
+  const queueCounts = useAdminQueueCounts();
 
   const refetch = () => {
     void dashboardQuery.refetch();
-    void pendingKycQuery.refetch();
-    void reviewKycQuery.refetch();
+    queueCounts.refetch();
   };
 
   return (
@@ -77,12 +68,8 @@ export default function AdminModerationTab() {
       ) : (
         <ModerationContent
           data={dashboardQuery.data}
-          pendingKycCount={pendingKycCount}
-          refreshing={
-            dashboardQuery.isRefetching ||
-            pendingKycQuery.isRefetching ||
-            reviewKycQuery.isRefetching
-          }
+          queueCounts={queueCounts.counts}
+          refreshing={dashboardQuery.isRefetching || queueCounts.isRefetching}
           onRefresh={refetch}
           onKyc={() => router.push('/admin/kyc' as never)}
           onListings={() => router.push('/admin/listings' as never)}
@@ -97,7 +84,7 @@ export default function AdminModerationTab() {
 
 function ModerationContent({
   data,
-  pendingKycCount,
+  queueCounts,
   refreshing,
   onRefresh,
   onKyc,
@@ -107,7 +94,7 @@ function ModerationContent({
   onUsers,
 }: {
   data: AdminDashboard;
-  pendingKycCount: number;
+  queueCounts: ReturnType<typeof useAdminQueueCounts>['counts'];
   refreshing: boolean;
   onRefresh: () => void;
   onKyc: () => void;
@@ -126,21 +113,21 @@ function ModerationContent({
         icon={ShieldCheck}
         title="Duyệt xác thực danh tính"
         description="Xem hồ sơ KYC, đối chiếu giấy tờ và quyết định verified/rejected."
-        count={`${pendingKycCount}`}
+        count={`${queueCounts.pendingKyc}`}
         onPress={onKyc}
       />
       <QueueCard
         icon={PackageCheck}
         title="Duyệt bài đăng"
         description="Kiểm tra tài sản, nội dung, ảnh và trạng thái bài đăng."
-        count={`${data.marketplace.activeListings}`}
+        count={`${queueCounts.pendingListings}`}
         onPress={onListings}
       />
       <QueueCard
         icon={Flag}
         title="Kiểm duyệt report"
         description="Xử lý báo cáo user, bài đăng, review hoặc tin nhắn."
-        count={`${data.risk.openReports}`}
+        count={`${queueCounts.openReports}`}
         onPress={onReports}
       />
       <QueueCard

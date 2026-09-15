@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { useAdminQueueCounts } from '../../hooks/useAdminQueueCounts';
 import { AdminDashboard, AdminService } from '../../services/admin/admin.service';
 import { colors } from '../../theme/colors';
 
@@ -37,21 +38,11 @@ export default function AdminDashboardTab() {
     queryKey: ['admin', 'dashboard'],
     queryFn: AdminService.getDashboard,
   });
-  const pendingKycQuery = useQuery({
-    queryKey: ['admin', 'kyc', 'PENDING'],
-    queryFn: () => AdminService.listKycRequests('PENDING'),
-  });
-  const reviewKycQuery = useQuery({
-    queryKey: ['admin', 'kyc', 'REQUIRES_REVIEW'],
-    queryFn: () => AdminService.listKycRequests('REQUIRES_REVIEW'),
-  });
-  const pendingKycCount =
-    (pendingKycQuery.data?.length ?? 0) + (reviewKycQuery.data?.length ?? 0);
+  const queueCounts = useAdminQueueCounts();
 
   const refetch = () => {
     void dashboardQuery.refetch();
-    void pendingKycQuery.refetch();
-    void reviewKycQuery.refetch();
+    queueCounts.refetch();
   };
 
   return (
@@ -86,12 +77,8 @@ export default function AdminDashboardTab() {
       ) : (
         <DashboardContent
           data={dashboardQuery.data}
-          pendingKycCount={pendingKycCount}
-          refreshing={
-            dashboardQuery.isRefetching ||
-            pendingKycQuery.isRefetching ||
-            reviewKycQuery.isRefetching
-          }
+          queueCounts={queueCounts.counts}
+          refreshing={dashboardQuery.isRefetching || queueCounts.isRefetching}
           onRefresh={refetch}
           onKyc={() => router.push('/admin/kyc' as never)}
           onListings={() => router.push('/admin/listings' as never)}
@@ -106,7 +93,7 @@ export default function AdminDashboardTab() {
 
 function DashboardContent({
   data,
-  pendingKycCount,
+  queueCounts,
   refreshing,
   onRefresh,
   onKyc,
@@ -116,7 +103,7 @@ function DashboardContent({
   onFinance,
 }: {
   data: AdminDashboard;
-  pendingKycCount: number;
+  queueCounts: ReturnType<typeof useAdminQueueCounts>['counts'];
   refreshing: boolean;
   onRefresh: () => void;
   onKyc: () => void;
@@ -138,10 +125,10 @@ function DashboardContent({
           Cần xử lý ngay
         </Text>
         <View className="mt-4 flex-row flex-wrap gap-3">
-          <ActionMetric icon={ShieldCheck} label="Chờ duyệt KYC" value={`${pendingKycCount}`} onPress={onKyc} />
-          <ActionMetric icon={ClipboardCheck} label="Listing active" value={`${data.marketplace.activeListings}`} onPress={onListings} />
-          <ActionMetric icon={ShieldAlert} label="Tranh chấp mở" value={`${data.risk.openDisputes}`} onPress={onDisputes} />
-          <ActionMetric icon={Flag} label="Report mở" value={`${data.risk.openReports}`} onPress={onReports} />
+          <ActionMetric icon={ShieldCheck} label="Chờ duyệt KYC" value={`${queueCounts.pendingKyc}`} onPress={onKyc} />
+          <ActionMetric icon={ClipboardCheck} label="Bài chờ duyệt" value={`${queueCounts.pendingListings}`} onPress={onListings} />
+          <ActionMetric icon={ShieldAlert} label="Tranh chấp mở" value={`${queueCounts.openDisputes}`} onPress={onDisputes} />
+          <ActionMetric icon={Flag} label="Report mở" value={`${queueCounts.openReports}`} onPress={onReports} />
         </View>
       </View>
 

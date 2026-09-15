@@ -41,6 +41,7 @@ export default function AdminReviewsScreen() {
       AdminService.moderateReview(reviewId, status),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'reviews'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {
