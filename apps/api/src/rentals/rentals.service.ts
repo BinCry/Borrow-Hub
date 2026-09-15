@@ -1193,7 +1193,7 @@ export class RentalsService {
       rentalId: rental.id,
       token: session.token,
       expiresAt: session.expiresAt,
-      qrPayload: `borrowhub://handover/confirm?token=${session.token}`,
+      qrPayload: `rentloop://handover/confirm?token=${session.token}`,
     };
   }
 

@@ -1,0 +1,107 @@
+diff --git a/dist/runtime/native/render-component.js b/dist/runtime/native/render-component.js
+index eba25ece1cf3fe3170cd55134df6b70c7aabd70e..e87fc76e095533a383265933dc0c994926c02b14 100644
+--- a/dist/runtime/native/render-component.js
++++ b/dist/runtime/native/render-component.js
+@@ -122,21 +122,35 @@ function printUpgradeWarning(warning, originalProps) {
+ }
+ function stringify(object) {
+     const seen = new WeakSet();
+-    return JSON.stringify(object, function replace(_, value) {
++    // Sanitize once before JSON.stringify; React props can contain getters and large cyclic trees.
++    function replace(value, depth) {
++        if (typeof value === "function") return "[Function]";
++        if (typeof value === "bigint") return `${value}n`;
+         if (!(value !== null && typeof value === "object")) {
+             return value;
+         }
+         if (seen.has(value)) {
+             return "[Circular]";
+         }
++        if (depth >= 3) return "[MaxDepth]";
+         seen.add(value);
+-        const newValue = Array.isArray(value) ? [] : {};
+-        for (const entry of Object.entries(value)) {
+-            newValue[entry[0]] = replace(entry[0], entry[1]);
++        const newValue = Array.isArray(value) ? [] : Object.create(null);
++        const entries = Object.entries(Object.getOwnPropertyDescriptors(value))
++            .filter(([, descriptor]) => descriptor.enumerable)
++            .slice(0, 20);
++        for (const [key, descriptor] of entries) {
++            newValue[key] = "value" in descriptor
++                ? replace(descriptor.value, depth + 1)
++                : "[Getter/Setter]";
+         }
+-        seen.delete(value);
+         return newValue;
+-    }, 2);
++    }
++    try {
++        return JSON.stringify(replace(object, 0), null, 2);
++    }
++    catch {
++        return "[Unable to serialize component props]";
++    }
+ }
+ function getDebugReplacer() {
+     const seen = new WeakSet();
+diff --git a/src/runtime/native/render-component.tsx b/src/runtime/native/render-component.tsx
+index cfb9a9e1b5fa4b2cbdcfe0a96257ae900fdfd72a..dadb4650a5972598d89788561cd7e1bfbfdf2eb8 100644
+--- a/src/runtime/native/render-component.tsx
++++ b/src/runtime/native/render-component.tsx
+@@ -236,31 +236,31 @@ function printUpgradeWarning(
+ 
+ function stringify(object: any) {
+   const seen = new WeakSet();
+-  return JSON.stringify(
+-    object,
+-    function replace(_, value) {
+-      if (!(value !== null && typeof value === "object")) {
+-        return value;
+-      }
+-
+-      if (seen.has(value)) {
+-        return "[Circular]";
+-      }
+-
+-      seen.add(value);
+-
+-      const newValue: any = Array.isArray(value) ? [] : {};
+-
+-      for (const entry of Object.entries(value)) {
+-        newValue[entry[0]] = replace(entry[0], entry[1]);
+-      }
+-
+-      seen.delete(value);
+-
+-      return newValue;
+-    },
+-    2,
+-  );
++  // Sanitize once before JSON.stringify; React props can contain getters and large cyclic trees.
++  function replace(value: any, depth: number): any {
++    if (typeof value === "function") return "[Function]";
++    if (typeof value === "bigint") return `${value}n`;
++    if (!(value !== null && typeof value === "object")) return value;
++    if (seen.has(value)) return "[Circular]";
++    if (depth >= 3) return "[MaxDepth]";
++    seen.add(value);
++
++    const newValue: any = Array.isArray(value) ? [] : Object.create(null);
++    const entries = Object.entries(Object.getOwnPropertyDescriptors(value))
++      .filter(([, descriptor]) => descriptor.enumerable)
++      .slice(0, 20);
++    for (const [key, descriptor] of entries) {
++      newValue[key] = "value" in descriptor
++        ? replace(descriptor.value, depth + 1)
++        : "[Getter/Setter]";
++    }
++    return newValue;
++  }
++  try {
++    return JSON.stringify(replace(object, 0), null, 2);
++  } catch {
++    return "[Unable to serialize component props]";
++  }
+ }
+ 
+ // const ForwardRefSymbol = Symbol.for("react.forward_ref");

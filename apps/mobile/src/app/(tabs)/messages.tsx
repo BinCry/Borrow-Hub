@@ -128,7 +128,7 @@ export default function MessagesScreen() {
                 <View className="flex-1">
                   <View className="mb-1 flex-row justify-between">
                     <Text className="font-bold text-text-primary" numberOfLines={1}>
-                      {otherUser?.fullName ?? 'Borrow Hub'}
+                      {otherUser?.fullName ?? 'RentLoop'}
                     </Text>
                     <Text className="text-xs text-text-muted">
                       {format(new Date(lastMessage?.createdAt ?? item.updatedAt), 'dd/MM')}

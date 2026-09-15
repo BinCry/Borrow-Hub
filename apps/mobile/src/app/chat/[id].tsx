@@ -82,7 +82,7 @@ export default function ChatScreen() {
             <View className="mt-0.5 flex-row items-center">
               <ShieldCheck size={12} color={colors.success} />
               <Text className="ml-1 text-xs text-text-secondary">
-                Giao dịch được bảo vệ trên Borrow Hub
+                Giao dịch được bảo vệ trên RentLoop
               </Text>
             </View>
           </View>

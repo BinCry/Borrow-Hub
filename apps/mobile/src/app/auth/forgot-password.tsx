@@ -163,7 +163,7 @@ export default function ForgotPasswordScreen() {
                   className="flex-row items-center"
                   accessible
                   accessibilityRole="header"
-                  accessibilityLabel="Borrow Hub"
+                  accessibilityLabel="RentLoop"
                 >
                   <View className="h-10 w-10 items-center justify-center rounded-2xl bg-primary">
                     <Image
@@ -173,7 +173,7 @@ export default function ForgotPasswordScreen() {
                     />
                   </View>
                   <Text className="ml-2.5 text-[11px] font-semibold uppercase tracking-[2.2px] text-primary-dark">
-                    Borrow Hub
+                    RentLoop
                   </Text>
                 </View>
               </View>

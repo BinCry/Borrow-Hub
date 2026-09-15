@@ -17,7 +17,7 @@ export default function HomeScreen() {
       <View className="px-5 pt-2 pb-4 bg-surface z-10 shadow-sm border-b border-border">
         <View className="flex-row justify-between items-center mb-4">
           <View>
-            <Text className="text-2xl font-extrabold text-primary tracking-tight">Borrow Hub</Text>
+            <Text className="text-2xl font-extrabold text-primary tracking-tight">RentLoop</Text>
             <Text className="text-text-secondary text-sm mt-0.5">Thuê mọi thứ bạn cần quanh đây</Text>
           </View>
           <TouchableOpacity

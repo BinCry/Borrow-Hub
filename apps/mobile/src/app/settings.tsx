@@ -72,7 +72,7 @@ export default function SettingsScreen() {
           onPress: () =>
             Alert.alert(
               'Xác nhận lần cuối',
-              'Bạn chắc chắn muốn xóa tài khoản Borrow Hub?',
+              'Bạn chắc chắn muốn xóa tài khoản RentLoop?',
               [
                 { text: 'Không', style: 'cancel' },
                 {

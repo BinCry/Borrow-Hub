@@ -8,7 +8,7 @@ import { HealthController } from '../src/health/health.controller';
 import { UsersController } from '../src/users/users.controller';
 import { UsersService } from '../src/users/users.service';
 
-describe('Borrow Hub HTTP boundary (e2e)', () => {
+describe('RentLoop HTTP boundary (e2e)', () => {
   let app: INestApplication;
   const prisma = {
     $queryRaw: jest.fn(),

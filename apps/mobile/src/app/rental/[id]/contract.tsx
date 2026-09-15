@@ -45,7 +45,7 @@ export default function ContractScreen() {
     mutationFn: () =>
       apiClient.post(`/rentals/${id}/sign`, {
         signatureMethod: 'IN_APP',
-        deviceInfo: 'Borrow Hub mobile application',
+        deviceInfo: 'RentLoop mobile application',
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', id] });
@@ -147,7 +147,7 @@ export default function ContractScreen() {
             đúng thời hạn trong tình trạng đã ghi nhận khi bàn giao. Chủ sở hữu cam kết tài
             sản hoạt động đúng mô tả. Mọi giao nhận phải được hai bên xác nhận trong ứng
             dụng; hư hỏng, mất mát hoặc bất đồng được xử lý qua quy trình tranh chấp của
-            Borrow Hub và bằng chứng đã lưu trên hệ thống.
+            RentLoop và bằng chứng đã lưu trên hệ thống.
           </Text>
         </ContractSection>
 

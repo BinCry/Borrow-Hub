@@ -170,10 +170,6 @@ export default function RootLayout() {
     return () => cancelAnimationFrame(frame);
   }, [isNavigationReady]);
 
-  if (!isNavigationReady) {
-    return null;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -181,7 +177,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="auth" />
         </Stack>
-        {showLaunchExperience ? (
+        {showLaunchExperience || !isNavigationReady ? (
           <LaunchExperience onFinished={finishLaunchExperience} />
         ) : null}
       </ThemeProvider>
@@ -251,7 +247,7 @@ function LaunchExperience({ onFinished }: { onFinished: () => void }) {
 
   return (
     <Animated.View
-      accessibilityLabel="Borrow Hub đang chuẩn bị dữ liệu"
+      accessibilityLabel="RentLoop đang chuẩn bị dữ liệu"
       accessibilityRole="progressbar"
       pointerEvents="none"
       style={[styles.launchContainer, containerStyle]}
@@ -266,7 +262,7 @@ function LaunchExperience({ onFinished }: { onFinished: () => void }) {
             priority="high"
           />
         </View>
-        <Text style={styles.brandName}>BORROW HUB</Text>
+        <Text style={styles.brandName}>RENTLOOP</Text>
         <Text style={styles.tagline}>Chia sẻ gần hơn. Dùng đồ thông minh hơn.</Text>
         <View style={styles.progressRow}>
           <Animated.View

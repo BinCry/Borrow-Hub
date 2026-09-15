@@ -17,6 +17,7 @@
     "test:e2e": "pnpm --filter toolshare-api test:e2e",
     "prisma:generate": "pnpm --filter toolshare-api prisma:generate",
     "prisma:migrate": "pnpm --filter toolshare-api prisma:migrate",
-    "prisma:seed": "pnpm --filter toolshare-api prisma:seed"
+    "prisma:seed": "pnpm --filter toolshare-api prisma:seed",
+    "admin:bootstrap": "pnpm --filter toolshare-api admin:bootstrap"
   }
 }

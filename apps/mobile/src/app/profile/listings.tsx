@@ -53,7 +53,7 @@ export default function MyListingsScreen() {
           ListEmptyComponent={
             <EmptyState 
               title="Chưa có bài đăng nào"
-              description="Bạn chưa đăng cho thuê tài sản nào trên Borrow Hub."
+              description="Bạn chưa đăng cho thuê tài sản nào trên RentLoop."
               buttonText="Đăng tài sản ngay"
               onPress={() => router.push('/asset/create')}
             />

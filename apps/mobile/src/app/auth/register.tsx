@@ -205,7 +205,7 @@ export default function RegisterScreen() {
                   className="flex-row items-center"
                   accessible
                   accessibilityRole="header"
-                  accessibilityLabel="Borrow Hub"
+                  accessibilityLabel="RentLoop"
                 >
                   <View className="h-10 w-10 items-center justify-center rounded-2xl bg-primary">
                     <Image
@@ -215,7 +215,7 @@ export default function RegisterScreen() {
                     />
                   </View>
                   <Text className="ml-2.5 text-[11px] font-semibold uppercase tracking-[2.2px] text-primary-dark">
-                    Borrow Hub
+                    RentLoop
                   </Text>
                 </View>
               </View>
@@ -500,7 +500,7 @@ export default function RegisterScreen() {
                 </Pressable>
 
                 <Text className="mx-2 mt-4 text-center text-xs leading-5 text-text-secondary">
-                  Khi tạo tài khoản, bạn đồng ý cung cấp thông tin chính xác và tuân thủ quy tắc an toàn của Borrow Hub.
+                  Khi tạo tài khoản, bạn đồng ý cung cấp thông tin chính xác và tuân thủ quy tắc an toàn của RentLoop.
                 </Text>
 
                 <View className="mb-2 mt-6 flex-row flex-wrap items-center justify-center">

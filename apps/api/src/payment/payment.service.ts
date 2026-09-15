@@ -71,7 +71,7 @@ export class PaymentService {
     const paymentCode = this.extractPaymentCode(dto.code, dto.content);
 
     if (!paymentCode) {
-      this.logger.warn('Ignored SePay transaction without a Borrow Hub payment code');
+      this.logger.warn('Ignored SePay transaction without a RentLoop payment code');
       return { success: true, ignored: true };
     }
 

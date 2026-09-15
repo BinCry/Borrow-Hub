@@ -191,7 +191,7 @@ async function seedUsersAndAssets() {
         email: `admin${i}@toolshare.local`,
         phone: `090000001${i}`,
         passwordHash,
-        fullName: `ToolShare Admin ${i}`,
+        fullName: `RentLoop Admin ${i}`,
         status: UserStatus.ACTIVE,
         trustScore: 100,
         emailVerifiedAt: new Date(),

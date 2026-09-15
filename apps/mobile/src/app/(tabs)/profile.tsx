@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight } from 'lucide-react-native';
+import { LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, LayoutDashboard } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../services/api/client';
 import { User as UserType } from '../../types/domain';
@@ -31,6 +31,8 @@ export default function ProfileScreen() {
     logout();
     router.replace('/auth/login');
   };
+  const canAccessAdmin =
+    user?.roles?.some((role) => role === 'ADMIN' || role === 'SUPER_ADMIN') ?? false;
 
   if (!isAuthenticated) {
     return (
@@ -106,6 +108,21 @@ export default function ProfileScreen() {
 
         {/* Menu Items */}
         <View className="p-5">
+          {canAccessAdmin ? (
+            <>
+              <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Quản trị</Text>
+              <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
+                <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center" onPress={() => router.push('/admin' as any)}>
+                  <View className="flex-row items-center">
+                    <LayoutDashboard size={22} color={colors.primary.DEFAULT} className="mr-3" />
+                    <Text className="font-semibold text-text-primary text-base">Bảng điều khiển quản trị</Text>
+                  </View>
+                  <ChevronRight size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : null}
+
           <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài sản của tôi</Text>
           <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
             <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/asset/create')}>

@@ -15,7 +15,7 @@ describe('PaymentService SePay webhook', () => {
     code: 'BHABCDEF123456',
     content: 'BHABCDEF123456 chuyen tien',
     transferType: 'in',
-    description: 'Borrow Hub payment',
+    description: 'RentLoop payment',
     transferAmount: 630000,
     accumulated: 10000000,
     referenceCode: 'FT2608190001',

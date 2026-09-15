@@ -178,7 +178,7 @@ export default function LoginScreen() {
                 className="flex-row items-center self-start"
                 accessible
                 accessibilityRole="header"
-                accessibilityLabel="Borrow Hub"
+                accessibilityLabel="RentLoop"
               >
                 <View className="h-11 w-11 items-center justify-center rounded-2xl bg-primary">
                   <Image
@@ -189,7 +189,7 @@ export default function LoginScreen() {
                 </View>
                 <View className="ml-3">
                   <Text className="text-[11px] font-semibold uppercase tracking-[2.4px] text-primary-dark">
-                    Borrow Hub
+                    RentLoop
                   </Text>
                   <Text className="mt-0.5 text-sm text-text-secondary">
                     Thuê đúng món, dùng đúng lúc

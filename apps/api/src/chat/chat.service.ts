@@ -13,7 +13,7 @@ import { ChatTimelineService } from './chat-timeline.service';
 import { ChatQueryDto, CreateConversationDto, SendMessageDto } from './chat.dto';
 
 const OFF_PLATFORM_WARNING =
-  'Giao dịch ngoài ToolShare sẽ không được hỗ trợ bởi quy trình tranh chấp của nền tảng.';
+  'Giao dịch ngoài RentLoop sẽ không được hỗ trợ bởi quy trình tranh chấp của nền tảng.';
 
 @Injectable()
 export class ChatService {

@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "Borrow Hub",
-    "slug": "borrow-hub",
-    "description": "Thuê và chia sẻ đồ dùng an toàn trong cộng đồng Borrow Hub.",
+    "name": "RentLoop",
+    "slug": "rentloop",
+    "description": "Thuê và chia sẻ đồ dùng an toàn trong cộng đồng RentLoop.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
-    "scheme": "borrowhub",
+    "scheme": "rentloop",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/app-icon-v2.png",
-      "bundleIdentifier": "com.borrowhub.app"
+      "bundleIdentifier": "com.rentloop.app"
     },
     "android": {
-      "package": "com.borrowhub.app",
+      "package": "com.rentloop.app",
       "versionCode": 1,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
@@ -47,15 +47,14 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Cho phép Borrow Hub dùng camera để quét mã bàn giao."
+          "cameraPermission": "Cho phép RentLoop dùng camera để quét mã bàn giao."
         }
       ],
       "expo-image",
       "expo-font"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
     "extra": {
       "router": {},

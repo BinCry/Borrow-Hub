@@ -145,7 +145,7 @@ describe('ChatService', () => {
         senderId: renterUser.id,
         messageType: MessageType.SYSTEM,
         content:
-          'Giao dịch ngoài ToolShare sẽ không được hỗ trợ bởi quy trình tranh chấp của nền tảng.',
+          'Giao dịch ngoài RentLoop sẽ không được hỗ trợ bởi quy trình tranh chấp của nền tảng.',
       });
 
     await service.sendMessage(conversation.id, renterUser, {

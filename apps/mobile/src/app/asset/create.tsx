@@ -4,7 +4,7 @@ import { AxiosError } from 'axios';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Camera, ChevronLeft, X } from 'lucide-react-native';
+import { Camera, ChevronLeft, ShieldCheck, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 import { apiClient } from '../../services/api/client';
 import { colors } from '../../theme/colors';
+import type { User } from '../../types/domain';
 
 const createAssetSchema = z.object({
   title: z.string().trim().min(5, 'Tiêu đề phải có ít nhất 5 ký tự').max(120),
@@ -75,6 +76,18 @@ function getErrorMessage(error: unknown) {
   return undefined;
 }
 
+function getVerificationMessage(status?: User['verificationStatus']) {
+  switch (status) {
+    case 'PENDING':
+    case 'REQUIRES_REVIEW':
+      return 'Hồ sơ xác thực của bạn đang chờ duyệt. Sau khi được duyệt, bạn có thể tạo bài đăng cho thuê.';
+    case 'REJECTED':
+      return 'Hồ sơ xác thực cần được gửi lại trước khi tạo bài đăng cho thuê.';
+    default:
+      return 'Bạn cần xác thực danh tính trước khi tạo bài đăng cho thuê.';
+  }
+}
+
 function appendImage(formData: FormData, asset: ImagePicker.ImagePickerAsset) {
   formData.append(
     'file',
@@ -92,9 +105,14 @@ export default function CreateListingScreen() {
   const [selectedImages, setSelectedImages] = useState<
     ImagePicker.ImagePickerAsset[]
   >([]);
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => (await apiClient.get<User>('/auth/me')).data,
+  });
   const categoriesQuery = useQuery({
     queryKey: ['categories'],
     queryFn: async () => flattenCategories((await apiClient.get<Category[]>('/categories')).data),
+    enabled: meQuery.data?.verificationStatus === 'VERIFIED',
   });
   const {
     control,
@@ -115,6 +133,10 @@ export default function CreateListingScreen() {
   });
   const createMutation = useMutation({
     mutationFn: async (data: CreateAssetForm) => {
+      if (meQuery.data?.verificationStatus !== 'VERIFIED') {
+        throw new Error('VERIFICATION_REQUIRED');
+      }
+
       if (selectedImages.length === 0) {
         throw new Error('IMAGE_REQUIRED');
       }
@@ -158,9 +180,11 @@ export default function CreateListingScreen() {
     onError: (error) => {
       Alert.alert(
         'Không thể tạo bài đăng',
-        error instanceof Error && error.message === 'IMAGE_REQUIRED'
-          ? 'Hãy chọn ít nhất một ảnh tài sản.'
-          : getErrorMessage(error) ?? 'Kiểm tra thông tin và thử lại.',
+        error instanceof Error && error.message === 'VERIFICATION_REQUIRED'
+          ? getVerificationMessage(meQuery.data?.verificationStatus)
+          : error instanceof Error && error.message === 'IMAGE_REQUIRED'
+            ? 'Hãy chọn ít nhất một ảnh tài sản.'
+            : getErrorMessage(error) ?? 'Kiểm tra thông tin và thử lại.',
       );
     },
   });
@@ -198,6 +222,25 @@ export default function CreateListingScreen() {
           <View className="w-11" />
         </View>
 
+        {meQuery.isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+          </View>
+        ) : meQuery.isError || meQuery.data?.verificationStatus !== 'VERIFIED' ? (
+          <VerificationRequired
+            message={
+              meQuery.isError
+                ? 'Không thể kiểm tra trạng thái tài khoản. Kiểm tra kết nối rồi thử lại.'
+                : getVerificationMessage(meQuery.data?.verificationStatus)
+            }
+            actionLabel={meQuery.isError ? 'Thử lại' : 'Đi xác thực'}
+            onPress={
+              meQuery.isError
+                ? () => void meQuery.refetch()
+                : () => router.push('/profile/kyc' as any)
+            }
+          />
+        ) : (
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
@@ -386,8 +429,37 @@ export default function CreateListingScreen() {
             )}
           </TouchableOpacity>
         </ScrollView>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function VerificationRequired({
+  message,
+  actionLabel,
+  onPress,
+}: {
+  message: string;
+  actionLabel: string;
+  onPress: () => void;
+}) {
+  return (
+    <View className="flex-1 items-center justify-center px-6">
+      <View className="h-20 w-20 items-center justify-center rounded-full bg-primary-soft">
+        <ShieldCheck size={40} color={colors.primary.DEFAULT} />
+      </View>
+      <Text className="mt-5 text-center text-xl font-extrabold text-text-primary">
+        Cần xác thực danh tính
+      </Text>
+      <Text className="mt-2 text-center leading-6 text-text-secondary">{message}</Text>
+      <TouchableOpacity
+        className="mt-7 min-h-14 w-full items-center justify-center rounded-xl bg-primary"
+        onPress={onPress}
+      >
+        <Text className="text-lg font-bold text-white">{actionLabel}</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 

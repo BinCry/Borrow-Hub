@@ -5,8 +5,8 @@ describe('validateEnv', () => {
     NODE_ENV: 'production',
     HOST: '0.0.0.0',
     PORT: '3000',
-    APP_URL: 'https://api.borrowhub.vn',
-    DATABASE_URL: 'postgresql://borrowhub:super-secret-password@postgres:5432/borrowhub?schema=public',
+    APP_URL: 'https://api.rentloop.vn',
+    DATABASE_URL: 'postgresql://rentloop:super-secret-password@postgres:5432/rentloop?schema=public',
     JWT_ACCESS_SECRET: '12345678901234567890123456789012',
     JWT_REFRESH_SECRET: 'abcdefghijklmnopqrstuvwxyz123456',
     JWT_ACCESS_TTL: '15m',
@@ -14,7 +14,7 @@ describe('validateEnv', () => {
     THROTTLE_TTL: '60',
     THROTTLE_LIMIT: '120',
     CACHE_TTL_MS: '60000',
-    CACHE_KEY_PREFIX: 'borrowhub',
+    CACHE_KEY_PREFIX: 'rentloop',
     REDIS_URL: 'redis://redis:6379',
     PLATFORM_FEE_PERCENT: '5',
     OWNER_COMMISSION_PERCENT: '10',
@@ -25,20 +25,20 @@ describe('validateEnv', () => {
     SMTP_HOST: 'smtp.example.com',
     SMTP_PORT: '587',
     SMTP_SECURE: 'false',
-    SMTP_USER: 'borrowhub',
+    SMTP_USER: 'rentloop',
     SMTP_PASSWORD: 'smtp-password',
-    SMTP_FROM: 'Borrow Hub <no-reply@borrowhub.vn>',
-    PASSWORD_RESET_URL: 'https://borrowhub.vn/reset-password',
-    ACCOUNT_DELETION_URL: 'https://borrowhub.vn/account-deletion',
-    SUPPORT_EMAIL: 'support@borrowhub.vn',
-    CORS_ORIGINS: 'https://borrowhub.vn',
+    SMTP_FROM: 'RentLoop <no-reply@rentloop.vn>',
+    PASSWORD_RESET_URL: 'https://rentloop.vn/reset-password',
+    ACCOUNT_DELETION_URL: 'https://rentloop.vn/account-deletion',
+    SUPPORT_EMAIL: 'support@rentloop.vn',
+    CORS_ORIGINS: 'https://rentloop.vn',
     STORAGE_SIGNING_SECRET: 'storage-signing-secret-1234567890',
     LOG_TO_FILES: 'false',
     SWAGGER_ENABLED: 'false',
     REQUEST_LOG_RETENTION_DAYS: '30',
     SEPAY_ENABLED: 'true',
     SEPAY_ACCOUNT_NUMBER: '0123456789',
-    SEPAY_ACCOUNT_NAME: 'BORROW HUB COMPANY',
+    SEPAY_ACCOUNT_NAME: 'RENTLOOP COMPANY',
     SEPAY_BANK_NAME: 'Vietcombank',
     SEPAY_WEBHOOK_SECRET: 'sepay-webhook-secret-1234567890',
   };
@@ -48,7 +48,7 @@ describe('validateEnv', () => {
 
     expect(result.NODE_ENV).toBe('production');
     expect(result.PORT).toBe(3000);
-    expect(result.APP_URL).toBe('https://api.borrowhub.vn');
+    expect(result.APP_URL).toBe('https://api.rentloop.vn');
     expect(result.REDIS_URL).toBe('redis://redis:6379');
     expect(result.CACHE_TTL_MS).toBe(60000);
   });

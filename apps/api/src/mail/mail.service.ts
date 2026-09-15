@@ -80,18 +80,18 @@ export class MailService {
       await this.transporter.sendMail({
         from: this.fromAddress,
         to: input.email,
-        subject: 'Đặt lại mật khẩu Borrow Hub',
+        subject: 'Đặt lại mật khẩu RentLoop',
         text: [
           `Xin chào ${input.fullName},`,
           '',
-          'Bạn vừa yêu cầu đặt lại mật khẩu Borrow Hub.',
+          'Bạn vừa yêu cầu đặt lại mật khẩu RentLoop.',
           `Mở liên kết sau trong vòng 30 phút: ${resetUrl.toString()}`,
           '',
           'Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.',
         ].join('\n'),
         html: [
           `<p>Xin chào ${safeName},</p>`,
-          '<p>Bạn vừa yêu cầu đặt lại mật khẩu Borrow Hub.</p>',
+          '<p>Bạn vừa yêu cầu đặt lại mật khẩu RentLoop.</p>',
           `<p><a href="${safeResetUrl}">Đặt lại mật khẩu</a>. Liên kết có hiệu lực trong 30 phút.</p>`,
           '<p>Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.</p>',
         ].join(''),
@@ -120,18 +120,18 @@ export class MailService {
       await this.transporter.sendMail({
         from: this.fromAddress,
         to: input.email,
-        subject: 'Xác nhận xóa tài khoản Borrow Hub',
+        subject: 'Xác nhận xóa tài khoản RentLoop',
         text: [
           `Xin chào ${input.fullName},`,
           '',
-          'Bạn vừa yêu cầu xóa tài khoản và dữ liệu Borrow Hub.',
+          'Bạn vừa yêu cầu xóa tài khoản và dữ liệu RentLoop.',
           `Xác nhận trong vòng 60 phút tại: ${confirmationUrl.toString()}`,
           '',
           'Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.',
         ].join('\n'),
         html: [
           `<p>Xin chào ${safeName},</p>`,
-          '<p>Bạn vừa yêu cầu xóa tài khoản và dữ liệu Borrow Hub.</p>',
+          '<p>Bạn vừa yêu cầu xóa tài khoản và dữ liệu RentLoop.</p>',
           `<p><a href="${safeConfirmationUrl}">Xác nhận xóa tài khoản</a>. Liên kết có hiệu lực trong 60 phút.</p>`,
           '<p>Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.</p>',
         ].join(''),

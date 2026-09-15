@@ -1,10 +1,11 @@
 import { isAxiosError } from 'axios';
 import { router } from 'expo-router';
-import { ArrowRight, CalendarClock, LogIn, WifiOff } from 'lucide-react-native';
+import { ArrowRight, CalendarClock, LogIn, Plus, WifiOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -32,13 +33,28 @@ export default function RentalsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="px-4 py-4 bg-surface border-b border-border z-10">
-        <Text className="text-2xl font-bold text-text-primary mb-4">Đơn thuê</Text>
+        <View className="mb-4 flex-row items-center justify-between">
+          <Text className="text-2xl font-bold text-text-primary">Đơn thuê</Text>
+          {activeTab === 'owner' ? (
+            <TouchableOpacity
+              accessibilityLabel="Tạo bài đăng cho thuê"
+              className="h-11 w-11 items-center justify-center rounded-full bg-primary"
+              style={styles.createButton}
+              onPress={() => router.push('/asset/create')}
+            >
+              <Plus size={24} color="white" />
+            </TouchableOpacity>
+          ) : (
+            <View className="h-11 w-11" />
+          )}
+        </View>
 
         <View className="flex-row bg-gray-100 p-1 rounded-lg">
           <TouchableOpacity
-            className={`flex-1 py-2 items-center rounded-md ${
-              activeTab === 'renter' ? 'bg-surface shadow-sm' : ''
-            }`}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'renter' }}
+            className="flex-1 py-2 items-center rounded-md"
+            style={activeTab === 'renter' ? styles.selectedTab : undefined}
             onPress={() => setActiveTab('renter')}
           >
             <Text
@@ -50,9 +66,10 @@ export default function RentalsScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`flex-1 py-2 items-center rounded-md ${
-              activeTab === 'owner' ? 'bg-surface shadow-sm' : ''
-            }`}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'owner' }}
+            className="flex-1 py-2 items-center rounded-md"
+            style={activeTab === 'owner' ? styles.selectedTab : undefined}
             onPress={() => setActiveTab('owner')}
           >
             <Text
@@ -109,6 +126,7 @@ export default function RentalsScreen() {
       ) : (
         <FlatList
           data={data?.data || []}
+          extraData={activeTab}
           keyExtractor={(item) => item.id}
           contentContainerClassName="p-4"
           refreshing={isRefetching}
@@ -157,3 +175,22 @@ export default function RentalsScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  // Conditional NativeWind shadows add a variable provider after mount.
+  selectedTab: {
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  createButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+});

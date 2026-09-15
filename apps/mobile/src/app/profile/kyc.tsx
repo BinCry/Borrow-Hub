@@ -167,7 +167,7 @@ export default function KycScreen() {
                 <ShieldCheck size={40} color={colors.primary.DEFAULT} />
               </View>
               <Text className="mt-4 text-center text-2xl font-extrabold text-text-primary">
-                Bảo vệ cộng đồng Borrow Hub
+                Bảo vệ cộng đồng RentLoop
               </Text>
               <Text className="mt-2 text-center leading-6 text-text-secondary">
                 Tài liệu chỉ được lưu trong vùng riêng tư và chỉ nhân sự có quyền mới có thể duyệt.

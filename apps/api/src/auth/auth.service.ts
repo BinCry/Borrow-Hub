@@ -117,7 +117,7 @@ export class AuthService {
             },
             verification: {
               create: {
-                provider: 'borrowhub-manual',
+                provider: 'rentloop-manual',
                 verificationStatus: VerificationStatus.NOT_STARTED,
               },
             },
