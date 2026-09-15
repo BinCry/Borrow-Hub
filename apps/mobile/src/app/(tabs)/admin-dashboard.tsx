@@ -37,6 +37,22 @@ export default function AdminDashboardTab() {
     queryKey: ['admin', 'dashboard'],
     queryFn: AdminService.getDashboard,
   });
+  const pendingKycQuery = useQuery({
+    queryKey: ['admin', 'kyc', 'PENDING'],
+    queryFn: () => AdminService.listKycRequests('PENDING'),
+  });
+  const reviewKycQuery = useQuery({
+    queryKey: ['admin', 'kyc', 'REQUIRES_REVIEW'],
+    queryFn: () => AdminService.listKycRequests('REQUIRES_REVIEW'),
+  });
+  const pendingKycCount =
+    (pendingKycQuery.data?.length ?? 0) + (reviewKycQuery.data?.length ?? 0);
+
+  const refetch = () => {
+    void dashboardQuery.refetch();
+    void pendingKycQuery.refetch();
+    void reviewKycQuery.refetch();
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -70,8 +86,13 @@ export default function AdminDashboardTab() {
       ) : (
         <DashboardContent
           data={dashboardQuery.data}
-          refreshing={dashboardQuery.isRefetching}
-          onRefresh={() => void dashboardQuery.refetch()}
+          pendingKycCount={pendingKycCount}
+          refreshing={
+            dashboardQuery.isRefetching ||
+            pendingKycQuery.isRefetching ||
+            reviewKycQuery.isRefetching
+          }
+          onRefresh={refetch}
           onKyc={() => router.push('/admin/kyc' as never)}
           onListings={() => router.push('/admin/listings' as never)}
           onDisputes={() => router.push('/admin/disputes' as never)}
@@ -85,6 +106,7 @@ export default function AdminDashboardTab() {
 
 function DashboardContent({
   data,
+  pendingKycCount,
   refreshing,
   onRefresh,
   onKyc,
@@ -94,6 +116,7 @@ function DashboardContent({
   onFinance,
 }: {
   data: AdminDashboard;
+  pendingKycCount: number;
   refreshing: boolean;
   onRefresh: () => void;
   onKyc: () => void;
@@ -102,7 +125,6 @@ function DashboardContent({
   onReports: () => void;
   onFinance: () => void;
 }) {
-  const notVerified = Math.max(0, data.users.total - data.users.verified);
   const openIssues = data.risk.openDisputes + data.risk.openReports;
 
   return (
@@ -116,7 +138,7 @@ function DashboardContent({
           Cần xử lý ngay
         </Text>
         <View className="mt-4 flex-row flex-wrap gap-3">
-          <ActionMetric icon={ShieldCheck} label="Chưa verified" value={`${notVerified}`} onPress={onKyc} />
+          <ActionMetric icon={ShieldCheck} label="Chờ duyệt KYC" value={`${pendingKycCount}`} onPress={onKyc} />
           <ActionMetric icon={ClipboardCheck} label="Listing active" value={`${data.marketplace.activeListings}`} onPress={onListings} />
           <ActionMetric icon={ShieldAlert} label="Tranh chấp mở" value={`${data.risk.openDisputes}`} onPress={onDisputes} />
           <ActionMetric icon={Flag} label="Report mở" value={`${data.risk.openReports}`} onPress={onReports} />

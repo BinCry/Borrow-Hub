@@ -28,6 +28,22 @@ export default function AdminModerationTab() {
     queryKey: ['admin', 'dashboard'],
     queryFn: AdminService.getDashboard,
   });
+  const pendingKycQuery = useQuery({
+    queryKey: ['admin', 'kyc', 'PENDING'],
+    queryFn: () => AdminService.listKycRequests('PENDING'),
+  });
+  const reviewKycQuery = useQuery({
+    queryKey: ['admin', 'kyc', 'REQUIRES_REVIEW'],
+    queryFn: () => AdminService.listKycRequests('REQUIRES_REVIEW'),
+  });
+  const pendingKycCount =
+    (pendingKycQuery.data?.length ?? 0) + (reviewKycQuery.data?.length ?? 0);
+
+  const refetch = () => {
+    void dashboardQuery.refetch();
+    void pendingKycQuery.refetch();
+    void reviewKycQuery.refetch();
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -61,8 +77,13 @@ export default function AdminModerationTab() {
       ) : (
         <ModerationContent
           data={dashboardQuery.data}
-          refreshing={dashboardQuery.isRefetching}
-          onRefresh={() => void dashboardQuery.refetch()}
+          pendingKycCount={pendingKycCount}
+          refreshing={
+            dashboardQuery.isRefetching ||
+            pendingKycQuery.isRefetching ||
+            reviewKycQuery.isRefetching
+          }
+          onRefresh={refetch}
           onKyc={() => router.push('/admin/kyc' as never)}
           onListings={() => router.push('/admin/listings' as never)}
           onReviews={() => router.push('/admin/reviews' as never)}
@@ -76,6 +97,7 @@ export default function AdminModerationTab() {
 
 function ModerationContent({
   data,
+  pendingKycCount,
   refreshing,
   onRefresh,
   onKyc,
@@ -85,6 +107,7 @@ function ModerationContent({
   onUsers,
 }: {
   data: AdminDashboard;
+  pendingKycCount: number;
   refreshing: boolean;
   onRefresh: () => void;
   onKyc: () => void;
@@ -93,8 +116,6 @@ function ModerationContent({
   onReports: () => void;
   onUsers: () => void;
 }) {
-  const notVerified = Math.max(0, data.users.total - data.users.verified);
-
   return (
     <ScrollView
       className="flex-1"
@@ -105,7 +126,7 @@ function ModerationContent({
         icon={ShieldCheck}
         title="Duyệt xác thực danh tính"
         description="Xem hồ sơ KYC, đối chiếu giấy tờ và quyết định verified/rejected."
-        count={`${notVerified}`}
+        count={`${pendingKycCount}`}
         onPress={onKyc}
       />
       <QueueCard

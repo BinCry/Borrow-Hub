@@ -58,10 +58,24 @@ export default function AdminDashboardScreen() {
     queryFn: AdminService.getDashboard,
     enabled: isAdmin(meQuery.data),
   });
+  const pendingKycQuery = useQuery({
+    queryKey: ['admin', 'kyc', 'PENDING'],
+    queryFn: () => AdminService.listKycRequests('PENDING'),
+    enabled: isAdmin(meQuery.data),
+  });
+  const reviewKycQuery = useQuery({
+    queryKey: ['admin', 'kyc', 'REQUIRES_REVIEW'],
+    queryFn: () => AdminService.listKycRequests('REQUIRES_REVIEW'),
+    enabled: isAdmin(meQuery.data),
+  });
+  const pendingKycCount =
+    (pendingKycQuery.data?.length ?? 0) + (reviewKycQuery.data?.length ?? 0);
 
   const refetch = () => {
     void meQuery.refetch();
     void dashboardQuery.refetch();
+    void pendingKycQuery.refetch();
+    void reviewKycQuery.refetch();
   };
 
   return (
@@ -105,8 +119,14 @@ export default function AdminDashboardScreen() {
       ) : (
         <DashboardContent
           data={dashboardQuery.data}
+          pendingKycCount={pendingKycCount}
           canCreateStaff={isSuperAdmin(meQuery.data)}
-          refreshing={dashboardQuery.isRefetching || meQuery.isRefetching}
+          refreshing={
+            dashboardQuery.isRefetching ||
+            meQuery.isRefetching ||
+            pendingKycQuery.isRefetching ||
+            reviewKycQuery.isRefetching
+          }
           onRefresh={refetch}
           onUsersPress={() => router.push('/admin/users' as any)}
           onKycPress={() => router.push('/admin/kyc' as any)}
@@ -124,6 +144,7 @@ export default function AdminDashboardScreen() {
 
 function DashboardContent({
   data,
+  pendingKycCount,
   canCreateStaff,
   refreshing,
   onRefresh,
@@ -137,6 +158,7 @@ function DashboardContent({
   onCreateStaffPress,
 }: {
   data: AdminDashboard;
+  pendingKycCount: number;
   canCreateStaff: boolean;
   refreshing: boolean;
   onRefresh: () => void;
@@ -165,7 +187,7 @@ function DashboardContent({
         <AdminAction
           icon={ShieldCheck}
           label="Duyệt KYC"
-          value={`${data.users.total - data.users.verified}`}
+          value={`${pendingKycCount}`}
           onPress={onKycPress}
         />
         <AdminAction
