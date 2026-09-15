@@ -1,4 +1,5 @@
 import { apiClient } from '../api/client';
+import type { AssetStatus } from '../../types/domain';
 
 export type AdminRole =
   | 'USER'
@@ -123,6 +124,56 @@ export type ReviewKycPayload = {
   reviewNote?: string;
 };
 
+export type AdminAsset = {
+  id: string;
+  title: string;
+  description?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  condition: string;
+  estimatedValue?: number;
+  pricePerDay: number;
+  minimumDurationDays?: number;
+  maximumDurationDays?: number;
+  city: string;
+  district: string;
+  ward?: string | null;
+  status: AssetStatus;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+  category?: {
+    id: string;
+    name: string;
+  } | null;
+  owner?: {
+    id: string;
+    fullName: string;
+    trustScore: number;
+  } | null;
+  images?: {
+    id: string;
+    url: string;
+    isCover?: boolean;
+    sortOrder?: number;
+  }[];
+};
+
+export type AdminAssetList = {
+  data: AdminAsset[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export type ModerateAssetPayload = {
+  status: AssetStatus;
+  reason?: string;
+};
+
 export const AdminService = {
   async getDashboard() {
     const response = await apiClient.get<AdminDashboard>('/admin/dashboard');
@@ -158,6 +209,22 @@ export const AdminService = {
       `/kyc/admin/users/${userId}/status`,
       payload,
     );
+    return response.data;
+  },
+
+  async listAssetModerationRequests(status?: AssetStatus) {
+    const response = await apiClient.get<AdminAssetList>('/assets', {
+      params: {
+        ...(status ? { status } : {}),
+        limit: 50,
+        sort: 'newest',
+      },
+    });
+    return response.data;
+  },
+
+  async moderateAsset(assetId: string, payload: ModerateAssetPayload) {
+    const response = await apiClient.patch<AdminAsset>(`/assets/${assetId}/moderate`, payload);
     return response.data;
   },
 };

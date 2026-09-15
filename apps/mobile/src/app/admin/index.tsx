@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Banknote,
   ChevronLeft,
+  PackageCheck,
   ShieldCheck,
   Users,
 } from 'lucide-react-native';
@@ -106,6 +107,7 @@ export default function AdminDashboardScreen() {
           onRefresh={refetch}
           onUsersPress={() => router.push('/admin/users' as any)}
           onKycPress={() => router.push('/admin/kyc' as any)}
+          onListingsPress={() => router.push('/admin/listings' as any)}
           onCreateStaffPress={() => router.push('/admin/create-user' as any)}
         />
       )}
@@ -120,6 +122,7 @@ function DashboardContent({
   onRefresh,
   onUsersPress,
   onKycPress,
+  onListingsPress,
   onCreateStaffPress,
 }: {
   data: AdminDashboard;
@@ -128,6 +131,7 @@ function DashboardContent({
   onRefresh: () => void;
   onUsersPress: () => void;
   onKycPress: () => void;
+  onListingsPress: () => void;
   onCreateStaffPress: () => void;
 }) {
   return (
@@ -136,7 +140,7 @@ function DashboardContent({
       contentContainerStyle={{ padding: 20, paddingBottom: 36 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <View className="mb-5 flex-row gap-3">
+      <View className="mb-5 flex-row flex-wrap gap-3">
         <AdminAction
           icon={Users}
           label="Người dùng"
@@ -148,6 +152,12 @@ function DashboardContent({
           label="Duyệt KYC"
           value={`${data.users.total - data.users.verified}`}
           onPress={onKycPress}
+        />
+        <AdminAction
+          icon={PackageCheck}
+          label="Duyệt bài"
+          value={`${data.marketplace.activeListings}`}
+          onPress={onListingsPress}
         />
         {canCreateStaff ? (
           <AdminAction
