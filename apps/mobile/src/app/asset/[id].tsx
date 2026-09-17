@@ -25,6 +25,17 @@ export default function AssetDetailScreen() {
 
   const isFavorite = favoriteOverride ?? asset?.isFavorite ?? false;
 
+  const requireLogin = () => {
+    Alert.alert(
+      'Cần đăng nhập',
+      'Bạn cần đăng nhập trước khi gửi yêu cầu thuê.',
+      [
+        { text: 'Để sau', style: 'cancel' },
+        { text: 'Đăng nhập', onPress: () => router.push('/auth/login') },
+      ],
+    );
+  };
+
   const toggleFavorite = async () => {
     if (!isAuthenticated) {
       router.push('/auth/login');
@@ -210,7 +221,14 @@ export default function AssetDetailScreen() {
       <View className="px-5 py-5 bg-surface border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <TouchableOpacity 
           className="bg-primary rounded-xl py-4 items-center shadow-md flex-row justify-center"
-          onPress={() => router.push(`/asset/${id}/book`)}
+          onPress={() => {
+            if (!isAuthenticated) {
+              requireLogin();
+              return;
+            }
+
+            router.push(`/asset/${id}/book`);
+          }}
         >
           <Text className="text-white font-bold text-lg">Yêu cầu thuê ngay</Text>
         </TouchableOpacity>

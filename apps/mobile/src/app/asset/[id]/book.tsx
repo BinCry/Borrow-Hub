@@ -1,4 +1,5 @@
 import { colors } from '../../../theme/colors';
+import { isAxiosError } from 'axios';
 import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -8,10 +9,142 @@ import { useState } from 'react';
 import { ChevronLeft, Calendar as CalendarIcon, Info } from 'lucide-react-native';
 import { addDays, differenceInDays, format } from 'date-fns';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { useAuthStore } from '../../../store/authStore';
+
+type ApiErrorBody = {
+  error?: {
+    message?: string | string[];
+  };
+  message?: string | string[];
+};
+
+type BookingErrorAction = 'login' | 'kyc';
+
+type BookingErrorInfo = {
+  title: string;
+  message: string;
+  action?: BookingErrorAction;
+};
+
+function readApiMessage(error: unknown) {
+  if (!isAxiosError<ApiErrorBody>(error)) {
+    return undefined;
+  }
+
+  const message = error.response?.data?.error?.message ?? error.response?.data?.message;
+
+  if (Array.isArray(message)) {
+    return message.join('\n');
+  }
+
+  return typeof message === 'string' && message.trim().length > 0
+    ? message
+    : undefined;
+}
+
+function getBookingErrorInfo(error: unknown): BookingErrorInfo {
+  if (!isAxiosError<ApiErrorBody>(error)) {
+    return {
+      title: 'Không thể kết nối',
+      message: 'Kiểm tra kết nối mạng và thử lại.',
+    };
+  }
+
+  const status = error.response?.status;
+  const apiMessage = readApiMessage(error);
+
+  if (status === 401) {
+    return {
+      title: 'Cần đăng nhập lại',
+      message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại trước khi gửi yêu cầu thuê.',
+      action: 'login',
+    };
+  }
+
+  if (apiMessage === 'Only verified users can create rental requests') {
+    return {
+      title: 'Cần xác thực danh tính',
+      message: 'Bạn cần hoàn tất KYC trước khi gửi yêu cầu thuê.',
+      action: 'kyc',
+    };
+  }
+
+  if (apiMessage === 'You cannot rent your own asset') {
+    return {
+      title: 'Không thể thuê bài của mình',
+      message: 'Bạn không thể gửi yêu cầu thuê tài sản do chính mình đăng.',
+    };
+  }
+
+  if (apiMessage === 'Asset is not available for rental') {
+    return {
+      title: 'Tài sản không khả dụng',
+      message: 'Tài sản này đã bị gỡ, tạm khóa hoặc chưa được duyệt để cho thuê.',
+    };
+  }
+
+  if (
+    apiMessage === 'Invalid rental time range' ||
+    apiMessage === 'Start time must be before end time'
+  ) {
+    return {
+      title: 'Ngày thuê chưa hợp lệ',
+      message: 'Hãy chọn ngày bắt đầu trước ngày kết thúc.',
+    };
+  }
+
+  if (apiMessage === 'Rental duration is outside the allowed range for this asset') {
+    return {
+      title: 'Số ngày thuê không hợp lệ',
+      message: 'Thời lượng thuê đang nằm ngoài giới hạn tối thiểu/tối đa của tài sản này.',
+    };
+  }
+
+  if (apiMessage === 'This asset already has an overlapping booking') {
+    return {
+      title: 'Trùng lịch thuê',
+      message: 'Tài sản này đã có đơn thuê trong khoảng thời gian bạn chọn. Hãy chọn ngày khác.',
+    };
+  }
+
+  if (apiMessage?.toLowerCase().includes('availability')) {
+    return {
+      title: 'Ngoài lịch cho thuê',
+      message: 'Thời gian bạn chọn nằm ngoài lịch cho thuê của tài sản. Hãy chọn ngày khác.',
+    };
+  }
+
+  if (status === 403) {
+    return {
+      title: 'Không đủ điều kiện',
+      message: apiMessage ?? 'Tài khoản của bạn chưa đủ điều kiện để gửi yêu cầu thuê.',
+    };
+  }
+
+  if (status === 404) {
+    return {
+      title: 'Không tìm thấy tài sản',
+      message: apiMessage ?? 'Tài sản có thể đã bị xóa hoặc không còn được cho thuê.',
+    };
+  }
+
+  if (status === 409) {
+    return {
+      title: 'Yêu cầu bị xung đột',
+      message: apiMessage ?? 'Thông tin thuê đang xung đột với trạng thái hiện tại của tài sản.',
+    };
+  }
+
+  return {
+    title: 'Đặt thuê thất bại',
+    message: apiMessage ?? 'Kiểm tra thông tin và thử lại.',
+  };
+}
 
 export default function BookAssetScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { isAuthenticated, isLoading: isCheckingAuth } = useAuthStore();
 
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(addDays(new Date(), 3));
@@ -39,6 +172,23 @@ export default function BookAssetScreen() {
   };
 
   const handleBooking = () => {
+    if (isCheckingAuth) {
+      Alert.alert('Đang kiểm tra đăng nhập', 'Vui lòng thử lại sau vài giây.');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Cần đăng nhập',
+        'Bạn cần đăng nhập trước khi gửi yêu cầu thuê.',
+        [
+          { text: 'Để sau', style: 'cancel' },
+          { text: 'Đăng nhập', onPress: () => router.push('/auth/login') },
+        ],
+      );
+      return;
+    }
+
     createRental(
       {
         assetId: id,
@@ -51,8 +201,26 @@ export default function BookAssetScreen() {
           Alert.alert('Yêu cầu đã được gửi', 'Yêu cầu thuê của bạn đã được gửi cho chủ sở hữu.');
           router.replace(`/(tabs)/rentals`);
         },
-        onError: () => {
-          Alert.alert('Đặt thuê thất bại', 'Không thể gửi yêu cầu');
+        onError: (error) => {
+          const errorInfo = getBookingErrorInfo(error);
+
+          if (errorInfo.action === 'login') {
+            Alert.alert(errorInfo.title, errorInfo.message, [
+              { text: 'Để sau', style: 'cancel' },
+              { text: 'Đăng nhập', onPress: () => router.push('/auth/login') },
+            ]);
+            return;
+          }
+
+          if (errorInfo.action === 'kyc') {
+            Alert.alert(errorInfo.title, errorInfo.message, [
+              { text: 'Để sau', style: 'cancel' },
+              { text: 'Đi xác thực', onPress: () => router.push('/profile/kyc') },
+            ]);
+            return;
+          }
+
+          Alert.alert(errorInfo.title, errorInfo.message);
         }
       }
     );
@@ -195,9 +363,9 @@ export default function BookAssetScreen() {
       {/* Bottom CTA */}
       <View className="px-5 py-4 bg-surface border-t border-border">
         <TouchableOpacity 
-          className={`bg-primary rounded-xl py-4 items-center shadow-sm ${isBooking ? 'opacity-70' : ''}`}
+          className={`bg-primary rounded-xl py-4 items-center shadow-sm ${isBooking || isCheckingAuth ? 'opacity-70' : ''}`}
           onPress={handleBooking}
-          disabled={isBooking}
+          disabled={isBooking || isCheckingAuth}
         >
           <Text className="text-white font-bold text-lg">{isBooking ? 'Đang gửi yêu cầu...' : 'Gửi yêu cầu'}</Text>
         </TouchableOpacity>
