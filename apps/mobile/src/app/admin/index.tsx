@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
-  Activity,
-  AlertTriangle,
+  ArrowUpRight,
   Banknote,
   ChevronLeft,
   Flag,
@@ -10,6 +9,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Star,
+  UserPlus,
   Users,
 } from 'lucide-react-native';
 import {
@@ -34,10 +34,6 @@ function isAdmin(user?: User) {
 
 function isSuperAdmin(user?: User) {
   return user?.roles?.includes('SUPER_ADMIN') ?? false;
-}
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`;
 }
 
 function formatMoney(value: number) {
@@ -69,18 +65,23 @@ export default function AdminDashboardScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="min-h-16 flex-row items-center border-b border-border bg-surface px-4 py-3">
-        <TouchableOpacity
-          accessibilityLabel="Quay lại"
-          className="min-h-11 min-w-11 items-center justify-center rounded-full"
-          onPress={() => router.back()}
-        >
-          <ChevronLeft size={28} color={colors.text.primary} />
-        </TouchableOpacity>
-        <Text className="flex-1 text-center text-lg font-bold text-text-primary">
-          Quản trị
-        </Text>
-        <View className="w-11" />
+      <View className="border-b border-border bg-surface px-4 pb-4 pt-3">
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            accessibilityLabel="Quay lại"
+            className="mr-2 min-h-11 min-w-11 items-center justify-center rounded-full bg-surfaceSecondary"
+            onPress={() => router.back()}
+          >
+            <ChevronLeft size={26} color={colors.text.primary} />
+          </TouchableOpacity>
+          <View className="min-w-0 flex-1">
+            <Text className="text-xs font-extrabold uppercase text-primary">Admin console</Text>
+            <Text className="mt-1 text-2xl font-extrabold text-text-primary">Quản trị</Text>
+            <Text className="mt-1 text-sm font-semibold text-text-secondary">
+              Điều phối người dùng, kiểm duyệt và tài chính
+            </Text>
+          </View>
+        </View>
       </View>
 
       {meQuery.isLoading ? (
@@ -158,16 +159,35 @@ function DashboardContent({
   return (
     <ScrollView
       className="flex-1"
-      contentContainerStyle={{ padding: 20, paddingBottom: 36 }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 36 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <View className="mb-5 flex-row flex-wrap gap-3">
-        <AdminAction
-          icon={Users}
-          label="Người dùng"
-          value={`${data.users.total}`}
-          onPress={onUsersPress}
-        />
+      <TouchableOpacity
+        className="mb-4 rounded-lg border border-primary/20 bg-surface p-4"
+        onPress={onFinancePress}
+      >
+        <View className="flex-row items-center">
+          <View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-primary-soft">
+            <Banknote size={24} color={colors.primary.DEFAULT} />
+          </View>
+          <View className="min-w-0 flex-1">
+            <Text className="text-xs font-extrabold uppercase text-text-secondary">GMV</Text>
+            <Text className="mt-1 text-2xl font-extrabold text-text-primary">
+              {formatMoney(data.finance.gmv)}
+            </Text>
+            <Text className="mt-1 text-sm font-semibold text-text-secondary">
+              Doanh thu nền tảng {formatMoney(data.finance.platformRevenue)}
+            </Text>
+          </View>
+          <ArrowUpRight size={18} color={colors.text.secondary} />
+        </View>
+      </TouchableOpacity>
+
+      <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+        Lối tắt quản trị
+      </Text>
+      <View className="mb-5 gap-3">
+        <AdminAction icon={Users} label="Người dùng" value={`${data.users.total}`} onPress={onUsersPress} />
         <AdminAction
           icon={ShieldCheck}
           label="Duyệt KYC"
@@ -184,93 +204,20 @@ function DashboardContent({
           icon={ShieldAlert}
           label="Tranh chấp"
           value={`${queueCounts.openDisputes}`}
+          tone="danger"
           onPress={onDisputesPress}
         />
-        <AdminAction
-          icon={Star}
-          label="Review"
-          value="Mod"
-          onPress={onReviewsPress}
-        />
+        <AdminAction icon={Star} label="Review" value="Mod" onPress={onReviewsPress} />
         <AdminAction
           icon={Flag}
           label="Report"
           value={`${queueCounts.openReports}`}
+          tone="warning"
           onPress={onReportsPress}
         />
-        <AdminAction
-          icon={Banknote}
-          label="Tài chính"
-          value={formatMoney(data.finance.gmv)}
-          onPress={onFinancePress}
-        />
         {canCreateStaff ? (
-          <AdminAction
-            icon={ShieldCheck}
-            label="Tạo nhân sự"
-            value="Mới"
-            onPress={onCreateStaffPress}
-          />
+          <AdminAction icon={UserPlus} label="Tạo nhân sự" value="Mới" onPress={onCreateStaffPress} />
         ) : null}
-      </View>
-
-      <View className="mb-5">
-        <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
-          Tổng quan
-        </Text>
-        <View className="flex-row flex-wrap gap-3">
-          <MetricCard icon={Users} label="Người dùng" value={`${data.users.total}`} />
-          <MetricCard
-            icon={ShieldCheck}
-            label="Đã KYC"
-            value={`${data.users.verified}`}
-            helper={formatPercent(data.users.kycCompletionRate)}
-          />
-          <MetricCard
-            icon={Activity}
-            label="Listing active"
-            value={`${data.marketplace.activeListings}`}
-          />
-          <MetricCard
-            icon={AlertTriangle}
-            label="Vấn đề mở"
-            value={`${data.risk.openDisputes + data.risk.openReports}`}
-          />
-        </View>
-      </View>
-
-      <View className="mb-5">
-        <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
-          Giao dịch
-        </Text>
-        <View className="rounded-2xl border border-border bg-surface p-4">
-          <MetricLine label="Tổng đơn thuê" value={`${data.marketplace.totalRentals}`} />
-          <MetricLine label="Hoàn tất" value={`${data.marketplace.completedRentals}`} />
-          <MetricLine label="Tỉ lệ hoàn tất" value={formatPercent(data.marketplace.completionRate)} />
-          <MetricLine label="Quá hạn" value={`${data.marketplace.overdueRentals}`} />
-        </View>
-      </View>
-
-      <View>
-        <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
-          Tài chính
-        </Text>
-        <View className="rounded-2xl border border-border bg-surface p-4">
-          <View className="mb-3 flex-row items-center">
-            <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
-              <Banknote size={21} color={colors.primary.DEFAULT} />
-            </View>
-            <View>
-              <Text className="text-xs font-bold uppercase text-text-secondary">GMV</Text>
-              <Text className="text-xl font-extrabold text-text-primary">
-                {formatMoney(data.finance.gmv)}
-              </Text>
-            </View>
-          </View>
-          <MetricLine label="Doanh thu nền tảng" value={formatMoney(data.finance.platformRevenue)} />
-          <MetricLine label="Hoàn tiền" value={formatMoney(data.finance.refundAmount)} />
-          <MetricLine label="Payout đã trả" value={formatMoney(data.finance.paidOut)} />
-        </View>
       </View>
     </ScrollView>
   );
@@ -280,57 +227,38 @@ function AdminAction({
   icon: Icon,
   label,
   value,
+  tone = 'primary',
   onPress,
 }: {
   icon: typeof Users;
   label: string;
   value: string;
+  tone?: 'primary' | 'warning' | 'danger';
   onPress: () => void;
 }) {
+  const toneColor = {
+    primary: colors.primary.DEFAULT,
+    warning: colors.warning,
+    danger: colors.danger,
+  }[tone];
+  const toneClass = {
+    primary: 'bg-primary-soft',
+    warning: 'bg-warning/10',
+    danger: 'bg-danger/10',
+  }[tone];
+
   return (
-    <TouchableOpacity
-      className="min-h-24 w-[47%] justify-between rounded-2xl border border-border bg-surface p-4"
-      onPress={onPress}
-    >
-      <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-soft">
-        <Icon size={20} color={colors.primary.DEFAULT} />
-      </View>
-      <View>
-        <Text className="text-lg font-extrabold text-text-primary">{value}</Text>
-        <Text className="mt-0.5 text-sm font-semibold text-text-secondary">{label}</Text>
+    <TouchableOpacity className="rounded-lg border border-border bg-surface p-4" onPress={onPress}>
+      <View className="flex-row items-center">
+        <View className={`mr-3 h-11 w-11 items-center justify-center rounded-full ${toneClass}`}>
+          <Icon size={22} color={toneColor} />
+        </View>
+        <View className="min-w-0 flex-1">
+          <Text className="text-base font-extrabold text-text-primary">{label}</Text>
+          <Text className="mt-0.5 text-sm font-semibold text-text-secondary">{value}</Text>
+        </View>
+        <ArrowUpRight size={18} color={colors.text.secondary} />
       </View>
     </TouchableOpacity>
-  );
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  helper,
-}: {
-  icon: typeof Users;
-  label: string;
-  value: string;
-  helper?: string;
-}) {
-  return (
-    <View className="min-h-28 w-[47%] rounded-2xl border border-border bg-surface p-4">
-      <View className="mb-3 h-9 w-9 items-center justify-center rounded-full bg-primary-soft">
-        <Icon size={19} color={colors.primary.DEFAULT} />
-      </View>
-      <Text className="text-2xl font-extrabold text-text-primary">{value}</Text>
-      <Text className="mt-1 text-sm font-semibold text-text-secondary">{label}</Text>
-      {helper ? <Text className="mt-1 text-xs font-bold text-primary">{helper}</Text> : null}
-    </View>
-  );
-}
-
-function MetricLine({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between border-b border-border py-3 last:border-b-0">
-      <Text className="mr-4 flex-1 text-text-secondary">{label}</Text>
-      <Text className="font-extrabold text-text-primary">{value}</Text>
-    </View>
   );
 }

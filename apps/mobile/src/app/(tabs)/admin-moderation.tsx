@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
+  ArrowUpRight,
   FileCheck2,
   Flag,
   PackageCheck,
@@ -38,20 +39,25 @@ export default function AdminModerationTab() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="min-h-16 flex-row items-center justify-between border-b border-border bg-surface px-4 py-3">
-        <View>
-          <Text className="text-2xl font-extrabold text-text-primary">Kiểm duyệt</Text>
-          <Text className="mt-0.5 text-sm font-semibold text-text-secondary">
-            KYC, bài đăng, review và report
-          </Text>
+      <View className="border-b border-border bg-surface px-5 pb-4 pt-3">
+        <View className="flex-row items-center justify-between">
+          <View className="min-w-0 flex-1 pr-4">
+            <Text className="text-xs font-extrabold uppercase text-primary">Kiểm duyệt</Text>
+            <Text className="mt-1 text-2xl font-extrabold text-text-primary">
+              Hàng chờ nội dung
+            </Text>
+            <Text className="mt-1 text-sm font-semibold text-text-secondary">
+              KYC, bài đăng, review và báo cáo cần quyết định
+            </Text>
+          </View>
+          <TouchableOpacity
+            accessibilityLabel="Tải lại"
+            className="min-h-11 min-w-11 items-center justify-center rounded-full bg-primary-soft"
+            onPress={refetch}
+          >
+            <RefreshCcw size={21} color={colors.primary.DEFAULT} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          accessibilityLabel="Tải lại"
-          className="min-h-11 min-w-11 items-center justify-center rounded-full"
-          onPress={() => void dashboardQuery.refetch()}
-        >
-          <RefreshCcw size={22} color={colors.primary.DEFAULT} />
-        </TouchableOpacity>
       </View>
 
       {dashboardQuery.isLoading ? (
@@ -111,37 +117,47 @@ function ModerationContent({
     >
       <QueueCard
         icon={ShieldCheck}
-        title="Duyệt xác thực danh tính"
-        description="Xem hồ sơ KYC, đối chiếu giấy tờ và quyết định verified/rejected."
+        title="Xác thực danh tính"
+        description="Đối chiếu giấy tờ, ảnh selfie và cập nhật trạng thái verified/rejected."
         count={`${queueCounts.pendingKyc}`}
+        meta="KYC"
+        tone="primary"
         onPress={onKyc}
       />
       <QueueCard
         icon={PackageCheck}
-        title="Duyệt bài đăng"
-        description="Kiểm tra tài sản, nội dung, ảnh và trạng thái bài đăng."
+        title="Bài đăng chờ duyệt"
+        description="Kiểm tra mô tả, hình ảnh, giá thuê và trạng thái tài sản trước khi xuất hiện."
         count={`${queueCounts.pendingListings}`}
+        meta="Listing"
+        tone="info"
         onPress={onListings}
       />
       <QueueCard
         icon={Flag}
-        title="Kiểm duyệt report"
-        description="Xử lý báo cáo user, bài đăng, review hoặc tin nhắn."
+        title="Báo cáo mở"
+        description="Xử lý báo cáo người dùng, bài đăng, review hoặc tin nhắn có dấu hiệu vi phạm."
         count={`${queueCounts.openReports}`}
+        meta="Report"
+        tone="warning"
         onPress={onReports}
       />
       <QueueCard
         icon={Star}
-        title="Kiểm duyệt review"
-        description="Ẩn/hiện đánh giá không phù hợp hoặc bị báo cáo."
+        title="Review cần kiểm duyệt"
+        description="Ẩn hoặc khôi phục đánh giá không phù hợp, bị báo cáo hoặc thiếu ngữ cảnh."
         count="Mod"
+        meta="Review"
+        tone="primary"
         onPress={onReviews}
       />
       <QueueCard
         icon={Users}
-        title="Quản lý người dùng"
-        description="Xem vai trò, trạng thái tài khoản và xử lý suspend/ban."
+        title="Người dùng"
+        description="Xem vai trò, trạng thái tài khoản, điểm tin cậy và quyết định suspend/ban."
         count={`${data.users.total}`}
+        meta={`${data.users.suspended + data.users.banned} hạn chế`}
+        tone="danger"
         onPress={onUsers}
       />
     </ScrollView>
@@ -153,31 +169,50 @@ function QueueCard({
   title,
   description,
   count,
+  meta,
+  tone,
   onPress,
 }: {
   icon: typeof FileCheck2;
   title: string;
   description: string;
   count: string;
+  meta: string;
+  tone: 'primary' | 'info' | 'warning' | 'danger';
   onPress: () => void;
 }) {
+  const toneColor = {
+    primary: colors.primary.DEFAULT,
+    info: colors.info,
+    warning: colors.warning,
+    danger: colors.danger,
+  }[tone];
+  const toneClass = {
+    primary: 'bg-primary-soft',
+    info: 'bg-info/10',
+    warning: 'bg-warning/10',
+    danger: 'bg-danger/10',
+  }[tone];
+
   return (
-    <TouchableOpacity className="mb-3 rounded-2xl border border-border bg-surface p-4" onPress={onPress}>
+    <TouchableOpacity className="mb-3 rounded-lg border border-border bg-surface p-4" onPress={onPress}>
       <View className="flex-row items-start">
-        <View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-primary-soft">
-          <Icon size={24} color={colors.primary.DEFAULT} />
+        <View className={`mr-3 h-12 w-12 items-center justify-center rounded-full ${toneClass}`}>
+          <Icon size={24} color={toneColor} />
         </View>
         <View className="min-w-0 flex-1">
           <View className="flex-row items-start justify-between">
-            <Text className="mr-3 flex-1 text-base font-extrabold text-text-primary">
-              {title}
-            </Text>
-            <View className="rounded-full bg-surfaceSecondary px-3 py-1">
+            <View className="min-w-0 flex-1 pr-3">
+              <Text className="text-base font-extrabold text-text-primary">{title}</Text>
+              <Text className="mt-1 text-xs font-bold uppercase text-text-muted">{meta}</Text>
+            </View>
+            <View className="min-w-12 items-center rounded-full bg-surfaceSecondary px-3 py-1">
               <Text className="text-xs font-extrabold text-text-primary">{count}</Text>
             </View>
           </View>
           <Text className="mt-2 leading-5 text-text-secondary">{description}</Text>
         </View>
+        <ArrowUpRight size={18} color={colors.text.secondary} />
       </View>
     </TouchableOpacity>
   );

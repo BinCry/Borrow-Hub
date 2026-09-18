@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
   AlertTriangle,
+  ArrowUpRight,
   Banknote,
   ClipboardCheck,
   Flag,
@@ -32,6 +33,10 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
 export default function AdminDashboardTab() {
   const router = useRouter();
   const dashboardQuery = useQuery({
@@ -47,20 +52,23 @@ export default function AdminDashboardTab() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="min-h-16 flex-row items-center justify-between border-b border-border bg-surface px-4 py-3">
-        <View>
-          <Text className="text-2xl font-extrabold text-text-primary">Tổng quan</Text>
-          <Text className="mt-0.5 text-sm font-semibold text-text-secondary">
-            Bảng điều hành RentLoop
-          </Text>
+      <View className="border-b border-border bg-surface px-5 pb-4 pt-3">
+        <View className="flex-row items-center justify-between">
+          <View className="min-w-0 flex-1 pr-4">
+            <Text className="text-xs font-extrabold uppercase text-primary">Admin console</Text>
+            <Text className="mt-1 text-2xl font-extrabold text-text-primary">Tổng quan</Text>
+            <Text className="mt-1 text-sm font-semibold text-text-secondary">
+              Sức khỏe vận hành và các hàng chờ cần xử lý
+            </Text>
+          </View>
+          <TouchableOpacity
+            accessibilityLabel="Tải lại"
+            className="min-h-11 min-w-11 items-center justify-center rounded-full bg-primary-soft"
+            onPress={refetch}
+          >
+            <RefreshCcw size={21} color={colors.primary.DEFAULT} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          accessibilityLabel="Tải lại"
-          className="min-h-11 min-w-11 items-center justify-center rounded-full"
-          onPress={() => void dashboardQuery.refetch()}
-        >
-          <RefreshCcw size={22} color={colors.primary.DEFAULT} />
-        </TouchableOpacity>
       </View>
 
       {dashboardQuery.isLoading ? (
@@ -120,76 +128,183 @@ function DashboardContent({
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <View className="mb-4 rounded-2xl border border-border bg-surface p-4">
-        <Text className="text-xs font-extrabold uppercase text-text-secondary">
-          Cần xử lý ngay
-        </Text>
-        <View className="mt-4 flex-row flex-wrap gap-3">
-          <ActionMetric icon={ShieldCheck} label="Chờ duyệt KYC" value={`${queueCounts.pendingKyc}`} onPress={onKyc} />
-          <ActionMetric icon={ClipboardCheck} label="Bài chờ duyệt" value={`${queueCounts.pendingListings}`} onPress={onListings} />
-          <ActionMetric icon={ShieldAlert} label="Tranh chấp mở" value={`${queueCounts.openDisputes}`} onPress={onDisputes} />
-          <ActionMetric icon={Flag} label="Report mở" value={`${queueCounts.openReports}`} onPress={onReports} />
-        </View>
-      </View>
-
-      <View className="mb-4 flex-row gap-3">
-        <MetricPanel icon={Users} label="Người dùng" value={`${data.users.total}`} helper={`${data.users.verified} đã KYC`} />
-        <MetricPanel icon={AlertTriangle} label="Vấn đề mở" value={`${openIssues}`} helper={`${data.risk.fraudReports} fraud`} />
-      </View>
-
       <TouchableOpacity
-        className="mb-4 rounded-2xl border border-border bg-surface p-5"
+        className="mb-4 rounded-lg border border-primary/20 bg-surface p-4"
         onPress={onFinance}
       >
-        <View className="flex-row items-center">
-          <View className="mr-3 h-11 w-11 items-center justify-center rounded-full bg-primary-soft">
-            <Banknote size={22} color={colors.primary.DEFAULT} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-xs font-extrabold uppercase text-text-secondary">GMV</Text>
-            <Text className="mt-1 text-2xl font-extrabold text-text-primary">
+        <View className="flex-row items-start justify-between">
+          <View className="min-w-0 flex-1 pr-4">
+            <Text className="text-xs font-extrabold uppercase text-text-secondary">
+              Doanh số đang quản lý
+            </Text>
+            <Text className="mt-2 text-3xl font-extrabold text-text-primary">
               {formatMoney(data.finance.gmv)}
             </Text>
+            <Text className="mt-2 text-sm font-semibold text-text-secondary">
+              Doanh thu nền tảng {formatMoney(data.finance.platformRevenue)}
+            </Text>
+          </View>
+          <View className="h-11 w-11 items-center justify-center rounded-full bg-primary-soft">
+            <Banknote size={22} color={colors.primary.DEFAULT} />
           </View>
         </View>
-        <View className="mt-4">
-          <MetricLine label="Doanh thu nền tảng" value={formatMoney(data.finance.platformRevenue)} />
-          <MetricLine label="Refund" value={`${data.finance.refundCount} / ${formatMoney(data.finance.refundAmount)}`} />
-          <MetricLine label="Payout bị chặn" value={`${data.finance.blockedPayoutCount}`} />
+        <View className="mt-4 flex-row gap-2">
+          <InsightPill label="Take rate" value={formatPercent(data.finance.takeRate)} />
+          <InsightPill label="Refund" value={`${data.finance.refundCount}`} tone="warning" />
+          <InsightPill label="Payout chặn" value={`${data.finance.blockedPayoutCount}`} tone="danger" />
         </View>
       </TouchableOpacity>
 
-      <View className="rounded-2xl border border-border bg-surface p-4">
-        <Text className="text-xs font-extrabold uppercase text-text-secondary">
+      <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+        Cần xử lý ngay
+      </Text>
+      <View className="mb-5 gap-3">
+        <PriorityRow
+          icon={ShieldCheck}
+          title="Duyệt KYC"
+          subtitle="Hồ sơ chờ xác thực danh tính"
+          value={`${queueCounts.pendingKyc}`}
+          tone="primary"
+          onPress={onKyc}
+        />
+        <PriorityRow
+          icon={ClipboardCheck}
+          title="Duyệt bài đăng"
+          subtitle="Tài sản mới cần kiểm tra nội dung"
+          value={`${queueCounts.pendingListings}`}
+          tone="info"
+          onPress={onListings}
+        />
+        <PriorityRow
+          icon={ShieldAlert}
+          title="Tranh chấp mở"
+          subtitle="Đơn thuê cần can thiệp vận hành"
+          value={`${queueCounts.openDisputes}`}
+          tone="danger"
+          onPress={onDisputes}
+        />
+        <PriorityRow
+          icon={Flag}
+          title="Báo cáo mở"
+          subtitle="Nội dung hoặc người dùng bị báo cáo"
+          value={`${queueCounts.openReports}`}
+          tone="warning"
+          onPress={onReports}
+        />
+      </View>
+
+      <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+        Chỉ số vận hành
+      </Text>
+      <View className="mb-5 flex-row flex-wrap gap-3">
+        <MetricPanel
+          icon={Users}
+          label="Người dùng"
+          value={`${data.users.total}`}
+          helper={`${data.users.verified} đã KYC`}
+        />
+        <MetricPanel
+          icon={AlertTriangle}
+          label="Vấn đề mở"
+          value={`${openIssues}`}
+          helper={`${data.risk.fraudReports} báo cáo fraud`}
+          tone="danger"
+        />
+        <MetricPanel
+          icon={ClipboardCheck}
+          label="Listing active"
+          value={`${data.marketplace.activeListings}`}
+          helper={`${data.marketplace.totalRentals} đơn thuê`}
+          tone="info"
+        />
+        <MetricPanel
+          icon={ShieldCheck}
+          label="KYC hoàn tất"
+          value={formatPercent(data.users.kycCompletionRate)}
+          helper="Tỷ lệ xác thực"
+        />
+      </View>
+
+      <View className="rounded-lg border border-border bg-surface p-4">
+        <Text className="mb-2 text-xs font-extrabold uppercase text-text-secondary">
           Trạng thái đơn thuê
         </Text>
-        <View className="mt-2">
-          <MetricLine label="Tổng đơn" value={`${data.marketplace.totalRentals}`} />
-          <MetricLine label="Hoàn tất" value={`${data.marketplace.completedRentals}`} />
-          <MetricLine label="Đã hủy" value={`${data.marketplace.cancelledRentals}`} />
-          <MetricLine label="Quá hạn" value={`${data.marketplace.overdueRentals}`} />
-        </View>
+        <MetricLine label="Tổng đơn" value={`${data.marketplace.totalRentals}`} />
+        <MetricLine label="Hoàn tất" value={`${data.marketplace.completedRentals}`} />
+        <MetricLine label="Đã hủy" value={`${data.marketplace.cancelledRentals}`} />
+        <MetricLine label="Quá hạn" value={`${data.marketplace.overdueRentals}`} />
+        <MetricLine label="Tỷ lệ hoàn tất" value={formatPercent(data.marketplace.completionRate)} />
       </View>
     </ScrollView>
   );
 }
 
-function ActionMetric({
-  icon: Icon,
+function InsightPill({
   label,
   value,
+  tone = 'primary',
+}: {
+  label: string;
+  value: string;
+  tone?: 'primary' | 'warning' | 'danger';
+}) {
+  const toneClass = {
+    primary: 'bg-primary-soft',
+    warning: 'bg-warning/10',
+    danger: 'bg-danger/10',
+  }[tone];
+
+  return (
+    <View className={`flex-1 rounded-lg px-3 py-2 ${toneClass}`}>
+      <Text className="text-xs font-bold text-text-secondary">{label}</Text>
+      <Text className="mt-0.5 text-sm font-extrabold text-text-primary">{value}</Text>
+    </View>
+  );
+}
+
+function PriorityRow({
+  icon: Icon,
+  title,
+  subtitle,
+  value,
+  tone,
   onPress,
 }: {
   icon: typeof ShieldCheck;
-  label: string;
+  title: string;
+  subtitle: string;
   value: string;
+  tone: 'primary' | 'info' | 'warning' | 'danger';
   onPress: () => void;
 }) {
+  const toneColor = {
+    primary: colors.primary.DEFAULT,
+    info: colors.info,
+    warning: colors.warning,
+    danger: colors.danger,
+  }[tone];
+  const toneClass = {
+    primary: 'bg-primary-soft',
+    info: 'bg-info/10',
+    warning: 'bg-warning/10',
+    danger: 'bg-danger/10',
+  }[tone];
+
   return (
-    <TouchableOpacity className="min-h-24 w-[47%] rounded-xl bg-surfaceSecondary p-4" onPress={onPress}>
-      <Icon size={21} color={colors.primary.DEFAULT} />
-      <Text className="mt-3 text-2xl font-extrabold text-text-primary">{value}</Text>
-      <Text className="mt-0.5 text-sm font-bold text-text-secondary">{label}</Text>
+    <TouchableOpacity className="rounded-lg border border-border bg-surface p-4" onPress={onPress}>
+      <View className="flex-row items-center">
+        <View className={`mr-3 h-11 w-11 items-center justify-center rounded-full ${toneClass}`}>
+          <Icon size={22} color={toneColor} />
+        </View>
+        <View className="min-w-0 flex-1">
+          <Text className="text-base font-extrabold text-text-primary">{title}</Text>
+          <Text className="mt-0.5 text-sm font-semibold text-text-secondary">{subtitle}</Text>
+        </View>
+        <View className="ml-3 flex-row items-center">
+          <Text className="mr-2 text-xl font-extrabold text-text-primary">{value}</Text>
+          <ArrowUpRight size={18} color={colors.text.secondary} />
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -199,17 +314,25 @@ function MetricPanel({
   label,
   value,
   helper,
+  tone = 'primary',
 }: {
   icon: typeof Users;
   label: string;
   value: string;
   helper: string;
+  tone?: 'primary' | 'info' | 'danger';
 }) {
+  const toneColor = {
+    primary: colors.primary.DEFAULT,
+    info: colors.info,
+    danger: colors.danger,
+  }[tone];
+
   return (
-    <View className="min-h-28 flex-1 rounded-2xl border border-border bg-surface p-4">
-      <Icon size={22} color={colors.primary.DEFAULT} />
+    <View className="min-h-28 w-[47%] rounded-lg border border-border bg-surface p-4">
+      <Icon size={22} color={toneColor} />
       <Text className="mt-3 text-2xl font-extrabold text-text-primary">{value}</Text>
-      <Text className="text-sm font-bold text-text-secondary">{label}</Text>
+      <Text className="mt-0.5 text-sm font-bold text-text-secondary">{label}</Text>
       <Text className="mt-1 text-xs font-semibold text-text-muted">{helper}</Text>
     </View>
   );
