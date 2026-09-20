@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   MapPin,
   RefreshCcw,
+  Trash2,
   UserRound,
   XCircle,
 } from 'lucide-react-native';
@@ -106,7 +107,7 @@ export default function AdminListingsScreen() {
     Alert.alert(title, message, [
       { text: 'Hủy', style: 'cancel' },
       {
-        text: payload.status === 'ACTIVE' ? 'Duyệt' : 'Từ chối',
+        text: payload.status === 'ACTIVE' ? 'Duyệt' : payload.status === 'SUSPENDED' ? 'Gỡ bài' : 'Từ chối',
         style: payload.status === 'ACTIVE' ? 'default' : 'destructive',
         onPress: () => moderationMutation.mutate({ assetId: asset.id, payload }),
       },
@@ -190,7 +191,12 @@ export default function AdminListingsScreen() {
             <ListingCard
               asset={item}
               isUpdating={moderationMutation.isPending}
-              onOpen={() => router.push(`/asset/${item.id}` as any)}
+              onOpen={() =>
+                router.push({
+                  pathname: '/asset/[id]',
+                  params: { id: item.id, admin: '1' },
+                } as any)
+              }
               onApprove={() =>
                 confirmModeration(
                   item,
@@ -213,6 +219,24 @@ export default function AdminListingsScreen() {
                   `"${item.title}" sẽ bị chuyển sang trạng thái từ chối.`,
                 )
               }
+              onRemove={(reason) => {
+                const trimmedReason = reason.trim();
+
+                if (!trimmedReason) {
+                  Alert.alert('Cần lý do gỡ bài', 'Nhập lý do để thông báo cho chủ bài đăng.');
+                  return;
+                }
+
+                confirmModeration(
+                  item,
+                  {
+                    status: 'SUSPENDED',
+                    reason: trimmedReason,
+                  },
+                  'Gỡ bài đăng?',
+                  `"${item.title}" sẽ bị ẩn khỏi marketplace và chủ bài đăng sẽ nhận được lý do.`,
+                );
+              }}
             />
           )}
         />
@@ -254,16 +278,19 @@ function ListingCard({
   onOpen,
   onApprove,
   onReject,
+  onRemove,
 }: {
   asset: AdminAsset;
   isUpdating: boolean;
   onOpen: () => void;
   onApprove: () => void;
   onReject: (reason: string) => void;
+  onRemove: (reason: string) => void;
 }) {
   const [rejectReason, setRejectReason] = useState('');
   const coverImage = asset.images?.find((image) => image.isCover)?.url ?? asset.images?.[0]?.url;
   const reviewable = canReview(asset.status);
+  const removable = asset.status !== 'SUSPENDED' && asset.status !== 'ARCHIVED';
 
   return (
     <View className="mb-4 overflow-hidden rounded-2xl border border-border bg-surface">
@@ -332,7 +359,7 @@ function ListingCard({
               className="min-h-20 rounded-xl border border-border bg-background px-4 py-3 text-text-primary"
               multiline
               onChangeText={setRejectReason}
-              placeholder="Lý do khi từ chối"
+              placeholder="Lý do khi từ chối hoặc gỡ bài"
               placeholderTextColor={colors.text.muted}
               textAlignVertical="top"
               value={rejectReason}
@@ -367,6 +394,36 @@ function ListingCard({
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        ) : null}
+
+        {removable ? (
+          <View className="mt-3 border-t border-border pt-4">
+            {!reviewable ? (
+              <TextInput
+                className="min-h-20 rounded-xl border border-border bg-background px-4 py-3 text-text-primary"
+                multiline
+                onChangeText={setRejectReason}
+                placeholder="Lý do gỡ bài"
+                placeholderTextColor={colors.text.muted}
+                textAlignVertical="top"
+                value={rejectReason}
+              />
+            ) : null}
+            <TouchableOpacity
+              className="mt-3 min-h-12 flex-row items-center justify-center rounded-xl border border-danger/30 bg-danger/10"
+              disabled={isUpdating}
+              onPress={() => onRemove(rejectReason)}
+            >
+              {isUpdating ? (
+                <ActivityIndicator color={colors.danger} />
+              ) : (
+                <>
+                  <Trash2 size={18} color={colors.danger} />
+                  <Text className="ml-2 font-extrabold text-danger">Gỡ bài</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         ) : null}
       </View>

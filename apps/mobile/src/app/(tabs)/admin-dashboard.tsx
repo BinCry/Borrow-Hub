@@ -93,6 +93,7 @@ export default function AdminDashboardTab() {
           onDisputes={() => router.push('/admin/disputes' as never)}
           onReports={() => router.push('/admin/reports' as never)}
           onFinance={() => router.push('/admin/finance' as never)}
+          onUsers={() => router.push('/admin/users' as never)}
         />
       )}
     </SafeAreaView>
@@ -109,6 +110,7 @@ function DashboardContent({
   onDisputes,
   onReports,
   onFinance,
+  onUsers,
 }: {
   data: AdminDashboard;
   queueCounts: ReturnType<typeof useAdminQueueCounts>['counts'];
@@ -119,6 +121,7 @@ function DashboardContent({
   onDisputes: () => void;
   onReports: () => void;
   onFinance: () => void;
+  onUsers: () => void;
 }) {
   const openIssues = data.risk.openDisputes + data.risk.openReports;
 
@@ -202,6 +205,7 @@ function DashboardContent({
           label="Người dùng"
           value={`${data.users.total}`}
           helper={`${data.users.verified} đã KYC`}
+          onPress={onUsers}
         />
         <MetricPanel
           icon={AlertTriangle}
@@ -209,6 +213,7 @@ function DashboardContent({
           value={`${openIssues}`}
           helper={`${data.risk.fraudReports} báo cáo fraud`}
           tone="danger"
+          onPress={onReports}
         />
         <MetricPanel
           icon={ClipboardCheck}
@@ -216,12 +221,14 @@ function DashboardContent({
           value={`${data.marketplace.activeListings}`}
           helper={`${data.marketplace.totalRentals} đơn thuê`}
           tone="info"
+          onPress={onListings}
         />
         <MetricPanel
           icon={ShieldCheck}
           label="KYC hoàn tất"
           value={formatPercent(data.users.kycCompletionRate)}
           helper="Tỷ lệ xác thực"
+          onPress={onKyc}
         />
       </View>
 
@@ -315,12 +322,14 @@ function MetricPanel({
   value,
   helper,
   tone = 'primary',
+  onPress,
 }: {
   icon: typeof Users;
   label: string;
   value: string;
   helper: string;
   tone?: 'primary' | 'info' | 'danger';
+  onPress?: () => void;
 }) {
   const toneColor = {
     primary: colors.primary.DEFAULT,
@@ -328,12 +337,29 @@ function MetricPanel({
     danger: colors.danger,
   }[tone];
 
-  return (
-    <View className="min-h-28 w-[47%] rounded-lg border border-border bg-surface p-4">
+  const content = (
+    <>
       <Icon size={22} color={toneColor} />
       <Text className="mt-3 text-2xl font-extrabold text-text-primary">{value}</Text>
       <Text className="mt-0.5 text-sm font-bold text-text-secondary">{label}</Text>
       <Text className="mt-1 text-xs font-semibold text-text-muted">{helper}</Text>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        className="min-h-28 w-[47%] rounded-lg border border-border bg-surface p-4"
+        onPress={onPress}
+      >
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View className="min-h-28 w-[47%] rounded-lg border border-border bg-surface p-4">
+      {content}
     </View>
   );
 }

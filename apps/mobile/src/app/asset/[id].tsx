@@ -14,12 +14,13 @@ import { useAuthStore } from '../../store/authStore';
 const { width } = Dimensions.get('window');
 
 export default function AssetDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, admin } = useLocalSearchParams<{ id: string; admin?: string }>();
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const [favoriteOverride, setFavoriteOverride] = useState<boolean | null>(null);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const isAdminPreview = admin === '1';
 
   const { data: asset, isLoading, isError } = useAsset(id);
 
@@ -111,13 +112,17 @@ export default function AssetDetailScreen() {
         <Text className="text-lg font-bold text-text-primary" numberOfLines={1}>
           Chi tiết
         </Text>
-        <TouchableOpacity 
-          className="p-2 -mr-2" 
-          onPress={toggleFavorite}
-          disabled={isTogglingFavorite}
-        >
-          <Heart size={24} color={isFavorite ? colors.danger : "#6B7280"} fill={isFavorite ? colors.danger : "transparent"} />
-        </TouchableOpacity>
+        {isAdminPreview ? (
+          <View className="w-10" />
+        ) : (
+          <TouchableOpacity
+            className="p-2 -mr-2"
+            onPress={toggleFavorite}
+            disabled={isTogglingFavorite}
+          >
+            <Heart size={24} color={isFavorite ? colors.danger : "#6B7280"} fill={isFavorite ? colors.danger : "transparent"} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -217,22 +222,23 @@ export default function AssetDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom CTA */}
-      <View className="px-5 py-5 bg-surface border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <TouchableOpacity 
-          className="bg-primary rounded-xl py-4 items-center shadow-md flex-row justify-center"
-          onPress={() => {
-            if (!isAuthenticated) {
-              requireLogin();
-              return;
-            }
+      {!isAdminPreview ? (
+        <View className="px-5 py-5 bg-surface border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+          <TouchableOpacity
+            className="bg-primary rounded-xl py-4 items-center shadow-md flex-row justify-center"
+            onPress={() => {
+              if (!isAuthenticated) {
+                requireLogin();
+                return;
+              }
 
-            router.push(`/asset/${id}/book`);
-          }}
-        >
-          <Text className="text-white font-bold text-lg">Yêu cầu thuê ngay</Text>
-        </TouchableOpacity>
-      </View>
+              router.push(`/asset/${id}/book`);
+            }}
+          >
+            <Text className="text-white font-bold text-lg">Yêu cầu thuê ngay</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
