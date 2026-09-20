@@ -1,4 +1,5 @@
 import { AssetStatus, RoleName } from '@prisma/client';
+import { ForbiddenException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { AssetsService } from './assets.service';
 
@@ -111,5 +112,26 @@ describe('AssetsService', () => {
       referenceType: 'asset',
       referenceId: 'asset-1',
     });
+  });
+
+  it('prevents admin users from creating asset listings', async () => {
+    await expect(
+      service.create(
+        {
+          ...moderatorUser,
+          roles: [RoleName.ADMIN],
+        },
+        {
+          categoryId: 'category-1',
+          title: 'Admin listing',
+          condition: 'GOOD',
+          pricePerDay: 100000,
+          minimumDurationDays: 1,
+          maximumDurationDays: 7,
+          city: 'Ho Chi Minh',
+          district: 'Quan 1',
+        } as never,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

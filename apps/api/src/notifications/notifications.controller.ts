@@ -3,7 +3,7 @@ import { RoleName } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
-import { RunReminderJobsDto } from './notifications.dto';
+import { BroadcastNotificationDto, RunReminderJobsDto } from './notifications.dto';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
@@ -26,6 +26,15 @@ export class NotificationsController {
   @Post('read-all')
   markAllAsRead(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.notificationsService.markAllAsRead(currentUser.id);
+  }
+
+  @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
+  @Post('admin/broadcast')
+  broadcast(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: BroadcastNotificationDto,
+  ) {
+    return this.notificationsService.broadcastFromAdmin(currentUser, dto);
   }
 
   @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)

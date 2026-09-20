@@ -123,24 +123,28 @@ export default function ProfileScreen() {
             </>
           ) : null}
 
-          <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài sản của tôi</Text>
-          <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
-            <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/asset/create')}>
-              <View className="flex-row items-center">
-                <PlusCircle size={22} color={colors.primary.DEFAULT} className="mr-3" />
-                <Text className="font-semibold text-text-primary text-base">Tạo bài đăng mới</Text>
-              </View>
-              <ChevronRight size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+          {!canAccessAdmin ? (
+            <>
+              <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài sản của tôi</Text>
+              <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
+                <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/asset/create')}>
+                  <View className="flex-row items-center">
+                    <PlusCircle size={22} color={colors.primary.DEFAULT} className="mr-3" />
+                    <Text className="font-semibold text-text-primary text-base">Tạo bài đăng mới</Text>
+                  </View>
+                  <ChevronRight size={20} color="#9CA3AF" />
+                </TouchableOpacity>
 
-            <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center" onPress={() => router.push('/profile/listings' as any)}>
-              <View className="flex-row items-center">
-                <List size={22} color={colors.primary.DEFAULT} className="mr-3" />
-                <Text className="font-semibold text-text-primary text-base">Quản lý bài đăng</Text>
+                <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center" onPress={() => router.push('/profile/listings' as any)}>
+                  <View className="flex-row items-center">
+                    <List size={22} color={colors.primary.DEFAULT} className="mr-3" />
+                    <Text className="font-semibold text-text-primary text-base">Quản lý bài đăng</Text>
+                  </View>
+                  <ChevronRight size={20} color="#9CA3AF" />
+                </TouchableOpacity>
               </View>
-              <ChevronRight size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
+            </>
+          ) : null}
 
           <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài khoản</Text>
           <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">

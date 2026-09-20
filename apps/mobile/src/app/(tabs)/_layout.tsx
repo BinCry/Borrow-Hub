@@ -5,6 +5,7 @@ import {
   Home,
   LayoutDashboard,
   MessageCircle,
+  Megaphone,
   Search,
   User,
   WalletCards,
@@ -111,6 +112,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="admin-listings"
+        options={{
+          title: 'Thông báo',
+          href: isStaff ? undefined : null,
+          tabBarIcon: ({ color }) => <Megaphone color={color} size={24} />,
+        }}
+      />
+      <Tabs.Screen
         name="admin-operations"
         options={{
           title: 'Đơn/TC',
@@ -122,7 +131,8 @@ export default function TabLayout() {
         name="admin-finance"
         options={{
           title: 'Tài chính',
-          href: isStaff ? undefined : null,
+          href: null,
+          tabBarButton: () => null,
           tabBarIcon: ({ color }) => <WalletCards color={color} size={24} />,
         }}
       />

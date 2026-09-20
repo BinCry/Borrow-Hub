@@ -350,6 +350,7 @@ export class AssetsService {
   }
 
   async create(currentUser: AuthenticatedUser, dto: CreateAssetDto) {
+    this.assertNonAdminListingUser(currentUser);
     this.assertVerifiedUser(currentUser);
     await this.ensureCategoryExists(dto.categoryId);
     this.assertDuration(dto.minimumDurationDays, dto.maximumDurationDays);
@@ -1048,6 +1049,14 @@ export class AssetsService {
       throw new ForbiddenException(
         'Only verified users can create asset listings',
       );
+    }
+  }
+
+  private assertNonAdminListingUser(currentUser: AuthenticatedUser) {
+    const adminRoles: RoleName[] = [RoleName.ADMIN, RoleName.SUPER_ADMIN];
+
+    if (currentUser.roles.some((role) => adminRoles.includes(role))) {
+      throw new ForbiddenException('Admin users cannot create asset listings');
     }
   }
 

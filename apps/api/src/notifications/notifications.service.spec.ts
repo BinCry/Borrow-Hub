@@ -1,4 +1,10 @@
-import { NotificationType, RentalStatus } from '@prisma/client';
+import {
+  NotificationType,
+  RentalStatus,
+  RoleName,
+  UserStatus,
+  VerificationStatus,
+} from '@prisma/client';
 import { NotificationsService } from './notifications.service';
 
 describe('NotificationsService', () => {
@@ -6,6 +12,9 @@ describe('NotificationsService', () => {
     notification: {
       findFirst: jest.fn(),
       create: jest.fn(),
+    },
+    user: {
+      findMany: jest.fn(),
     },
     rentalRequest: {
       findMany: jest.fn(),
@@ -48,6 +57,7 @@ describe('NotificationsService', () => {
     });
     prisma.notification.findFirst.mockResolvedValue(null);
     prisma.notification.create.mockResolvedValue({ id: 'notification-1' });
+    prisma.user.findMany.mockResolvedValue([]);
     prisma.systemConfig.findUnique.mockResolvedValue({
       key: 'late_fee_rate',
       value: '10000',
@@ -105,6 +115,81 @@ describe('NotificationsService', () => {
         id: 'notification-2',
         title: 'Realtime',
         body: 'Realtime notification',
+      }),
+    );
+  });
+
+  it('broadcasts an admin notification to every active user', async () => {
+    prisma.user.findMany.mockResolvedValueOnce([
+      { id: 'user-1' },
+      { id: 'user-2' },
+    ]);
+    prisma.notification.create
+      .mockResolvedValueOnce({
+        id: 'notification-1',
+        userId: 'user-1',
+        type: NotificationType.SYSTEM,
+        title: 'Bao tri he thong',
+        content: 'He thong bao tri luc 22:00.',
+        metadata: null,
+        referenceType: 'system',
+        referenceId: 'admin-1',
+        readAt: null,
+        createdAt: new Date('2026-08-12T00:00:00.000Z'),
+      })
+      .mockResolvedValueOnce({
+        id: 'notification-2',
+        userId: 'user-2',
+        type: NotificationType.SYSTEM,
+        title: 'Bao tri he thong',
+        content: 'He thong bao tri luc 22:00.',
+        metadata: null,
+        referenceType: 'system',
+        referenceId: 'admin-1',
+        readAt: null,
+        createdAt: new Date('2026-08-12T00:00:00.000Z'),
+      });
+
+    const result = await service.broadcastFromAdmin(
+      {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        fullName: 'Admin',
+        roles: [RoleName.ADMIN],
+        status: UserStatus.ACTIVE,
+        verificationStatus: VerificationStatus.VERIFIED,
+      },
+      {
+        title: ' Bao tri he thong ',
+        content: ' He thong bao tri luc 22:00. ',
+      },
+    );
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith({
+      where: {
+        status: UserStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(prisma.notification.create).toHaveBeenCalledTimes(2);
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'user-1',
+        type: NotificationType.SYSTEM,
+        title: 'Bao tri he thong',
+        content: 'He thong bao tri luc 22:00.',
+        referenceType: 'system',
+        metadata: expect.objectContaining({
+          actorId: 'admin-1',
+          source: 'admin_broadcast',
+        }),
+      }),
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        recipientCount: 2,
       }),
     );
   });

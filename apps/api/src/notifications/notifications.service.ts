@@ -1,9 +1,10 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { NotificationType, Prisma, RentalStatus } from '@prisma/client';
+import { NotificationType, Prisma, RentalStatus, UserStatus } from '@prisma/client';
 import { ChatTimelineService } from '../chat/chat-timeline.service';
 import { PrismaService } from '../database/prisma.service';
-import { RunReminderJobsDto } from './notifications.dto';
+import { BroadcastNotificationDto, RunReminderJobsDto } from './notifications.dto';
 import { NotificationsEventsService } from './notifications-events.service';
+import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 
 type NotificationMetadata = Record<string, string | number | boolean | null>;
 
@@ -144,6 +145,42 @@ export class NotificationsService {
     this.notificationsEventsService.emitReadAll(userId);
 
     return { count: result.count };
+  }
+
+  async broadcastFromAdmin(
+    currentUser: AuthenticatedUser,
+    dto: BroadcastNotificationDto,
+  ) {
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+      },
+    });
+    const broadcastId = `admin-${Date.now()}`;
+
+    await this.createMany(
+      recipients.map((recipient) => recipient.id),
+      {
+        type: NotificationType.SYSTEM,
+        title: dto.title.trim(),
+        content: dto.content.trim(),
+        metadata: {
+          broadcastId,
+          actorId: currentUser.id,
+          source: 'admin_broadcast',
+        },
+        referenceType: 'system',
+        referenceId: broadcastId,
+      },
+    );
+
+    return {
+      recipientCount: recipients.length,
+      broadcastId,
+    };
   }
 
   async runReminderJobs(dto: RunReminderJobsDto) {

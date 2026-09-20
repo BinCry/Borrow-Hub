@@ -431,6 +431,16 @@ export type CreateRefundPayload = {
   reason: string;
 };
 
+export type BroadcastNotificationPayload = {
+  title: string;
+  content: string;
+};
+
+export type BroadcastNotificationResult = {
+  recipientCount: number;
+  broadcastId: string;
+};
+
 export const AdminService = {
   async getDashboard() {
     const response = await apiClient.get<AdminDashboard>('/admin/dashboard');
@@ -576,6 +586,14 @@ export const AdminService = {
     const response = await apiClient.patch<AdminPayout>(`/finance/payouts/${payoutId}/status`, {
       status,
     });
+    return response.data;
+  },
+
+  async broadcastNotification(payload: BroadcastNotificationPayload) {
+    const response = await apiClient.post<BroadcastNotificationResult>(
+      '/notifications/admin/broadcast',
+      payload,
+    );
     return response.data;
   },
 };
