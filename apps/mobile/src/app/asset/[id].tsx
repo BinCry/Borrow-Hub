@@ -1,12 +1,12 @@
 import { colors } from '../../theme/colors';
-import { View, Text, ScrollView, TouchableOpacity, FlatList, Dimensions, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, FlatList, Dimensions, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAsset } from '../../hooks/useAssets';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { ChevronLeft, MapPin, Star, ShieldCheck, Heart, User, AlertCircle } from 'lucide-react-native';
+import { ChevronLeft, MapPin, Star, ShieldCheck, Heart, User, AlertCircle, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { apiClient } from '../../services/api/client';
 import { useAuthStore } from '../../store/authStore';
@@ -20,6 +20,8 @@ export default function AssetDetailScreen() {
   const [favoriteOverride, setFavoriteOverride] = useState<boolean | null>(null);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [removeReason, setRemoveReason] = useState('');
+  const [isRemovingAsset, setIsRemovingAsset] = useState(false);
   const isAdminPreview = admin === '1';
 
   const { data: asset, isLoading, isError } = useAsset(id);
@@ -57,6 +59,43 @@ export default function AssetDetailScreen() {
     } finally {
       setIsTogglingFavorite(false);
     }
+  };
+
+  const removeAsset = () => {
+    const reason = removeReason.trim();
+
+    if (!reason) {
+      Alert.alert('Cần lý do xóa bài', 'Nhập lý do để thông báo cho chủ bài đăng.');
+      return;
+    }
+
+    Alert.alert(
+      'Xóa bài đăng?',
+      `"${asset?.title ?? 'Bài đăng'}" sẽ bị ẩn khỏi marketplace và chủ bài đăng sẽ nhận được lý do.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa bài',
+          style: 'destructive',
+          onPress: async () => {
+            setIsRemovingAsset(true);
+            try {
+              await apiClient.patch(`/assets/${id}/moderate`, {
+                status: 'SUSPENDED',
+                reason,
+              });
+              Alert.alert('Đã xóa bài', 'Bài đăng đã bị ẩn khỏi marketplace.', [
+                { text: 'OK', onPress: () => router.back() },
+              ]);
+            } catch {
+              Alert.alert('Không thể xóa bài', 'Kiểm tra quyền admin hoặc thử lại sau.');
+            } finally {
+              setIsRemovingAsset(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   if (isLoading) {
@@ -222,7 +261,33 @@ export default function AssetDetailScreen() {
         </View>
       </ScrollView>
 
-      {!isAdminPreview ? (
+      {isAdminPreview ? (
+        <View className="px-5 py-4 bg-surface border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+          <TextInput
+            className="min-h-20 rounded-xl border border-border bg-background px-4 py-3 text-text-primary"
+            multiline
+            onChangeText={setRemoveReason}
+            placeholder="Lý do xóa bài"
+            placeholderTextColor={colors.text.muted}
+            textAlignVertical="top"
+            value={removeReason}
+          />
+          <TouchableOpacity
+            className="mt-3 min-h-12 flex-row items-center justify-center rounded-xl bg-danger"
+            disabled={isRemovingAsset}
+            onPress={removeAsset}
+          >
+            {isRemovingAsset ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <Trash2 size={18} color="white" />
+                <Text className="ml-2 font-extrabold text-white">Xóa bài</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      ) : (
         <View className="px-5 py-5 bg-surface border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
           <TouchableOpacity
             className="bg-primary rounded-xl py-4 items-center shadow-md flex-row justify-center"
@@ -238,7 +303,7 @@ export default function AssetDetailScreen() {
             <Text className="text-white font-bold text-lg">Yêu cầu thuê ngay</Text>
           </TouchableOpacity>
         </View>
-      ) : null}
+      )}
     </SafeAreaView>
   );
 }
