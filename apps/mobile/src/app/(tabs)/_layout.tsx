@@ -5,7 +5,7 @@ import {
   Home,
   LayoutDashboard,
   MessageCircle,
-  Megaphone,
+  PackageCheck,
   Search,
   User,
   WalletCards,
@@ -114,9 +114,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="admin-listings"
         options={{
-          title: 'Thông báo',
+          title: 'Bài đăng',
           href: isStaff ? undefined : null,
-          tabBarIcon: ({ color }) => <Megaphone color={color} size={24} />,
+          tabBarIcon: ({ color }) => <PackageCheck color={color} size={24} />,
         }}
       />
       <Tabs.Screen

@@ -1,1 +1,1 @@
-export { default } from '../admin/announcements';
+export { default } from '../admin/listings';
