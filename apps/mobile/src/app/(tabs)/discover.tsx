@@ -7,7 +7,7 @@ import { Search, SlidersHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
 
-export default function DiscoverScreen() {
+export function DiscoverContent({ adminPreview = false }: { adminPreview?: boolean }) {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -49,7 +49,7 @@ export default function DiscoverScreen() {
         <FlatList
           data={data?.data || []}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <AssetCard asset={item} />}
+          renderItem={({ item }) => <AssetCard asset={item} adminPreview={adminPreview} />}
           contentContainerClassName="p-4"
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center py-20">
@@ -62,4 +62,8 @@ export default function DiscoverScreen() {
       )}
     </SafeAreaView>
   );
+}
+
+export default function DiscoverScreen() {
+  return <DiscoverContent />;
 }

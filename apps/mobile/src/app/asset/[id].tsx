@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, FlatList, Dimensions, Alert, 
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useAsset } from '../../hooks/useAssets';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -10,6 +11,8 @@ import { ChevronLeft, MapPin, Star, ShieldCheck, Heart, User, AlertCircle, Trash
 import { useState } from 'react';
 import { apiClient } from '../../services/api/client';
 import { useAuthStore } from '../../store/authStore';
+import type { User as UserType } from '../../types/domain';
+import { isStaffUser } from '../../utils/roles';
 
 const { width } = Dimensions.get('window');
 
@@ -22,7 +25,12 @@ export default function AssetDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [removeReason, setRemoveReason] = useState('');
   const [isRemovingAsset, setIsRemovingAsset] = useState(false);
-  const isAdminPreview = admin === '1';
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => (await apiClient.get<UserType>('/auth/me')).data,
+    enabled: isAuthenticated,
+  });
+  const isAdminPreview = admin === '1' || isStaffUser(meQuery.data);
 
   const { data: asset, isLoading, isError } = useAsset(id);
 

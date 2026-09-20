@@ -7,13 +7,20 @@ import { Link } from 'expo-router';
 
 interface AssetCardProps {
   asset: Asset;
+  adminPreview?: boolean;
 }
 
-export function AssetCard({ asset }: AssetCardProps) {
+export function AssetCard({ asset, adminPreview = false }: AssetCardProps) {
   const coverImage = asset.images?.find((img) => img.isCover)?.url || asset.images?.[0]?.url;
+  const detailHref = adminPreview
+    ? {
+        pathname: '/asset/[id]',
+        params: { id: asset.id, admin: '1' },
+      }
+    : `/asset/${asset.id}`;
 
   return (
-    <Link href={`/asset/${asset.id}`} asChild>
+    <Link href={detailHref as never} asChild>
       <TouchableOpacity className="bg-surface rounded-2xl overflow-hidden mb-5 w-full shadow-sm border border-gray-100">
         {coverImage ? (
           <Image 
