@@ -1,5 +1,5 @@
 import { AssetStatus, RoleName } from '@prisma/client';
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { AssetsService } from './assets.service';
 
@@ -35,6 +35,9 @@ describe('AssetsService', () => {
   const riskService = {
     assessAssetSubmission: jest.fn(),
   };
+  const storageService = {
+    uploadAssetImage: jest.fn(),
+  };
 
   let service: AssetsService;
 
@@ -59,7 +62,7 @@ describe('AssetsService', () => {
       auditService as never,
       notificationsService as never,
       riskService as never,
-      { uploadAssetImage: jest.fn() } as never,
+      storageService as never,
     );
   });
 
@@ -133,5 +136,17 @@ describe('AssetsService', () => {
         } as never,
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects oversized asset uploads before image processing', async () => {
+    await expect(
+      service.uploadImage(moderatorUser, {
+        originalname: 'camera.png',
+        mimetype: 'image/png',
+        size: 15 * 1024 * 1024 + 1,
+        buffer: Buffer.from('not-an-image'),
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(storageService.uploadAssetImage).not.toHaveBeenCalled();
   });
 });

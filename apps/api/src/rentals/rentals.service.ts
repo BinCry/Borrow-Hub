@@ -78,6 +78,7 @@ export class RentalsService {
 
   async create(currentUser: AuthenticatedUser, dto: CreateRentalRequestDto) {
     this.assertVerifiedUser(currentUser);
+    this.assertMarketplaceUser(currentUser);
 
     const asset = await this.prisma.asset.findUnique({
       where: { id: dto.assetId },
@@ -1803,13 +1804,13 @@ export class RentalsService {
   }
 
   private assertOwner(ownerId: string, currentUser: AuthenticatedUser) {
-    if (ownerId !== currentUser.id && !this.isStaff(currentUser)) {
+    if (ownerId !== currentUser.id) {
       throw new ForbiddenException('Only the owner can perform this action');
     }
   }
 
   private assertRenter(renterId: string, currentUser: AuthenticatedUser) {
-    if (renterId !== currentUser.id && !this.isStaff(currentUser)) {
+    if (renterId !== currentUser.id) {
       throw new ForbiddenException('Only the renter can perform this action');
     }
   }
@@ -1819,6 +1820,12 @@ export class RentalsService {
       throw new ForbiddenException(
         'Only verified users can create rental requests',
       );
+    }
+  }
+
+  private assertMarketplaceUser(currentUser: AuthenticatedUser) {
+    if (this.isStaff(currentUser)) {
+      throw new ForbiddenException('Staff users cannot create rental requests');
     }
   }
 

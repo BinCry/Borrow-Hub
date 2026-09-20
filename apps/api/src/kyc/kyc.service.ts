@@ -42,6 +42,7 @@ const SUPPORTED_KYC_MIME_TYPES = new Set([
   'image/heic',
   'image/heif',
 ]);
+const MAX_KYC_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 @Injectable()
 export class KycService {
@@ -77,6 +78,10 @@ export class KycService {
         throw new BadRequestException(
           'KYC files must be valid JPEG, PNG, WebP, HEIC or HEIF images',
         );
+      }
+
+      if (file.size > MAX_KYC_FILE_SIZE_BYTES || file.buffer.length > MAX_KYC_FILE_SIZE_BYTES) {
+        throw new BadRequestException('KYC files must not exceed 10MB each');
       }
     });
 

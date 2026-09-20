@@ -113,6 +113,23 @@ describe('KycService', () => {
     expect(storageService.uploadSensitiveDocument).not.toHaveBeenCalled();
   });
 
+  it('rejects oversized KYC files before image processing', async () => {
+    const files = createFiles();
+    files.documentFront![0] = {
+      ...files.documentFront![0],
+      size: 10 * 1024 * 1024 + 1,
+    };
+
+    await expect(
+      service.submit(
+        'user-1',
+        { documentType: 'CCCD', documentNumber: '012345678901' },
+        files,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(storageService.uploadSensitiveDocument).not.toHaveBeenCalled();
+  });
+
   it('prevents replacing an already verified identity', async () => {
     prisma.userVerification.findUnique.mockResolvedValue({
       verificationStatus: VerificationStatus.VERIFIED,

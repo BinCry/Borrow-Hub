@@ -1,9 +1,10 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import {
   HandoverStatus,
   HandoverType,
   NotificationType,
   RentalStatus,
+  RoleName,
 } from '@prisma/client';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { RentalsService } from './rentals.service';
@@ -23,6 +24,14 @@ describe('RentalsService QR handover', () => {
     email: 'renter@example.com',
     fullName: 'Renter User',
     roles: [],
+    status: 'ACTIVE',
+    verificationStatus: 'VERIFIED',
+  };
+  const adminUser: AuthenticatedUser = {
+    id: 'admin-1',
+    email: 'admin@example.com',
+    fullName: 'Admin User',
+    roles: [RoleName.ADMIN],
     status: 'ACTIVE',
     verificationStatus: 'VERIFIED',
   };
@@ -177,6 +186,17 @@ describe('RentalsService QR handover', () => {
     expect(result.id).toBe(handover.id);
   });
 
+  it('prevents staff accounts from creating rental requests', async () => {
+    await expect(
+      service.create(adminUser, {
+        assetId: 'asset-1',
+        startAt: '2026-08-12T10:00:00.000Z',
+        endAt: '2026-08-13T10:00:00.000Z',
+      } as never),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.asset.findUnique).not.toHaveBeenCalled();
+  });
+
   it('generates a short-lived QR session for a delivery handover', async () => {
     prisma.handoverQrSession.create.mockResolvedValue({
       id: 'qr-1',
@@ -261,6 +281,24 @@ describe('RentalsService QR handover', () => {
     expect(prisma.handoverQrSession.updateMany).toHaveBeenCalled();
     expect(prisma.handover.updateMany).toHaveBeenCalled();
     expect(result.status).toBe(RentalStatus.ONGOING);
+  });
+
+  it('prevents staff accounts from confirming handover as the renter', async () => {
+    prisma.handoverQrSession.findUnique.mockResolvedValue({
+      id: 'qr-4',
+      token: 'active-token',
+      usedAt: null,
+      expiresAt: new Date('2099-01-01T12:00:00.000Z'),
+      handover,
+      rental,
+    });
+
+    await expect(
+      service.confirmHandoverByQr(adminUser, {
+        token: 'active-token',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.handoverQrSession.updateMany).not.toHaveBeenCalled();
   });
 
   it('throws when QR session is missing', async () => {

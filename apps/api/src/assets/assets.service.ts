@@ -90,6 +90,7 @@ const SUPPORTED_ASSET_IMAGE_MIME_TYPES = new Set([
   'image/heic',
   'image/heif',
 ]);
+const MAX_ASSET_IMAGE_SIZE_BYTES = 15 * 1024 * 1024;
 
 @Injectable()
 export class AssetsService {
@@ -325,6 +326,10 @@ export class AssetsService {
 
     if (!file.buffer?.length) {
       throw new BadRequestException('Uploaded image is empty');
+    }
+
+    if (file.size > MAX_ASSET_IMAGE_SIZE_BYTES || file.buffer.length > MAX_ASSET_IMAGE_SIZE_BYTES) {
+      throw new BadRequestException('Uploaded image exceeds the size limit');
     }
 
     const fileKey = this.buildAssetUploadFileKey(currentUser.id, {
