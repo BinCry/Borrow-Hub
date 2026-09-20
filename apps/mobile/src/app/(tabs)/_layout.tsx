@@ -132,7 +132,6 @@ export default function TabLayout() {
         options={{
           title: 'Tài chính',
           href: null,
-          tabBarButton: () => null,
           tabBarIcon: ({ color }) => <WalletCards color={color} size={24} />,
         }}
       />
