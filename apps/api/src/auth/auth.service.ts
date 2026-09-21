@@ -187,7 +187,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Email/số điện thoại hoặc mật khẩu không đúng');
     }
 
     const passwordMatches = await argon2
@@ -195,10 +195,10 @@ export class AuthService {
       .catch(() => false);
 
     if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Email/số điện thoại hoặc mật khẩu không đúng');
     }
 
-    this.assertActiveUser(user.status);
+    this.assertActiveUser(user.status, user.statusReason);
 
     const issuedTokens = await this.createTokens(user);
     await this.prisma.user.update({
@@ -234,7 +234,7 @@ export class AuthService {
         throw new UnauthorizedException('Refresh token is invalid');
       }
 
-      this.assertActiveUser(user.status);
+      this.assertActiveUser(user.status, user.statusReason);
 
       const previousRefreshTokenHash = user.refreshTokenHash;
       const isRefreshTokenValid = await argon2
@@ -311,7 +311,7 @@ export class AuthService {
         throw new UnauthorizedException('Account is unavailable');
       }
 
-      this.assertActiveUser(user.status);
+      this.assertActiveUser(user.status, user.statusReason);
       return this.serializeUser(user) as AuthenticatedUser;
     } catch (error: unknown) {
       if (error instanceof UnauthorizedException) {
@@ -429,9 +429,20 @@ export class AuthService {
     return { success: true };
   }
 
-  private assertActiveUser(status: UserStatus) {
+  private assertActiveUser(status: UserStatus, reason?: string | null) {
     if (status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Account is not available');
+      if (status === UserStatus.SUSPENDED || status === UserStatus.BANNED) {
+        const baseMessage = 'Tài khoản bị đình chỉ';
+        throw new UnauthorizedException(
+          reason?.trim() ? `${baseMessage}. Lý do: ${reason.trim()}` : baseMessage,
+        );
+      }
+
+      if (status === UserStatus.DELETED) {
+        throw new UnauthorizedException('Tài khoản đã bị xóa');
+      }
+
+      throw new UnauthorizedException('Tài khoản chưa thể sử dụng');
     }
   }
 
@@ -491,6 +502,7 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       status: user.status,
+      statusReason: 'statusReason' in user ? user.statusReason : undefined,
       phone: 'phone' in user ? user.phone : undefined,
       avatarUrl: 'avatarUrl' in user ? user.avatarUrl : undefined,
       trustScore: 'trustScore' in user ? user.trustScore : undefined,

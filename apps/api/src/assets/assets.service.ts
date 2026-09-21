@@ -114,7 +114,9 @@ export class AssetsService {
     const where: Prisma.AssetWhereInput = {
       status:
         currentUser && this.isStaff(currentUser)
-          ? query.status
+          ? query.includeAllStatuses === 'true'
+            ? query.status
+            : (query.status ?? AssetStatus.ACTIVE)
           : AssetStatus.ACTIVE,
       categoryId: query.categoryId,
       city: query.city,

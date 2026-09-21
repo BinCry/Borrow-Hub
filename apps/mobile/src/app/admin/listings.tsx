@@ -16,6 +16,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   RefreshControl,
   Text,
   TextInput,
@@ -89,6 +91,7 @@ export default function AdminListingsScreen() {
     mutationFn: ({ assetId, payload }: { assetId: string; payload: ModerateAssetPayload }) =>
       AdminService.moderateAsset(assetId, payload),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['assets'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
@@ -116,6 +119,10 @@ export default function AdminListingsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
       <View className="min-h-16 flex-row items-center border-b border-border bg-surface px-4 py-3">
         <TouchableOpacity
           accessibilityLabel="Quay lại"
@@ -168,6 +175,8 @@ export default function AdminListingsScreen() {
           data={listingsQuery.data?.data ?? []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={listingsQuery.isRefetching}
@@ -241,6 +250,7 @@ export default function AdminListingsScreen() {
           )}
         />
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

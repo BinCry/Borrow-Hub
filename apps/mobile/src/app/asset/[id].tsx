@@ -1,9 +1,9 @@
 import { colors } from '../../theme/colors';
-import { View, Text, ScrollView, TouchableOpacity, FlatList, Dimensions, Alert, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, FlatList, Dimensions, Alert, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAsset } from '../../hooks/useAssets';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -19,6 +19,7 @@ const { width } = Dimensions.get('window');
 export default function AssetDetailScreen() {
   const { id, admin } = useLocalSearchParams<{ id: string; admin?: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useAuthStore();
   const [favoriteOverride, setFavoriteOverride] = useState<boolean | null>(null);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
@@ -92,6 +93,8 @@ export default function AssetDetailScreen() {
                 status: 'SUSPENDED',
                 reason,
               });
+              void queryClient.invalidateQueries({ queryKey: ['assets'] });
+              void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
               Alert.alert('Đã xóa bài', 'Bài đăng đã bị ẩn khỏi marketplace.', [
                 { text: 'OK', onPress: () => router.back() },
               ]);
@@ -152,6 +155,10 @@ export default function AssetDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
       <View className="flex-row items-center justify-between px-4 py-3 bg-surface z-10 border-b border-border">
         <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
           <ChevronLeft size={28} color="#1F2937" />
@@ -172,7 +179,12 @@ export default function AssetDetailScreen() {
         )}
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1"
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Image Gallery */}
         <View className="bg-gray-100 relative">
           {asset.images && asset.images.length > 0 ? (
@@ -312,6 +324,7 @@ export default function AssetDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

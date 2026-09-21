@@ -69,6 +69,7 @@ export type AdminUser = {
   phone: string;
   fullName: string;
   status: AdminUserStatus;
+  statusReason?: string | null;
   trustScore: number;
   createdAt: string;
   lastLoginAt?: string | null;
@@ -167,6 +168,11 @@ export type AdminAssetList = {
     total: number;
     totalPages: number;
   };
+};
+
+export type UpdateUserStatusPayload = {
+  status: AdminUserStatus;
+  reason?: string;
 };
 
 export type ModerateAssetPayload = {
@@ -452,9 +458,9 @@ export const AdminService = {
     return response.data;
   },
 
-  async updateUserStatus(userId: string, status: AdminUserStatus) {
+  async updateUserStatus(userId: string, payload: UpdateUserStatusPayload) {
     const response = await apiClient.patch<AdminUser>(`/admin/users/${userId}/status`, {
-      status,
+      ...payload,
     });
     return response.data;
   },
@@ -483,6 +489,7 @@ export const AdminService = {
     const response = await apiClient.get<AdminAssetList>('/assets', {
       params: {
         ...(status ? { status } : {}),
+        ...(!status ? { includeAllStatuses: 'true' } : {}),
         limit: 50,
         sort: 'newest',
       },

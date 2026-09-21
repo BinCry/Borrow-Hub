@@ -7,6 +7,7 @@ export type AuthenticatedUser = {
   fullName: string;
   roles: RoleName[];
   status: UserStatus;
+  statusReason?: string | null;
   verificationStatus: VerificationStatus;
 };
 

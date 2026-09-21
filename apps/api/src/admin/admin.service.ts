@@ -45,6 +45,7 @@ const adminUserSelect = {
   emailVerifiedAt: true,
   phoneVerifiedAt: true,
   status: true,
+  statusReason: true,
   trustScore: true,
   lastLoginAt: true,
   createdAt: true,
@@ -375,9 +376,15 @@ export class AdminService {
       );
     }
 
+    const statusReason =
+      dto.status === UserStatus.ACTIVE ? null : dto.reason?.trim() || null;
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: { status: dto.status },
+      data: {
+        status: dto.status,
+        statusReason,
+      },
       select: adminUserSelect,
     });
 
@@ -386,8 +393,8 @@ export class AdminService {
       action: 'admin.user-status.update',
       entityType: 'user',
       entityId: userId,
-      beforeData: { status: existing.status },
-      afterData: { status: updated.status },
+      beforeData: { status: existing.status, statusReason: existing.statusReason },
+      afterData: { status: updated.status, statusReason: updated.statusReason },
     });
 
     await this.invalidateAdminReadCache();

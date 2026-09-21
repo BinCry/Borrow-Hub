@@ -13,6 +13,7 @@ export interface User {
   fullName: string;
   avatarUrl?: string | null;
   status?: UserStatus;
+  statusReason?: string | null;
   trustScore?: number;
   joinedAt?: string;
   createdAt?: string;

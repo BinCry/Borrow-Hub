@@ -74,10 +74,32 @@ function getApiErrorMessage(error: unknown, fallback: string) {
   const message = response?.error?.message ?? response?.message;
 
   if (Array.isArray(message)) {
-    return message.join('\n');
+    return message.map(localizeLoginError).join('\n');
   }
 
-  return typeof message === 'string' && message.trim().length > 0 ? message : fallback;
+  return typeof message === 'string' && message.trim().length > 0
+    ? localizeLoginError(message)
+    : fallback;
+}
+
+function localizeLoginError(message: string) {
+  const normalized = message.trim();
+
+  if (
+    normalized === 'Invalid credentials' ||
+    normalized === 'Unauthorized'
+  ) {
+    return 'Email/số điện thoại hoặc mật khẩu không đúng';
+  }
+
+  if (
+    normalized === 'Account is not available' ||
+    normalized.includes('Account is unavailable')
+  ) {
+    return 'Tài khoản bị đình chỉ';
+  }
+
+  return normalized;
 }
 
 export default function LoginScreen() {

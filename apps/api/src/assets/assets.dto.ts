@@ -329,6 +329,10 @@ export class SearchAssetsQueryDto {
   status?: AssetStatus;
 
   @IsOptional()
+  @IsIn(['true'])
+  includeAllStatuses?: string;
+
+  @IsOptional()
   @IsDateString()
   startAt?: string;
 
