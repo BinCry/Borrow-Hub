@@ -40,6 +40,7 @@
     "express": "5.2.1",
     "helmet": "^8.3.0",
     "keyv": "^5.6.0",
+    "minio": "^8.0.7",
     "nest-winston": "^1.10.2",
     "nodemailer": "^9.0.5",
     "pg": "^8.23.0",

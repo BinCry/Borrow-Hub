@@ -102,4 +102,30 @@ describe('validateEnv', () => {
 
     expect(validateEnv(developmentEnv).SMTP_HOST).toBeUndefined();
   });
+
+  it('requires MinIO configuration when MinIO storage is enabled', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        STORAGE_PROVIDER: 'minio',
+      }),
+    ).toThrow('Missing required environment variable: MINIO_ENDPOINT');
+
+    const result = validateEnv({
+      ...validEnv,
+      STORAGE_PROVIDER: 'minio',
+      MINIO_ENDPOINT: 'minio',
+      MINIO_PORT: '9000',
+      MINIO_USE_SSL: 'false',
+      MINIO_ACCESS_KEY: 'borrowhub-minio',
+      MINIO_SECRET_KEY: 'minio-secret-with-at-least-32-chars',
+      MINIO_BUCKET: 'borrowhub',
+      MINIO_PUBLIC_BASE_URL: 'https://files.rentloop.vn',
+    });
+
+    expect(result.STORAGE_PROVIDER).toBe('minio');
+    expect(result.MINIO_ENDPOINT).toBe('minio');
+    expect(result.MINIO_PORT).toBe(9000);
+    expect(result.MINIO_PUBLIC_BASE_URL).toBe('https://files.rentloop.vn');
+  });
 });

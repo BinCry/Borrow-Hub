@@ -165,6 +165,23 @@ export class AssetsService {
       ];
     }
 
+    if (currentUser && this.isStaff(currentUser) && query.hideRemoved === 'true') {
+      const existingAnd = Array.isArray(where.AND)
+        ? where.AND
+        : where.AND
+          ? [where.AND]
+          : [];
+
+      where.AND = [
+        ...existingAnd,
+        {
+          status: {
+            notIn: [AssetStatus.SUSPENDED, AssetStatus.ARCHIVED],
+          },
+        },
+      ];
+    }
+
     const requiresAdvancedRanking = this.requiresAdvancedRanking(query);
     const include = this.searchAssetInclude();
     let total: number;
@@ -303,6 +320,9 @@ export class AssetsService {
     return this.prisma.asset.findMany({
       where: {
         ownerId: currentUser.id,
+        status: {
+          notIn: [AssetStatus.SUSPENDED, AssetStatus.ARCHIVED],
+        },
       },
       include: {
         category: true,

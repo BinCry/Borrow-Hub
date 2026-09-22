@@ -1,24 +1,35 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { LocalStorageProvider } from './providers/local-storage.provider';
+import { MinioStorageProvider } from './providers/minio-storage.provider';
 import { IStorageProvider } from './storage.interface';
 
 @Injectable()
 export class StorageService {
-  private readonly provider: IStorageProvider;
+  private readonly assetProvider: IStorageProvider;
+  private readonly sensitiveProvider: IStorageProvider;
 
-  constructor(localProvider: LocalStorageProvider) {
-    this.provider = localProvider;
+  constructor(
+    configService: ConfigService,
+    localProvider: LocalStorageProvider,
+    minioProvider: MinioStorageProvider,
+  ) {
+    this.assetProvider =
+      configService.get<string>('STORAGE_PROVIDER') === 'minio'
+        ? minioProvider
+        : localProvider;
+    this.sensitiveProvider = localProvider;
   }
 
   uploadAssetImage(key: string, buffer: Buffer, mimeType: string) {
-    return this.provider.uploadFile(`assets/${key}`, buffer, {
+    return this.assetProvider.uploadFile(`assets/${key}`, buffer, {
       contentType: mimeType,
       isPublic: true,
     });
   }
 
   uploadSensitiveDocument(key: string, buffer: Buffer, mimeType: string) {
-    return this.provider.uploadFile(`secure/${key}`, buffer, {
+    return this.sensitiveProvider.uploadFile(`secure/${key}`, buffer, {
       contentType: mimeType,
       isPublic: false,
     });
@@ -26,11 +37,11 @@ export class StorageService {
 
   getSignedUrlForSensitiveDocument(key: string) {
     const normalizedKey = key.startsWith('secure/') ? key : `secure/${key}`;
-    return this.provider.getSignedUrl(normalizedKey);
+    return this.sensitiveProvider.getSignedUrl(normalizedKey);
   }
 
   deleteSensitiveDocument(key: string) {
     const normalizedKey = key.startsWith('secure/') ? key : `secure/${key}`;
-    return this.provider.deleteFile(normalizedKey);
+    return this.sensitiveProvider.deleteFile(normalizedKey);
   }
 }

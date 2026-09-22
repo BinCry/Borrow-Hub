@@ -28,6 +28,23 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-borrowhub-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-replace-with-at-least-32-random-characters-minio}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -39,6 +56,15 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/toolshare?schema=public
       REDIS_URL: redis://redis:6379
       UPLOADS_DIR: /app/uploads
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      MINIO_ENDPOINT: ${DOCKER_MINIO_ENDPOINT:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-borrowhub-minio}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-replace-with-at-least-32-random-characters-minio}
+      MINIO_BUCKET: ${MINIO_BUCKET:-borrowhub}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:-http://localhost:9000}
     ports:
       - "3000:3000"
     volumes:
@@ -54,3 +80,4 @@ volumes:
   postgres-data:
   redis-data:
   api-uploads:
+  minio-data:

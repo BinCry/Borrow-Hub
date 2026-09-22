@@ -2,6 +2,7 @@ type EnvValue = string | undefined;
 
 const ALLOWED_NODE_ENVS = new Set(['development', 'test', 'production']);
 const REDIS_PROTOCOLS = new Set(['redis:', 'rediss:']);
+const STORAGE_PROVIDERS = new Set(['local', 'minio']);
 
 function getString(raw: Record<string, unknown>, key: string): EnvValue {
   const value = raw[key];
@@ -201,6 +202,48 @@ function readSepayConfig(raw: Record<string, unknown>, nodeEnv: string) {
   };
 }
 
+function readStorageConfig(raw: Record<string, unknown>) {
+  const provider = getString(raw, 'STORAGE_PROVIDER') ?? 'local';
+
+  if (!STORAGE_PROVIDERS.has(provider)) {
+    throw new Error('STORAGE_PROVIDER must be either local or minio');
+  }
+
+  if (provider === 'local') {
+    return {
+      STORAGE_PROVIDER: 'local',
+      MINIO_ENDPOINT: getString(raw, 'MINIO_ENDPOINT'),
+      MINIO_PORT: getString(raw, 'MINIO_PORT')
+        ? requireInteger(raw, 'MINIO_PORT', 1)
+        : undefined,
+      MINIO_USE_SSL: getString(raw, 'MINIO_USE_SSL')
+        ? parseBoolean(raw, 'MINIO_USE_SSL')
+        : undefined,
+      MINIO_ACCESS_KEY: getString(raw, 'MINIO_ACCESS_KEY'),
+      MINIO_SECRET_KEY: getString(raw, 'MINIO_SECRET_KEY'),
+      MINIO_BUCKET: getString(raw, 'MINIO_BUCKET'),
+      MINIO_REGION: getString(raw, 'MINIO_REGION'),
+      MINIO_PUBLIC_BASE_URL: getString(raw, 'MINIO_PUBLIC_BASE_URL')
+        ? requireUrl(raw, 'MINIO_PUBLIC_BASE_URL')
+        : undefined,
+    };
+  }
+
+  return {
+    STORAGE_PROVIDER: 'minio',
+    MINIO_ENDPOINT: requireString(raw, 'MINIO_ENDPOINT'),
+    MINIO_PORT: requireInteger(raw, 'MINIO_PORT', 1),
+    MINIO_USE_SSL: parseBoolean(raw, 'MINIO_USE_SSL'),
+    MINIO_ACCESS_KEY: requireString(raw, 'MINIO_ACCESS_KEY'),
+    MINIO_SECRET_KEY: requireSecret(raw, 'MINIO_SECRET_KEY'),
+    MINIO_BUCKET: requireString(raw, 'MINIO_BUCKET'),
+    MINIO_REGION: getString(raw, 'MINIO_REGION') ?? 'us-east-1',
+    MINIO_PUBLIC_BASE_URL: getString(raw, 'MINIO_PUBLIC_BASE_URL')
+      ? requireUrl(raw, 'MINIO_PUBLIC_BASE_URL')
+      : undefined,
+  };
+}
+
 export function validateEnv(raw: Record<string, unknown>) {
   const nodeEnv = getString(raw, 'NODE_ENV') ?? 'development';
 
@@ -210,6 +253,7 @@ export function validateEnv(raw: Record<string, unknown>) {
 
   const mailConfig = readMailConfig(raw, nodeEnv);
   const sepayConfig = readSepayConfig(raw, nodeEnv);
+  const storageConfig = readStorageConfig(raw);
   const corsOrigins =
     nodeEnv === 'production'
       ? requireString(raw, 'CORS_ORIGINS')
@@ -261,6 +305,7 @@ export function validateEnv(raw: Record<string, unknown>) {
       1,
       30,
     ),
+    ...storageConfig,
     ...sepayConfig,
     ...mailConfig,
   };

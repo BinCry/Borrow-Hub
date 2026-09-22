@@ -34,6 +34,7 @@ import {
 } from '../../services/admin/admin.service';
 import { colors } from '../../theme/colors';
 import type { AssetStatus } from '../../types/domain';
+import { removeAssetFromListCaches } from '../../utils/assetCache';
 
 type ListingFilter = AssetStatus | 'ALL';
 
@@ -90,9 +91,13 @@ export default function AdminListingsScreen() {
   const moderationMutation = useMutation({
     mutationFn: ({ assetId, payload }: { assetId: string; payload: ModerateAssetPayload }) =>
       AdminService.moderateAsset(assetId, payload),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      if (variables.payload.status === 'SUSPENDED') {
+        removeAssetFromListCaches(queryClient, variables.assetId);
+      }
       void queryClient.invalidateQueries({ queryKey: ['assets'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
+      void queryClient.invalidateQueries({ queryKey: ['my-assets'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },

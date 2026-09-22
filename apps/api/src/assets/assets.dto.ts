@@ -333,6 +333,10 @@ export class SearchAssetsQueryDto {
   includeAllStatuses?: string;
 
   @IsOptional()
+  @IsIn(['true'])
+  hideRemoved?: string;
+
+  @IsOptional()
   @IsDateString()
   startAt?: string;
 

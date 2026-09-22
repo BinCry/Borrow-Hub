@@ -13,6 +13,7 @@ import { apiClient } from '../../services/api/client';
 import { useAuthStore } from '../../store/authStore';
 import type { User as UserType } from '../../types/domain';
 import { isStaffUser } from '../../utils/roles';
+import { removeAssetFromListCaches } from '../../utils/assetCache';
 
 const { width } = Dimensions.get('window');
 
@@ -93,8 +94,10 @@ export default function AssetDetailScreen() {
                 status: 'SUSPENDED',
                 reason,
               });
+              removeAssetFromListCaches(queryClient, id);
               void queryClient.invalidateQueries({ queryKey: ['assets'] });
               void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
+              void queryClient.invalidateQueries({ queryKey: ['my-assets'] });
               Alert.alert('Đã xóa bài', 'Bài đăng đã bị ẩn khỏi marketplace.', [
                 { text: 'OK', onPress: () => router.back() },
               ]);

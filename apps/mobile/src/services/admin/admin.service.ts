@@ -490,6 +490,7 @@ export const AdminService = {
       params: {
         ...(status ? { status } : {}),
         ...(!status ? { includeAllStatuses: 'true' } : {}),
+        hideRemoved: 'true',
         limit: 50,
         sort: 'newest',
       },
