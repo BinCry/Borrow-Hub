@@ -4,14 +4,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAssets } from '../../hooks/useAssets';
 import { AssetCard } from '../../components/AssetCard';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useFocusEffect } from 'expo-router';
 
 export function DiscoverContent({ adminPreview = false }: { adminPreview?: boolean }) {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 500);
 
-  const { data, isLoading, isError } = useAssets({ keyword: debouncedSearch });
+  const { data, isLoading, isError, isRefetching, refetch } = useAssets({ keyword: debouncedSearch });
+
+  useFocusEffect(
+    useCallback(() => {
+      if (adminPreview) {
+        void refetch();
+      }
+    }, [adminPreview, refetch]),
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -51,6 +60,8 @@ export function DiscoverContent({ adminPreview = false }: { adminPreview?: boole
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <AssetCard asset={item} adminPreview={adminPreview} />}
           contentContainerClassName="p-4"
+          refreshing={isRefetching}
+          onRefresh={() => void refetch()}
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center py-20">
               <Search size={48} color="#D1D5DB" />

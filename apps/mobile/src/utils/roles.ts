@@ -16,6 +16,12 @@ export function isAdminUser(user?: User) {
   return user?.roles?.some((role) => role === 'ADMIN' || role === 'SUPER_ADMIN') ?? false;
 }
 
+export function canModerateAssets(user?: User) {
+  return user?.roles?.some((role) =>
+    ['MODERATOR', 'ADMIN', 'SUPER_ADMIN'].includes(role),
+  ) ?? false;
+}
+
 export function isSuperAdminUser(user?: User) {
   return user?.roles?.includes('SUPER_ADMIN') ?? false;
 }

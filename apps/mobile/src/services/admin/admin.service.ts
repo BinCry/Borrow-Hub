@@ -1,5 +1,7 @@
 import { apiClient } from '../api/client';
+import { AssetsService } from '../assets/assets.service';
 import type { AssetStatus } from '../../types/domain';
+import { isMissingApiRoute } from '../../utils/apiError';
 
 export type AdminRole =
   | 'USER'
@@ -501,6 +503,20 @@ export const AdminService = {
   async moderateAsset(assetId: string, payload: ModerateAssetPayload) {
     const response = await apiClient.patch<AdminAsset>(`/assets/${assetId}/moderate`, payload);
     return response.data;
+  },
+
+  async removeAsset(assetId: string, reason: string): Promise<void> {
+    try {
+      await AssetsService.remove(assetId, reason);
+    } catch (error) {
+      // Older API releases expose moderation but not the dedicated delete route.
+      // Never retry permission, network, or asset-not-found errors as moderation.
+      if (!isMissingApiRoute(error, 'DELETE', `/assets/${assetId}`)) throw error;
+      await apiClient.patch(`/assets/${assetId}/moderate`, {
+        status: 'ARCHIVED',
+        reason,
+      });
+    }
   },
 
   async listDisputes(status?: AdminDisputeStatus) {

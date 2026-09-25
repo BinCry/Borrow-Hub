@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -18,6 +19,7 @@ import type { AuthenticatedUser } from '../common/interfaces/authenticated-reque
 import {
   CreateAssetDto,
   ModerateAssetDto,
+  RemoveAssetDto,
   SearchAssetsQueryDto,
   UpdateAssetDto,
 } from './assets.dto';
@@ -87,6 +89,15 @@ export class AssetsController {
     @Body() dto: UpdateAssetDto,
   ) {
     return this.assetsService.update(assetId, currentUser, dto);
+  }
+
+  @Delete(':assetId')
+  remove(
+    @Param('assetId') assetId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: RemoveAssetDto,
+  ) {
+    return this.assetsService.remove(assetId, currentUser, dto);
   }
 
   @Roles(RoleName.MODERATOR, RoleName.ADMIN, RoleName.SUPER_ADMIN)

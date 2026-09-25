@@ -7,6 +7,7 @@ describe('AssetsService search enhancements', () => {
     asset: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      count: jest.fn(),
     },
     review: {
       groupBy: jest.fn(),
@@ -181,6 +182,56 @@ describe('AssetsService search enhancements', () => {
         sort: 'nearest',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('hides removed listings for staff when requesting all statuses', async () => {
+    prisma.asset.findMany.mockResolvedValue([]);
+    prisma.asset.count.mockResolvedValue(0);
+
+    await service.search(
+      {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        fullName: 'Admin User',
+        roles: ['ADMIN'],
+        status: 'ACTIVE',
+        verificationStatus: 'VERIFIED',
+      } as never,
+      { includeAllStatuses: 'true' },
+    );
+
+    expect(prisma.asset.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: {
+            notIn: [AssetStatus.SUSPENDED, AssetStatus.ARCHIVED],
+          },
+        }),
+      }),
+    );
+  });
+
+  it('allows an explicit removed-status filter for staff', async () => {
+    prisma.asset.findMany.mockResolvedValue([]);
+    prisma.asset.count.mockResolvedValue(0);
+
+    await service.search(
+      {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        fullName: 'Admin User',
+        roles: ['ADMIN'],
+        status: 'ACTIVE',
+        verificationStatus: 'VERIFIED',
+      } as never,
+      { status: AssetStatus.SUSPENDED, hideRemoved: 'true' },
+    );
+
+    expect(prisma.asset.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: AssetStatus.SUSPENDED }),
+      }),
+    );
   });
 
   it('hides exact location on public asset detail', async () => {

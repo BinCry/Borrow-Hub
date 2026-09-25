@@ -192,7 +192,7 @@ export default function CreateListingScreen() {
     },
   });
 
-  const pickImages = async () => {
+  const pickImagesFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
@@ -203,6 +203,34 @@ export default function CreateListingScreen() {
     if (!result.canceled) {
       setSelectedImages((current) => [...current, ...result.assets].slice(0, 5));
     }
+  };
+
+  const takeImage = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Cần quyền camera',
+        'Hãy cho phép RentLoop truy cập camera để chụp ảnh tài sản.',
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.9,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImages((current) => [...current, result.assets[0]].slice(0, 5));
+    }
+  };
+
+  const chooseImageSource = () => {
+    Alert.alert('Thêm ảnh', 'Chọn cách thêm ảnh tài sản', [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Chụp ảnh', onPress: () => void takeImage() },
+      { text: 'Chọn từ thư viện', onPress: () => void pickImagesFromLibrary() },
+    ]);
   };
 
   return (
@@ -275,7 +303,7 @@ export default function CreateListingScreen() {
               <TouchableOpacity
                 accessibilityLabel="Chọn ảnh tài sản"
                 className="h-28 w-28 items-center justify-center rounded-2xl border-2 border-dashed border-primary/40 bg-primary-soft"
-                onPress={() => void pickImages()}
+                onPress={chooseImageSource}
               >
                 <Camera size={28} color={colors.primary.DEFAULT} />
                 <Text className="mt-2 text-xs font-bold text-primary">Thêm ảnh</Text>

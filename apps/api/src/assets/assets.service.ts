@@ -23,6 +23,7 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import {
   CreateAssetDto,
   ModerateAssetDto,
+  RemoveAssetDto,
   SearchAssetsQueryDto,
   UpdateAssetDto,
 } from './assets.dto';
@@ -111,12 +112,24 @@ export class AssetsService {
     const requestedEndAt = query.endAt ? new Date(query.endAt) : null;
     this.assertSearchQuery(query, requestedStartAt, requestedEndAt);
 
+    const staffUser = currentUser && this.isStaff(currentUser);
+    const hasExplicitStatus = query.status !== undefined;
+    const requestsAllStatuses = query.includeAllStatuses === 'true';
+    const shouldHideRemovedStatuses =
+      staffUser &&
+      !hasExplicitStatus &&
+      (query.hideRemoved === 'true' || requestsAllStatuses);
+
     const where: Prisma.AssetWhereInput = {
+      NOT: { status: AssetStatus.ARCHIVED },
       status:
-        currentUser && this.isStaff(currentUser)
-          ? query.includeAllStatuses === 'true'
-            ? query.status
-            : (query.status ?? AssetStatus.ACTIVE)
+        staffUser
+          ? query.status ??
+            (shouldHideRemovedStatuses
+              ? {
+                  notIn: [AssetStatus.SUSPENDED, AssetStatus.ARCHIVED],
+                }
+              : AssetStatus.ACTIVE)
           : AssetStatus.ACTIVE,
       categoryId: query.categoryId,
       city: query.city,
@@ -162,23 +175,6 @@ export class AssetsService {
           },
         },
         this.buildAvailabilityDateRangeFilter(requestedStartAt, requestedEndAt),
-      ];
-    }
-
-    if (currentUser && this.isStaff(currentUser) && query.hideRemoved === 'true') {
-      const existingAnd = Array.isArray(where.AND)
-        ? where.AND
-        : where.AND
-          ? [where.AND]
-          : [];
-
-      where.AND = [
-        ...existingAnd,
-        {
-          status: {
-            notIn: [AssetStatus.SUSPENDED, AssetStatus.ARCHIVED],
-          },
-        },
       ];
     }
 
@@ -513,7 +509,7 @@ export class AssetsService {
       }
 
       return tx.asset.update({
-        where: { id: assetId },
+        where: { id: assetId, status: { not: AssetStatus.ARCHIVED } },
         data: {
           categoryId: dto.categoryId,
           title: dto.title,
@@ -605,12 +601,70 @@ export class AssetsService {
     return updated;
   }
 
+  async remove(
+    assetId: string,
+    currentUser: AuthenticatedUser,
+    dto: RemoveAssetDto = {},
+  ) {
+    const asset = await this.ensureAssetExists(assetId);
+    const isOwner = asset.ownerId === currentUser.id;
+
+    if (!isOwner && !this.isStaff(currentUser)) {
+      throw new ForbiddenException('Bạn không có quyền xóa bài đăng này.');
+    }
+
+    if (asset.status === AssetStatus.ARCHIVED) {
+      return asset;
+    }
+
+    const reason = dto.reason?.trim();
+    if (!isOwner && !reason) {
+      throw new BadRequestException('Nhập lý do xóa để thông báo cho chủ bài đăng.');
+    }
+
+    // Keep the asset and its rental history; archived listings cannot be republished.
+    const updated = await this.prisma.asset.update({
+      where: { id: assetId },
+      data: { status: AssetStatus.ARCHIVED },
+    });
+
+    await this.auditService.create({
+      actorId: currentUser.id,
+      action: 'asset.remove',
+      entityType: 'asset',
+      entityId: asset.id,
+      beforeData: { status: asset.status },
+      afterData: { status: updated.status, reason: reason ?? null },
+    });
+
+    if (!isOwner) {
+      await this.notificationsService.createMany([asset.ownerId], {
+        type: 'ASSET_MODERATED',
+        title: 'Bài đăng đã bị xóa',
+        content: `Bài đăng "${asset.title}" đã bị xóa. Lý do: ${reason}`,
+        metadata: { assetId: asset.id },
+        referenceType: 'asset',
+        referenceId: asset.id,
+      });
+    }
+
+    return updated;
+  }
+
   async moderate(
     assetId: string,
     currentUser: AuthenticatedUser,
     dto: ModerateAssetDto,
   ) {
+    if (!this.isStaff(currentUser)) {
+      throw new ForbiddenException('Bạn không có quyền kiểm duyệt bài đăng.');
+    }
+
     const asset = await this.ensureAssetExists(assetId);
+
+    if (asset.status === AssetStatus.ARCHIVED) {
+      throw new ConflictException('Bài đăng đã xóa không thể được duyệt lại.');
+    }
 
     const allowedStatuses: AssetStatus[] = [
       AssetStatus.ACTIVE,
@@ -625,7 +679,7 @@ export class AssetsService {
     }
 
     const updated = await this.prisma.asset.update({
-      where: { id: assetId },
+      where: { id: assetId, status: { not: AssetStatus.ARCHIVED } },
       data: {
         status: dto.status,
       },
@@ -1129,6 +1183,10 @@ export class AssetsService {
   ) {
     if (asset.ownerId !== currentUser.id && !this.isStaff(currentUser)) {
       throw new ForbiddenException('You cannot edit this asset');
+    }
+
+    if (asset.status === AssetStatus.ARCHIVED) {
+      throw new ConflictException('Bài đăng đã xóa không thể chỉnh sửa.');
     }
 
     const lockedStatuses: AssetStatus[] = [

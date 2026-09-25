@@ -16,6 +16,7 @@ export class FavoritesService {
     return this.prisma.favoriteAsset.findMany({
       where: {
         userId: currentUser.id,
+        asset: { status: AssetStatus.ACTIVE },
       },
       include: {
         asset: {

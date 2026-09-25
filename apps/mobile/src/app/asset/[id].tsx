@@ -12,13 +12,16 @@ import { useState } from 'react';
 import { apiClient } from '../../services/api/client';
 import { useAuthStore } from '../../store/authStore';
 import type { User as UserType } from '../../types/domain';
-import { isStaffUser } from '../../utils/roles';
-import { removeAssetFromListCaches } from '../../utils/assetCache';
+import { canModerateAssets, isStaffUser } from '../../utils/roles';
+import { synchronizeRemovedAsset } from '../../utils/assetCache';
+import { AssetsService } from '../../services/assets/assets.service';
+import { AdminService } from '../../services/admin/admin.service';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const { width } = Dimensions.get('window');
 
 export default function AssetDetailScreen() {
-  const { id, admin } = useLocalSearchParams<{ id: string; admin?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuthStore();
@@ -32,9 +35,13 @@ export default function AssetDetailScreen() {
     queryFn: async () => (await apiClient.get<UserType>('/auth/me')).data,
     enabled: isAuthenticated,
   });
-  const isAdminPreview = admin === '1' || isStaffUser(meQuery.data);
+  const isAdminPreview = isStaffUser(meQuery.data);
 
   const { data: asset, isLoading, isError } = useAsset(id);
+  const isOwner = isAuthenticated && !!meQuery.data && asset?.ownerId === meQuery.data.id;
+  const canRemove = isAuthenticated && (isOwner || canModerateAssets(meQuery.data)) &&
+    asset?.status !== 'ARCHIVED';
+  const needsRemovalReason = canRemove && !isOwner;
 
   const isFavorite = favoriteOverride ?? asset?.isFavorite ?? false;
 
@@ -72,16 +79,17 @@ export default function AssetDetailScreen() {
   };
 
   const removeAsset = () => {
+    if (!canRemove || isRemovingAsset) return;
     const reason = removeReason.trim();
 
-    if (!reason) {
+    if (needsRemovalReason && !reason) {
       Alert.alert('Cần lý do xóa bài', 'Nhập lý do để thông báo cho chủ bài đăng.');
       return;
     }
 
     Alert.alert(
       'Xóa bài đăng?',
-      `"${asset?.title ?? 'Bài đăng'}" sẽ bị ẩn khỏi marketplace và chủ bài đăng sẽ nhận được lý do.`,
+      `"${asset?.title ?? 'Bài đăng'}" sẽ được xóa khỏi danh sách bài đăng.${needsRemovalReason ? ' Chủ bài đăng sẽ nhận được lý do.' : ''}`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
@@ -90,19 +98,17 @@ export default function AssetDetailScreen() {
           onPress: async () => {
             setIsRemovingAsset(true);
             try {
-              await apiClient.patch(`/assets/${id}/moderate`, {
-                status: 'SUSPENDED',
-                reason,
-              });
-              removeAssetFromListCaches(queryClient, id);
-              void queryClient.invalidateQueries({ queryKey: ['assets'] });
-              void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
-              void queryClient.invalidateQueries({ queryKey: ['my-assets'] });
-              Alert.alert('Đã xóa bài', 'Bài đăng đã bị ẩn khỏi marketplace.', [
+              if (needsRemovalReason) {
+                await AdminService.removeAsset(id, reason);
+              } else {
+                await AssetsService.remove(id);
+              }
+              await synchronizeRemovedAsset(queryClient, id);
+              Alert.alert('Đã xóa bài', 'Bài đăng đã được xóa khỏi danh sách.', [
                 { text: 'OK', onPress: () => router.back() },
               ]);
-            } catch {
-              Alert.alert('Không thể xóa bài', 'Kiểm tra quyền admin hoặc thử lại sau.');
+            } catch (error) {
+              Alert.alert('Không thể xóa bài', getApiErrorMessage(error, 'Kiểm tra kết nối và thử lại.'));
             } finally {
               setIsRemovingAsset(false);
             }
@@ -169,7 +175,7 @@ export default function AssetDetailScreen() {
         <Text className="text-lg font-bold text-text-primary" numberOfLines={1}>
           Chi tiết
         </Text>
-        {isAdminPreview ? (
+        {isAdminPreview || isOwner ? (
           <View className="w-10" />
         ) : (
           <TouchableOpacity
@@ -284,9 +290,10 @@ export default function AssetDetailScreen() {
         </View>
       </ScrollView>
 
-      {isAdminPreview ? (
+      {canRemove ? (
         <View className="px-5 py-4 bg-surface border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-          <TextInput
+          {needsRemovalReason ? <TextInput
+            accessibilityLabel="Lý do xóa bài"
             className="min-h-20 rounded-xl border border-border bg-background px-4 py-3 text-text-primary"
             multiline
             onChangeText={setRemoveReason}
@@ -294,8 +301,9 @@ export default function AssetDetailScreen() {
             placeholderTextColor={colors.text.muted}
             textAlignVertical="top"
             value={removeReason}
-          />
+          /> : null}
           <TouchableOpacity
+            accessibilityLabel="Xóa bài đăng"
             className="mt-3 min-h-12 flex-row items-center justify-center rounded-xl bg-danger"
             disabled={isRemovingAsset}
             onPress={removeAsset}
@@ -310,7 +318,7 @@ export default function AssetDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
-      ) : (
+      ) : !isAdminPreview && !isOwner && asset.status === 'ACTIVE' ? (
         <View className="px-5 py-5 bg-surface border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
           <TouchableOpacity
             className="bg-primary rounded-xl py-4 items-center shadow-md flex-row justify-center"
@@ -326,7 +334,7 @@ export default function AssetDetailScreen() {
             <Text className="text-white font-bold text-lg">Yêu cầu thuê ngay</Text>
           </TouchableOpacity>
         </View>
-      )}
+      ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -360,6 +360,13 @@ export class SearchAssetsQueryDto {
   limit?: number;
 }
 
+export class RemoveAssetDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
 export class ModerateAssetDto {
   @IsEnum(AssetStatus)
   status!: AssetStatus;

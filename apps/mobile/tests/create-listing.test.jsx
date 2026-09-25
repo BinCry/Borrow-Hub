@@ -110,6 +110,8 @@ test('verified users can upload images and create a listing', async () => {
 
   await act(async () => {
     fireEvent.press(screen.getByLabelText('Chọn ảnh tài sản'));
+    const sourceOptions = Alert.alert.mock.calls.find(([title]) => title === 'Thêm ảnh')[2];
+    await sourceOptions.find((option) => option.text === 'Chọn từ thư viện').onPress();
   });
 
   fireEvent.changeText(screen.getByPlaceholderText('Ví dụ: Máy ảnh Sony A7 IV'), 'Máy ảnh Sony A7 IV');

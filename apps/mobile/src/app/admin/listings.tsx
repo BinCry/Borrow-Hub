@@ -34,7 +34,8 @@ import {
 } from '../../services/admin/admin.service';
 import { colors } from '../../theme/colors';
 import type { AssetStatus } from '../../types/domain';
-import { removeAssetFromListCaches } from '../../utils/assetCache';
+import { synchronizeRemovedAsset } from '../../utils/assetCache';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 type ListingFilter = AssetStatus | 'ALL';
 
@@ -91,9 +92,10 @@ export default function AdminListingsScreen() {
   const moderationMutation = useMutation({
     mutationFn: ({ assetId, payload }: { assetId: string; payload: ModerateAssetPayload }) =>
       AdminService.moderateAsset(assetId, payload),
-    onSuccess: (_, variables) => {
-      if (variables.payload.status === 'SUSPENDED') {
-        removeAssetFromListCaches(queryClient, variables.assetId);
+    onSuccess: async (_, variables) => {
+      if (variables.payload.status === 'SUSPENDED' || variables.payload.status === 'ARCHIVED') {
+        await synchronizeRemovedAsset(queryClient, variables.assetId, variables.payload.status);
+        return;
       }
       void queryClient.invalidateQueries({ queryKey: ['assets'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
@@ -101,8 +103,18 @@ export default function AdminListingsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'queue-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
-    onError: () => {
-      Alert.alert('Không thể cập nhật bài đăng', 'Kiểm tra quyền kiểm duyệt hoặc thử lại sau.');
+    onError: (error) => {
+      Alert.alert('Không thể cập nhật bài đăng', getApiErrorMessage(error, 'Kiểm tra kết nối và thử lại.'));
+    },
+  });
+  const removalMutation = useMutation({
+    mutationFn: ({ assetId, reason }: { assetId: string; reason: string }) =>
+      AdminService.removeAsset(assetId, reason),
+    onSuccess: async (_, { assetId }) => {
+      await synchronizeRemovedAsset(queryClient, assetId);
+    },
+    onError: (error) => {
+      Alert.alert('Không thể xóa bài', getApiErrorMessage(error, 'Kiểm tra kết nối và thử lại.'));
     },
   });
 
@@ -115,9 +127,11 @@ export default function AdminListingsScreen() {
     Alert.alert(title, message, [
       { text: 'Hủy', style: 'cancel' },
       {
-        text: payload.status === 'ACTIVE' ? 'Duyệt' : payload.status === 'SUSPENDED' ? 'Gỡ bài' : 'Từ chối',
+        text: payload.status === 'ACTIVE' ? 'Duyệt' : payload.status === 'ARCHIVED' ? 'Xóa bài' : 'Từ chối',
         style: payload.status === 'ACTIVE' ? 'default' : 'destructive',
-        onPress: () => moderationMutation.mutate({ assetId: asset.id, payload }),
+        onPress: () => payload.status === 'ARCHIVED'
+          ? removalMutation.mutate({ assetId: asset.id, reason: payload.reason ?? '' })
+          : moderationMutation.mutate({ assetId: asset.id, payload }),
       },
     ]);
   };
@@ -204,7 +218,7 @@ export default function AdminListingsScreen() {
           renderItem={({ item }) => (
             <ListingCard
               asset={item}
-              isUpdating={moderationMutation.isPending}
+              isUpdating={moderationMutation.isPending || removalMutation.isPending}
               onOpen={() =>
                 router.push({
                   pathname: '/asset/[id]',
@@ -237,18 +251,18 @@ export default function AdminListingsScreen() {
                 const trimmedReason = reason.trim();
 
                 if (!trimmedReason) {
-                  Alert.alert('Cần lý do gỡ bài', 'Nhập lý do để thông báo cho chủ bài đăng.');
+                  Alert.alert('Cần lý do xóa bài', 'Nhập lý do để thông báo cho chủ bài đăng.');
                   return;
                 }
 
                 confirmModeration(
                   item,
                   {
-                    status: 'SUSPENDED',
+                    status: 'ARCHIVED',
                     reason: trimmedReason,
                   },
-                  'Gỡ bài đăng?',
-                  `"${item.title}" sẽ bị ẩn khỏi marketplace và chủ bài đăng sẽ nhận được lý do.`,
+                  'Xóa bài đăng?',
+                  `"${item.title}" sẽ được xóa khỏi danh sách bài đăng và chủ bài đăng sẽ nhận được lý do.`,
                 );
               }}
             />
@@ -305,7 +319,7 @@ function ListingCard({
   const [rejectReason, setRejectReason] = useState('');
   const coverImage = asset.images?.find((image) => image.isCover)?.url ?? asset.images?.[0]?.url;
   const reviewable = canReview(asset.status);
-  const removable = asset.status !== 'SUSPENDED' && asset.status !== 'ARCHIVED';
+  const removable = asset.status !== 'ARCHIVED';
 
   return (
     <View className="mb-4 overflow-hidden rounded-2xl border border-border bg-surface">
@@ -374,7 +388,7 @@ function ListingCard({
               className="min-h-20 rounded-xl border border-border bg-background px-4 py-3 text-text-primary"
               multiline
               onChangeText={setRejectReason}
-              placeholder="Lý do khi từ chối hoặc gỡ bài"
+              placeholder="Lý do khi từ chối hoặc xóa bài"
               placeholderTextColor={colors.text.muted}
               textAlignVertical="top"
               value={rejectReason}
@@ -419,7 +433,7 @@ function ListingCard({
                 className="min-h-20 rounded-xl border border-border bg-background px-4 py-3 text-text-primary"
                 multiline
                 onChangeText={setRejectReason}
-                placeholder="Lý do gỡ bài"
+                placeholder="Lý do xóa bài"
                 placeholderTextColor={colors.text.muted}
                 textAlignVertical="top"
                 value={rejectReason}
@@ -435,7 +449,7 @@ function ListingCard({
               ) : (
                 <>
                   <Trash2 size={18} color={colors.danger} />
-                  <Text className="ml-2 font-extrabold text-danger">Gỡ bài</Text>
+                  <Text className="ml-2 font-extrabold text-danger">Xóa bài</Text>
                 </>
               )}
             </TouchableOpacity>

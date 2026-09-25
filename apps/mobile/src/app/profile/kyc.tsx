@@ -79,7 +79,7 @@ export default function KycScreen() {
     },
   });
 
-  const pickImage = async (kind: EvidenceKind) => {
+  const pickImageFromLibrary = async (kind: EvidenceKind) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -90,6 +90,36 @@ export default function KycScreen() {
     if (!result.canceled && result.assets[0]) {
       setImages((current) => ({ ...current, [kind]: result.assets[0] }));
     }
+  };
+
+  const takeImage = async (kind: EvidenceKind) => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Cần quyền camera',
+        'Hãy cho phép RentLoop truy cập camera để chụp ảnh xác thực.',
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: kind === 'selfie' ? [1, 1] : [16, 10],
+      quality: 0.9,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setImages((current) => ({ ...current, [kind]: result.assets[0] }));
+    }
+  };
+
+  const chooseImageSource = (kind: EvidenceKind) => {
+    Alert.alert('Thêm ảnh', 'Chọn cách thêm ảnh xác thực', [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Chụp ảnh', onPress: () => void takeImage(kind) },
+      { text: 'Chọn từ thư viện', onPress: () => void pickImageFromLibrary(kind) },
+    ]);
   };
 
   const currentStatus = statusQuery.data?.verificationStatus;
@@ -237,7 +267,7 @@ export default function KycScreen() {
                       key={kind}
                       accessibilityLabel={`Chọn ${title}`}
                       className="mb-4 min-h-28 overflow-hidden rounded-2xl border-2 border-dashed border-primary/30 bg-surface"
-                      onPress={() => void pickImage(kind)}
+                      onPress={() => chooseImageSource(kind)}
                     >
                       {selected ? (
                         <View className="flex-row items-center p-3">

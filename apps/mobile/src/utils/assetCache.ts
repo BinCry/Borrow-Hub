@@ -64,3 +64,26 @@ export function removeAssetFromListCaches(queryClient: QueryClient, assetId: str
     previous?.filter((asset) => asset.id !== assetId),
   );
 }
+
+export async function synchronizeRemovedAsset(
+  queryClient: QueryClient,
+  assetId: string,
+  status: 'ARCHIVED' | 'SUSPENDED' = 'ARCHIVED',
+) {
+  const queryKeys = [
+    ['assets'],
+    ['admin', 'listings'],
+    ['my-assets'],
+    ['favorites'],
+    ['admin', 'queue-counts'],
+    ['admin', 'dashboard'],
+  ];
+
+  // Discard requests started before deletion so they cannot restore the old row.
+  await Promise.all(queryKeys.map((queryKey) => queryClient.cancelQueries({ queryKey })));
+  removeAssetFromListCaches(queryClient, assetId);
+  queryClient.setQueryData<Asset>(['assets', 'detail', assetId], (previous) =>
+    previous ? { ...previous, status } : previous,
+  );
+  await Promise.all(queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+}

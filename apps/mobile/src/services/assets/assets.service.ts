@@ -133,4 +133,8 @@ export const AssetsService = {
     const response = await apiClient.get<ApiAsset[]>('/assets/my');
     return response.data.map(mapAsset);
   },
+
+  async remove(id: string, reason?: string): Promise<void> {
+    await apiClient.delete(`/assets/${id}`, { data: reason ? { reason } : {} });
+  },
 };
