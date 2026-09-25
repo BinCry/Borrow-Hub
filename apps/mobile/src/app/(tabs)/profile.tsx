@@ -1,10 +1,12 @@
 import { colors } from '../../theme/colors';
-import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, LayoutDashboard, Megaphone } from 'lucide-react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { Camera, LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, LayoutDashboard, Megaphone } from 'lucide-react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../services/api/client';
 import { User as UserType } from '../../types/domain';
 
@@ -12,6 +14,8 @@ export default function ProfileScreen() {
   const logout = useAuthStore((state) => state.logout);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['me'],
@@ -33,6 +37,54 @@ export default function ProfileScreen() {
   };
   const canAccessAdmin =
     user?.roles?.some((role) => role === 'ADMIN' || role === 'SUPER_ADMIN') ?? false;
+
+  const updateAvatar = async (asset: ImagePicker.ImagePickerAsset) => {
+    setIsUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName ?? `avatar-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      } as unknown as Blob);
+      const upload = await apiClient.post<{ url: string }>('/assets/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30_000,
+      });
+      await apiClient.patch('/users/me', { avatarUrl: upload.data.url });
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+      Alert.alert('Đã cập nhật ảnh đại diện', 'Ảnh đại diện mới đã được lưu.');
+    } catch {
+      Alert.alert('Không thể cập nhật ảnh', 'Kiểm tra kết nối và thử lại.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const chooseAvatarSource = () => {
+    Alert.alert('Ảnh đại diện', 'Chọn cách thêm ảnh', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Chụp ảnh',
+        onPress: async () => {
+          const permission = await ImagePicker.requestCameraPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert('Cần quyền camera', 'Hãy cấp quyền camera để chụp ảnh đại diện.');
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.9, allowsEditing: true, aspect: [1, 1] });
+          if (!result.canceled && result.assets[0]) await updateAvatar(result.assets[0]);
+        },
+      },
+      {
+        text: 'Chọn từ thư viện',
+        onPress: async () => {
+          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9, allowsEditing: true, aspect: [1, 1] });
+          if (!result.canceled && result.assets[0]) await updateAvatar(result.assets[0]);
+        },
+      },
+    ]);
+  };
 
   if (!isAuthenticated) {
     return (
@@ -64,12 +116,20 @@ export default function ProfileScreen() {
       <ScrollView className="flex-1">
         {/* Profile Header */}
         <View className="bg-surface pt-6 pb-8 items-center border-b border-border shadow-sm">
-          <View className="w-28 h-28 rounded-full bg-primary-soft items-center justify-center mb-5 overflow-hidden border-4 border-white shadow-sm">
+          <View className="relative mb-5 h-28 w-28 items-center justify-center rounded-full border-4 border-white bg-primary-soft shadow-sm">
             {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} className="w-full h-full" />
+              <Image source={{ uri: user.avatarUrl }} className="h-full w-full rounded-full" />
             ) : (
               <User size={48} color={colors.primary.DEFAULT} />
             )}
+            <TouchableOpacity
+              accessibilityLabel="Đổi ảnh đại diện"
+              className="absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-primary"
+              disabled={isUploadingAvatar}
+              onPress={chooseAvatarSource}
+            >
+              {isUploadingAvatar ? <ActivityIndicator color="white" size="small" /> : <Camera size={17} color="white" />}
+            </TouchableOpacity>
           </View>
           <Text className="text-2xl font-extrabold text-text-primary mb-1 tracking-tight">
             {isLoading ? 'Đang tải...' : user?.fullName || 'Người dùng'}
