@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, PlusCircle } from 'lucide-react-native';
@@ -6,7 +6,7 @@ import { colors } from '../../theme/colors';
 import { useAuthStore } from '../../store/authStore';
 import { AssetCard } from '../../components/AssetCard';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AssetsService } from '../../services/assets/assets.service';
 
 export default function MyListingsScreen() {
@@ -20,6 +20,22 @@ export default function MyListingsScreen() {
     },
     enabled: isAuthenticated,
   });
+  const queryClient = useQueryClient();
+
+  const removeListing = (id: string, title: string) => {
+    Alert.alert('Xóa bài đăng?', `Bạn có chắc muốn xóa "${title}" không?`, [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Xóa', style: 'destructive', onPress: async () => {
+        try {
+          await AssetsService.remove(id);
+          await queryClient.invalidateQueries({ queryKey: ['my-assets'] });
+          await queryClient.invalidateQueries({ queryKey: ['assets'] });
+        } catch {
+          Alert.alert('Không thể xóa bài', 'Kiểm tra kết nối và thử lại.');
+        }
+      } },
+    ]);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -48,7 +64,25 @@ export default function MyListingsScreen() {
         <FlatList
           data={data ?? []}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <AssetCard asset={item} />}
+          renderItem={({ item }) => (
+            <View>
+              <AssetCard asset={item} />
+              <View className="-mt-2 mb-4 flex-row gap-3">
+                <TouchableOpacity
+                  className="min-h-11 flex-1 items-center justify-center rounded-xl border border-primary bg-primary-soft"
+                  onPress={() => router.push({ pathname: '/asset/create', params: { editId: item.id } })}
+                >
+                  <Text className="font-bold text-primary">Sửa bài</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="min-h-11 flex-1 items-center justify-center rounded-xl border border-danger bg-surface"
+                  onPress={() => removeListing(item.id, item.title)}
+                >
+                  <Text className="font-bold text-danger">Xóa bài</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
           contentContainerClassName="p-4"
           ListEmptyComponent={
             <EmptyState 

@@ -31,6 +31,12 @@ type ApiAsset = {
   model?: string | null;
   condition: AssetCondition;
   pricePerDay: number;
+  estimatedValue?: number;
+  serialNumber?: string | null;
+  meetingPoint?: string | null;
+  usageInstructions?: string | null;
+  cancellationPolicy?: string | null;
+  accessories?: { name: string; quantity: number; description?: string | null }[];
   city: string;
   district: string;
   latitude?: number | null;
@@ -80,6 +86,12 @@ export function mapAsset(asset: ApiAsset): Asset {
     model: asset.model ?? null,
     condition: asset.condition,
     pricePerDay: asset.pricePerDay,
+    estimatedValue: asset.estimatedValue,
+    serialNumber: asset.serialNumber,
+    meetingPoint: asset.meetingPoint,
+    usageInstructions: asset.usageInstructions,
+    cancellationPolicy: asset.cancellationPolicy,
+    accessories: asset.accessories,
     location: {
       city: asset.city,
       district: asset.district,
@@ -136,5 +148,10 @@ export const AssetsService = {
 
   async remove(id: string, reason?: string): Promise<void> {
     await apiClient.delete(`/assets/${id}`, { data: reason ? { reason } : {} });
+  },
+
+  async update(id: string, payload: Record<string, unknown>): Promise<Asset> {
+    const response = await apiClient.patch<ApiAsset>(`/assets/${id}`, payload);
+    return mapAsset(response.data);
   },
 };

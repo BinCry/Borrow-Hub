@@ -3,13 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Camera, ChevronLeft, ShieldCheck, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  Modal,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -23,6 +25,9 @@ import { z } from 'zod';
 import { apiClient } from '../../services/api/client';
 import { colors } from '../../theme/colors';
 import type { User } from '../../types/domain';
+import { useAsset } from '../../hooks/useAssets';
+import { AssetsService } from '../../services/assets/assets.service';
+import { vietnamLocations } from '../../data/vietnamLocations';
 
 const createAssetSchema = z.object({
   title: z.string().trim().min(5, 'Tiêu đề phải có ít nhất 5 ký tự').max(120),
@@ -102,6 +107,9 @@ function appendImage(formData: FormData, asset: ImagePicker.ImagePickerAsset) {
 export default function CreateListingScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const isEditing = typeof editId === 'string' && editId.length > 0;
+  const editAssetQuery = useAsset(isEditing ? editId : '');
   const [selectedImages, setSelectedImages] = useState<
     ImagePicker.ImagePickerAsset[]
   >([]);
@@ -117,6 +125,8 @@ export default function CreateListingScreen() {
   const {
     control,
     handleSubmit,
+    reset,
+    watch,
     formState: { errors },
   } = useForm<CreateAssetForm>({
     resolver: zodResolver(createAssetSchema),
@@ -143,6 +153,9 @@ export default function CreateListingScreen() {
 
       const uploadedImages = await Promise.all(
         selectedImages.map(async (asset) => {
+          if (isEditing && asset.uri.startsWith('http')) {
+            return { url: asset.uri, fileKey: asset.fileName };
+          }
           const formData = new FormData();
           appendImage(formData, asset);
           return (
@@ -154,7 +167,7 @@ export default function CreateListingScreen() {
         }),
       );
 
-      return apiClient.post('/assets', {
+      const payload = {
         ...data,
         pricePerDay: Number(data.pricePerDay),
         estimatedValue: Number(data.estimatedValue),
@@ -166,7 +179,8 @@ export default function CreateListingScreen() {
           sortOrder: index,
           isCover: index === 0,
         })),
-      });
+      };
+      return isEditing ? AssetsService.update(editId, payload) : apiClient.post('/assets', payload);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['my-assets'] });
@@ -191,6 +205,28 @@ export default function CreateListingScreen() {
       );
     },
   });
+  const selectedCity = watch('city');
+  useEffect(() => {
+    if (!editAssetQuery.data) return;
+    const current = editAssetQuery.data;
+    reset({
+      title: current.title,
+      description: current.description,
+      pricePerDay: String(current.pricePerDay),
+      estimatedValue: String(current.estimatedValue ?? current.pricePerDay),
+      categoryId: current.categoryId ?? '',
+      city: current.location.city,
+      district: current.location.district,
+      condition: current.condition,
+    });
+    setSelectedImages(current.images.map((image) => ({
+      uri: image.url,
+      fileName: image.id,
+      mimeType: 'image/jpeg',
+      width: 1,
+      height: 1,
+    })));
+  }, [editAssetQuery.data, reset]);
 
   const pickImagesFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -248,12 +284,12 @@ export default function CreateListingScreen() {
             <ChevronLeft size={28} color={colors.text.primary} />
           </TouchableOpacity>
           <Text className="flex-1 text-center text-lg font-bold text-text-primary">
-            Tạo bài đăng
+            {isEditing ? 'Sửa bài đăng' : 'Tạo bài đăng'}
           </Text>
           <View className="w-11" />
         </View>
 
-        {meQuery.isLoading ? (
+        {meQuery.isLoading || (isEditing && editAssetQuery.isLoading) ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
           </View>
@@ -427,20 +463,20 @@ export default function CreateListingScreen() {
 
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <FormInput
+              <LocationSelect
                 control={control}
                 name="city"
                 label="Tỉnh/Thành phố"
-                placeholder="Hồ Chí Minh"
+                options={vietnamLocations.map((item) => item.name)}
                 error={errors.city?.message}
               />
             </View>
             <View className="flex-1">
-              <FormInput
+              <LocationSelect
                 control={control}
                 name="district"
                 label="Quận/Huyện"
-                placeholder="Quận 1"
+                options={vietnamLocations.find((item) => item.name === selectedCity)?.districts ?? ['Quận/Huyện khác']}
                 error={errors.district?.message}
               />
             </View>
@@ -456,7 +492,7 @@ export default function CreateListingScreen() {
             {createMutation.isPending ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text className="text-lg font-bold text-white">Gửi duyệt bài đăng</Text>
+              <Text className="text-lg font-bold text-white">{isEditing ? 'Lưu thay đổi' : 'Gửi duyệt bài đăng'}</Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -490,6 +526,66 @@ function VerificationRequired({
       >
         <Text className="text-lg font-bold text-white">{actionLabel}</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function LocationSelect({
+  control,
+  name,
+  label,
+  options,
+  error,
+}: {
+  control: ReturnType<typeof useForm<CreateAssetForm>>['control'];
+  name: 'city' | 'district';
+  label: string;
+  options: string[];
+  error?: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <View className="mb-5 flex-1">
+      <Text className="mb-2 font-semibold text-text-primary">{label}</Text>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field: { value, onChange } }) => (
+          <>
+            <TouchableOpacity
+              className={`min-h-14 justify-center rounded-xl border bg-surface px-4 ${error ? 'border-danger' : 'border-border'}`}
+              onPress={() => setVisible(true)}
+            >
+              <Text className={value ? 'text-text-primary' : 'text-text-muted'}>
+                {value || `Chọn ${label.toLowerCase()}`}
+              </Text>
+            </TouchableOpacity>
+            <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
+              <View className="flex-1 justify-end bg-black/40">
+                <View className="max-h-[75%] rounded-t-3xl bg-surface p-4">
+                  <View className="mb-3 flex-row items-center justify-between">
+                    <Text className="text-lg font-extrabold text-text-primary">{label}</Text>
+                    <TouchableOpacity onPress={() => setVisible(false)}><Text className="font-bold text-primary">Đóng</Text></TouchableOpacity>
+                  </View>
+                  <FlatList
+                    data={options}
+                    keyExtractor={(item) => item}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        className={`mb-2 min-h-12 justify-center rounded-xl border px-4 ${item === value ? 'border-primary bg-primary-soft' : 'border-border bg-background'}`}
+                        onPress={() => { onChange(item); setVisible(false); }}
+                      >
+                        <Text className="font-semibold text-text-primary">{item}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              </View>
+            </Modal>
+          </>
+        )}
+      />
+      {error ? <Text className="mt-1 text-sm text-danger">{error}</Text> : null}
     </View>
   );
 }

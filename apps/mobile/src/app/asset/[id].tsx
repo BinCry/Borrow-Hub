@@ -287,6 +287,33 @@ export default function AssetDetailScreen() {
             <Text className="text-text-secondary leading-6">{asset.description}</Text>
           </View>
 
+          <View className="mb-6 rounded-2xl border border-border bg-surface p-4">
+            <Text className="mb-3 text-lg font-bold text-text-primary">Thông tin sản phẩm</Text>
+            <DetailRow label="Tình trạng" value={asset.condition} />
+            {asset.brand ? <DetailRow label="Thương hiệu" value={asset.brand} /> : null}
+            {asset.model ? <DetailRow label="Model" value={asset.model} /> : null}
+            {asset.estimatedValue ? <DetailRow label="Giá trị tham khảo" value={new Intl.NumberFormat('vi-VN').format(asset.estimatedValue) + ' VND'} /> : null}
+            <DetailRow label="Số lượt cho thuê" value={String(asset.completedRentalCount)} />
+            <DetailRow label="Thời gian thuê" value={`${asset.minimumDurationDays ?? 1} - ${asset.maximumDurationDays ?? 30} ngày`} />
+            <DetailRow label="Hình thức nhận" value={asset.deliveryMethods.length ? asset.deliveryMethods.join(', ') : 'Nhận trực tiếp'} />
+          </View>
+
+          {asset.accessories?.length ? (
+            <View className="mb-6">
+              <Text className="mb-2 text-lg font-bold text-text-primary">Phụ kiện đi kèm</Text>
+              {asset.accessories.map((accessory) => (
+                <Text key={accessory.name} className="mb-1 text-text-secondary">• {accessory.name} (x{accessory.quantity}){accessory.description ? ` - ${accessory.description}` : ''}</Text>
+              ))}
+            </View>
+          ) : null}
+
+          {asset.usageInstructions ? (
+            <View className="mb-6">
+              <Text className="mb-2 text-lg font-bold text-text-primary">Hướng dẫn sử dụng</Text>
+              <Text className="text-text-secondary leading-6">{asset.usageInstructions}</Text>
+            </View>
+          ) : null}
+
         </View>
       </ScrollView>
 
@@ -337,5 +364,14 @@ export default function AssetDetailScreen() {
       ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="mb-2 flex-row justify-between gap-4">
+      <Text className="text-text-secondary">{label}</Text>
+      <Text className="flex-1 text-right font-semibold text-text-primary">{value}</Text>
+    </View>
   );
 }

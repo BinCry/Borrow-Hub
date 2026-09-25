@@ -51,6 +51,12 @@ export interface Asset {
   model: string | null;
   condition: AssetCondition;
   pricePerDay: number;
+  estimatedValue?: number;
+  serialNumber?: string | null;
+  meetingPoint?: string | null;
+  usageInstructions?: string | null;
+  cancellationPolicy?: string | null;
+  accessories?: { name: string; quantity: number; description?: string | null }[];
   location: {
     city: string;
     district: string;

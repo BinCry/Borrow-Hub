@@ -7,10 +7,18 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Search, Bell, SlidersHorizontal } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../../services/api/client';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { data, isLoading, isError, refetch, isRefetching } = useAssets({ limit: 10 });
+  const notificationsQuery = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => (await apiClient.get<{ readAt?: string | null }[]>('/notifications')).data,
+    refetchInterval: 30_000,
+  });
+  const unreadCount = (notificationsQuery.data ?? []).filter((item) => !item.readAt).length;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -25,7 +33,14 @@ export default function HomeScreen() {
             className="w-10 h-10 bg-surfaceSecondary rounded-full items-center justify-center"
             onPress={() => router.push('/notifications' as never)}
           >
-            <Bell size={20} color="#4B5563" />
+            <View>
+              <Bell size={20} color="#4B5563" />
+              {unreadCount > 0 ? (
+                <View className="absolute -right-3 -top-3 min-h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1">
+                  <Text className="text-[10px] font-extrabold text-white">{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              ) : null}
+            </View>
           </TouchableOpacity>
         </View>
 

@@ -31,6 +31,17 @@ export default function NotificationsScreen() {
   });
   const markReadMutation = useMutation({
     mutationFn: (id: string) => apiClient.post(`/notifications/${id}/read`),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const previous = queryClient.getQueryData<Notification[]>(['notifications']);
+      queryClient.setQueryData<Notification[]>(['notifications'], (items) =>
+        (items ?? []).map((item) => item.id === id ? { ...item, readAt: new Date().toISOString() } : item),
+      );
+      return { previous };
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previous) queryClient.setQueryData(['notifications'], context.previous);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
