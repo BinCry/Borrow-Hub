@@ -48,7 +48,7 @@ services:
         max-file: "3"
 
   minio:
-    image: minio/minio:latest
+    image: bitnamilegacy/minio:latest
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
