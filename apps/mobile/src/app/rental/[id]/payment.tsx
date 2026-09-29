@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCircle2, ChevronLeft, CreditCard, ShieldCheck, RefreshCw } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RentalsService } from '../../../services/rentals/rentals.service';
@@ -26,6 +26,7 @@ export default function PaymentScreen() {
   const queryClient = useQueryClient();
   const [now, setNow] = useState(0);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const hasObservedPayable = useRef(false);
   const intentQuery = useQuery({
     queryKey: ['rentals', 'payment-intent', id],
     queryFn: () => RentalsService.getPaymentIntent(id),
@@ -51,6 +52,24 @@ export default function PaymentScreen() {
     const timer = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (intentQuery.data?.isPayable) {
+      hasObservedPayable.current = true;
+      return;
+    }
+
+    if (hasObservedPayable.current && intentQuery.data && !intentQuery.data.isPayable) {
+      hasObservedPayable.current = false;
+      void queryClient.invalidateQueries({ queryKey: ['rentals'] });
+      Alert.alert(
+        'Thanh toán thành công',
+        'Đơn thuê đã chuyển sang bước tiếp theo.',
+        [{ text: 'Tiếp tục', onPress: () => router.back() }],
+        { cancelable: false },
+      );
+    }
+  }, [intentQuery.data, queryClient, router]);
 
   const intent = intentQuery.data;
   const remaining = intent?.expiresAt
