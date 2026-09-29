@@ -12,7 +12,7 @@ export class SepayWebhookDto {
   @Type(() => Number)
   @IsOptional()
   @IsInt()
-  @Min(1)
+  @Min(0)
   id!: number;
 
   @IsOptional()
