@@ -41,6 +41,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const requestId = request.headers['x-request-id'] || 'unknown';
 
+    if (status === HttpStatus.BAD_REQUEST) {
+      this.logger.warn(
+        `Bad request ${request.method} ${request.url}: ${JSON.stringify(message)}`,
+      );
+    }
+
     response.status(status).json({
       success: false,
       error: {
