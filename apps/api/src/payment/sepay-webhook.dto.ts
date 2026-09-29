@@ -10,19 +10,24 @@ import {
 
 export class SepayWebhookDto {
   @Type(() => Number)
+  @IsOptional()
   @IsInt()
   @Min(1)
   id!: number;
 
+  @IsOptional()
   @IsString()
   gateway!: string;
 
+  @IsOptional()
   @IsString()
   transactionDate!: string;
 
+  @IsOptional()
   @IsString()
   accountNumber!: string;
 
+  @IsOptional()
   @IsOptional()
   @IsString()
   subAccount?: string;
@@ -34,6 +39,7 @@ export class SepayWebhookDto {
   @IsString()
   content!: string;
 
+  @IsOptional()
   @IsIn(['in', 'out'])
   transferType!: 'in' | 'out';
 
@@ -42,14 +48,17 @@ export class SepayWebhookDto {
   description?: string;
 
   @Type(() => Number)
+  @IsOptional()
   @IsNumber({ maxDecimalPlaces: 0 })
   @Min(1)
   transferAmount!: number;
 
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
   accumulated!: number;
 
+  @IsOptional()
   @IsString()
   referenceCode!: string;
 }
