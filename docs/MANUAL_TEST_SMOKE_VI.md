@@ -19,13 +19,13 @@ Chạy bộ này sau mỗi build hoặc trước khi demo. Dùng A = chủ tài 
 - [v] A sửa tin của mình; B không sửa được tin của A.
 - [v] Tìm theo từ khóa, danh mục, địa phương và khoảng giá.
 - [v] Mở chi tiết tin công khai không làm lộ vị trí chính xác.
-- [ ] A thêm/bỏ yêu thích tin của B; A không yêu thích được tin của chính mình.
-- [ ] A xóa tin; tin biến mất khỏi khám phá và không thể đặt thuê mới.
+- [v] A thêm/bỏ yêu thích tin của B; A không yêu thích được tin của chính mình.
+- [v] A xóa tin; tin biến mất khỏi khám phá và không thể đặt thuê mới.
 
 ## Luồng thuê chính
 
-- [ ] B đặt tin ACTIVE với ngày hợp lệ → đơn PENDING_OWNER.
-- [ ] B không thể thuê tài sản của chính mình.
+- [v] B đặt tin ACTIVE với ngày hợp lệ → đơn PENDING_OWNER.
+- [v] B không thể thuê tài sản của chính mình.
 - [ ] Ngày sai, thời lượng ngoài min/max hoặc vượt lịch mở → bị chặn.
 - [ ] Hai yêu cầu trùng lịch đã được duyệt → chỉ một yêu cầu thành công.
 - [ ] A duyệt → AWAITING_PAYMENT; A từ chối → DECLINED.

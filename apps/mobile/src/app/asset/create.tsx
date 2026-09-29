@@ -440,8 +440,8 @@ export default function CreateListingScreen() {
             )}
           />
 
-          <View className="flex-row gap-3">
-            <View className="flex-1">
+          <View className="flex-row items-start gap-3">
+            <View className="min-w-0 flex-1">
               <FormInput
                 control={control}
                 name="pricePerDay"
@@ -451,7 +451,7 @@ export default function CreateListingScreen() {
                 keyboardType="number-pad"
               />
             </View>
-            <View className="flex-1">
+            <View className="min-w-0 flex-1">
               <FormInput
                 control={control}
                 name="estimatedValue"
@@ -463,8 +463,8 @@ export default function CreateListingScreen() {
             </View>
           </View>
 
-          <View className="flex-row gap-3">
-            <View className="flex-1">
+          <View className="flex-row items-start gap-3">
+            <View className="min-w-0 flex-1">
               <LocationSelect
                 control={control}
                 name="city"
@@ -473,7 +473,7 @@ export default function CreateListingScreen() {
                 error={errors.city?.message}
               />
             </View>
-            <View className="flex-1">
+            <View className="min-w-0 flex-1">
               <LocationSelect
                 control={control}
                 name="district"
@@ -547,8 +547,8 @@ function LocationSelect({
 }) {
   const [visible, setVisible] = useState(false);
   return (
-    <View className="mb-5 flex-1">
-      <Text className="mb-2 font-semibold text-text-primary">{label}</Text>
+    <View className="mb-5 min-w-0 flex-1">
+      <Text className="mb-2 font-semibold text-text-primary" numberOfLines={1} ellipsizeMode="tail">{label}</Text>
       <Controller
         control={control}
         name={name}
@@ -558,13 +558,13 @@ function LocationSelect({
               className={`min-h-14 justify-center rounded-xl border bg-surface px-4 ${error ? 'border-danger' : 'border-border'}`}
               onPress={() => setVisible(true)}
             >
-              <Text className={value ? 'text-text-primary' : 'text-text-muted'}>
+              <Text className={`min-w-0 flex-1 ${value ? 'text-text-primary' : 'text-text-muted'}`} numberOfLines={1} ellipsizeMode="tail">
                 {value || `Chọn ${label.toLowerCase()}`}
               </Text>
             </TouchableOpacity>
             <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
               <View className="flex-1 justify-end bg-black/40">
-                <View className="max-h-[75%] rounded-t-3xl bg-surface p-4">
+                <View className="h-[78%] rounded-t-3xl bg-surface p-4">
                   <View className="mb-3 flex-row items-center justify-between">
                     <Text className="text-lg font-extrabold text-text-primary">{label}</Text>
                     <TouchableOpacity onPress={() => setVisible(false)}><Text className="font-bold text-primary">Đóng</Text></TouchableOpacity>
@@ -572,6 +572,10 @@ function LocationSelect({
                   <FlatList
                     data={options}
                     keyExtractor={(item) => item}
+                    style={{ flex: 1 }}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator
                     renderItem={({ item }) => (
                       <TouchableOpacity
                         className={`mb-2 min-h-12 justify-center rounded-xl border px-4 ${item === value ? 'border-primary bg-primary-soft' : 'border-border bg-background'}`}

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCircle2, ChevronLeft, CreditCard, ShieldCheck } from 'lucide-react-native';
+import { CheckCircle2, ChevronLeft, CreditCard, ShieldCheck, RefreshCw } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ export default function PaymentScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [now, setNow] = useState(0);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const intentQuery = useQuery({
     queryKey: ['rentals', 'payment-intent', id],
     queryFn: () => RentalsService.getPaymentIntent(id),
@@ -55,6 +56,16 @@ export default function PaymentScreen() {
   const remaining = intent?.expiresAt
     ? new Date(intent.expiresAt).getTime() - now
     : 0;
+
+  const checkPayment = async () => {
+    setIsCheckingPayment(true);
+    try {
+      await intentQuery.refetch();
+      await queryClient.invalidateQueries({ queryKey: ['rentals', id] });
+    } finally {
+      setIsCheckingPayment(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -142,22 +153,36 @@ export default function PaymentScreen() {
               {intent.bankAccount?.bankName}
             </Text>
             <Text className="text-xs uppercase tracking-wider text-text-muted">Số tài khoản</Text>
-            <Text className="mb-3 mt-1 text-lg font-bold text-primary" selectable>
-              {intent.bankAccount?.accountNumber}
-            </Text>
+            <View className="mb-3 flex-row items-center">
+              <Text className="flex-1 text-lg font-bold text-primary" selectable>
+                {intent.bankAccount?.accountNumber}
+              </Text>
+              <Text className="text-xs font-semibold text-text-muted">Có thể sao chép</Text>
+            </View>
             <Text className="text-xs uppercase tracking-wider text-text-muted">Chủ tài khoản</Text>
             <Text className="mb-3 mt-1 font-semibold text-text-primary" selectable>
               {intent.bankAccount?.accountName}
             </Text>
             <Text className="text-xs uppercase tracking-wider text-text-muted">Nội dung</Text>
-            <Text className="mt-1 text-lg font-extrabold text-primary" selectable>
-              {intent.paymentCode}
-            </Text>
+            <View className="mt-1 flex-row items-center">
+              <Text className="flex-1 text-lg font-extrabold text-primary" selectable>
+                {intent.paymentCode}
+              </Text>
+              <Text className="text-xs font-semibold text-text-muted">Mã chuyển khoản</Text>
+            </View>
           </View>
 
           <Text className="mt-5 text-center leading-5 text-text-secondary">
             Giữ nguyên số tiền và nội dung chuyển khoản. Trạng thái đơn sẽ tự cập nhật sau khi ngân hàng xác nhận.
           </Text>
+          <TouchableOpacity
+            className="mt-5 min-h-14 flex-row items-center justify-center rounded-xl border border-primary bg-primary-soft"
+            disabled={isCheckingPayment}
+            onPress={() => void checkPayment()}
+          >
+            {isCheckingPayment ? <ActivityIndicator color={colors.primary.DEFAULT} /> : <RefreshCw size={18} color={colors.primary.DEFAULT} />}
+            <Text className="ml-2 flex-1 text-center font-bold text-primary">Tôi đã chuyển khoản, kiểm tra trạng thái</Text>
+          </TouchableOpacity>
         </ScrollView>
       ) : (
         <View className="flex-1 items-center justify-center px-6">

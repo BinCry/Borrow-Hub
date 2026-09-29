@@ -133,12 +133,13 @@ export class PaymentService {
     authorization?: string,
   ) {
     const secret = this.configService.getOrThrow<string>('SEPAY_WEBHOOK_SECRET');
+    const merchantApiKey = this.configService.get<string>('SEPAY_API_KEY');
     const apiKeyPrefix = 'apikey ';
-    if (
-      authorization?.toLowerCase().startsWith(apiKeyPrefix) &&
-      authorization.slice(apiKeyPrefix.length) === secret
-    ) {
-      return;
+    if (authorization?.toLowerCase().startsWith(apiKeyPrefix)) {
+      const providedApiKey = authorization.slice(apiKeyPrefix.length);
+      if (providedApiKey === secret || providedApiKey === merchantApiKey) {
+        return;
+      }
     }
 
     const timestamp = Number(timestampValue);
