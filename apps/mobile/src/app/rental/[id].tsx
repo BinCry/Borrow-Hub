@@ -262,7 +262,7 @@ export default function RentalDetailScreen() {
               disabled={false}
               onPress={() => router.push(`/rental/${id}/contract`)}
             />
-          ) : rental.status === 'READY_FOR_HANDOVER' ? (
+          ) : rental.status === 'CONFIRMED' || rental.status === 'READY_FOR_HANDOVER' ? (
             <ActionButton
               label="Tiến hành bàn giao"
               icon={Handshake}
