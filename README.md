@@ -138,15 +138,32 @@ Deployment runbooks:
 - [docs/deployment/VPS_DEPLOYMENT.md](D:/Sharing/docs/deployment/VPS_DEPLOYMENT.md:1)
 - [docs/deployment/DATABASE_RUNBOOK.md](D:/Sharing/docs/deployment/DATABASE_RUNBOOK.md:1)
 
-## Seed data
+## Tài khoản admin
 
-Development seed accounts:
+### VPS đang sử dụng
 
-- Admin: `admin@toolshare.local` / `Admin@123456`
-- Owner: `owner@toolshare.local` / `User@123456`
-- Renter: `renter@toolshare.local` / `User@123456`
+Đã kiểm tra ngày 29/09/2026 trên backend `https://api.airplane.id.vn/api/v1`:
 
-Do not reuse these credentials outside development.
+- Email đăng nhập: `admin@rentloop.local`
+- Quyền: `SUPER_ADMIN`
+- Trạng thái: `ACTIVE`
+- Mật khẩu: mật khẩu được đặt khi khởi tạo tài khoản; không lưu mật khẩu production trong README. Chưa xác minh mật khẩu đăng nhập hiện tại.
+
+Mở màn hình đăng nhập của app, nhập email trên và mật khẩu đã thiết lập. Tài khoản này khác với các tài khoản demo bên dưới.
+
+Nếu quên mật khẩu admin VPS, người quản trị máy chủ có thể dùng script `apps/api/prisma/bootstrap-admin.ts` với `BOOTSTRAP_ADMIN_EMAIL=admin@rentloop.local`, mật khẩu mới trong `BOOTSTRAP_ADMIN_PASSWORD` và `BOOTSTRAP_ADMIN_RESET_PASSWORD=true`, rồi chạy `pnpm admin:bootstrap` trong môi trường có `DATABASE_URL` đúng. Cung cấp `BOOTSTRAP_ADMIN_FULL_NAME` và `BOOTSTRAP_ADMIN_PHONE` đúng với tài khoản để giữ thông tin hồ sơ. Đây là thao tác đổi mật khẩu, không cần chạy khi chỉ muốn đăng nhập.
+
+### Tài khoản demo local (seed data)
+
+Các tài khoản sau được tạo bởi `pnpm prisma:seed` trên database phát triển:
+
+| Vai trò | Email | Mật khẩu ban đầu |
+| --- | --- | --- |
+| SUPER_ADMIN | `admin1@toolshare.local` | `Admin@123456` |
+| SUPER_ADMIN | `admin2@toolshare.local` | `Admin@123456` |
+| USER (thuê/cho thuê) | `user1@toolshare.local` đến `user5@toolshare.local` | `User@123456` |
+
+Seed không đổi mật khẩu tài khoản đã tồn tại. Không chạy seed development trên VPS production và không dùng mật khẩu demo cho production.
 
 ## Testing
 

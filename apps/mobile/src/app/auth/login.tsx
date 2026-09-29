@@ -11,6 +11,7 @@ import {
   UserRound,
 } from 'lucide-react-native';
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -104,6 +105,7 @@ function localizeLoginError(message: string) {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const setAuth = useAuthStore((state) => state.setAuth);
   const { width } = useWindowDimensions();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,6 +142,17 @@ export default function LoginScreen() {
         response.data.tokens.accessToken,
         response.data.tokens.refreshToken,
       );
+      for (const queryKey of [
+        ['me'],
+        ['my-assets'],
+        ['favorites'],
+        ['rentals'],
+        ['conversations'],
+        ['notifications'],
+        ['messages'],
+      ]) {
+        queryClient.removeQueries({ queryKey });
+      }
       router.replace('/(tabs)');
     } catch (error: unknown) {
       setSubmitError(

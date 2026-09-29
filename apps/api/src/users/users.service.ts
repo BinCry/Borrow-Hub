@@ -131,6 +131,25 @@ export class UsersService {
     });
   }
 
+  async getPublicProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, status: UserStatus.ACTIVE },
+      select: {
+        id: true,
+        fullName: true,
+        avatarUrl: true,
+        trustScore: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     return this.prisma.user.update({
       where: { id: userId },

@@ -120,7 +120,7 @@ export default function CreateListingScreen() {
   const categoriesQuery = useQuery({
     queryKey: ['categories'],
     queryFn: async () => flattenCategories((await apiClient.get<Category[]>('/categories')).data),
-    enabled: meQuery.data?.verificationStatus === 'VERIFIED',
+    enabled: isEditing || meQuery.data?.verificationStatus === 'VERIFIED',
   });
   const {
     control,
@@ -143,7 +143,7 @@ export default function CreateListingScreen() {
   });
   const createMutation = useMutation({
     mutationFn: async (data: CreateAssetForm) => {
-      if (meQuery.data?.verificationStatus !== 'VERIFIED') {
+      if (!isEditing && meQuery.data?.verificationStatus !== 'VERIFIED') {
         throw new Error('VERIFICATION_REQUIRED');
       }
 
@@ -189,14 +189,16 @@ export default function CreateListingScreen() {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
       Alert.alert(
-        'Đã gửi bài đăng',
-        'Bài đăng đang chờ kiểm duyệt trước khi xuất hiện trên trang khám phá.',
+        isEditing ? 'Đã cập nhật bài đăng' : 'Đã gửi bài đăng',
+        isEditing
+          ? 'Các thay đổi của bạn đã được lưu.'
+          : 'Bài đăng đang chờ kiểm duyệt trước khi xuất hiện trên trang khám phá.',
       );
       router.back();
     },
     onError: (error) => {
       Alert.alert(
-        'Không thể tạo bài đăng',
+        isEditing ? 'Không thể cập nhật bài đăng' : 'Không thể tạo bài đăng',
         error instanceof Error && error.message === 'VERIFICATION_REQUIRED'
           ? getVerificationMessage(meQuery.data?.verificationStatus)
           : error instanceof Error && error.message === 'IMAGE_REQUIRED'
@@ -293,7 +295,7 @@ export default function CreateListingScreen() {
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
           </View>
-        ) : meQuery.isError || meQuery.data?.verificationStatus !== 'VERIFIED' ? (
+        ) : meQuery.isError || (!isEditing && meQuery.data?.verificationStatus !== 'VERIFIED') ? (
           <VerificationRequired
             message={
               meQuery.isError

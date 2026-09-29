@@ -24,12 +24,14 @@ export class PaymentController {
     @Req() request: RawBodyRequest<Request>,
     @Headers('x-sepay-signature') signature?: string,
     @Headers('x-sepay-timestamp') timestamp?: string,
+    @Headers('authorization') authorization?: string,
   ) {
     return this.paymentService.handleSepayWebhook(
       dto,
       request.rawBody,
       signature,
       timestamp,
+      authorization,
     );
   }
 }

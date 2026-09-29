@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Camera, LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, LayoutDashboard, Megaphone } from 'lucide-react-native';
+import { Camera, LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, LayoutDashboard, Megaphone, Heart } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../services/api/client';
 import { User as UserType } from '../../types/domain';
@@ -32,7 +32,20 @@ export default function ProfileScreen() {
     } catch (e) {
       console.warn('Logout API failed', e);
     }
-    logout();
+    await queryClient.cancelQueries();
+    for (const queryKey of [
+      ['me'],
+      ['my-assets'],
+      ['favorites'],
+      ['rentals'],
+      ['conversations'],
+      ['notifications'],
+      ['messages'],
+      ['public-profile'],
+    ]) {
+      queryClient.removeQueries({ queryKey });
+    }
+    await logout();
     router.replace('/auth/login');
   };
   const canAccessAdmin =
@@ -212,6 +225,14 @@ export default function ProfileScreen() {
               </View>
             </>
           ) : null}
+
+          <TouchableOpacity className="mb-6 flex-row items-center justify-between rounded-2xl border border-border bg-surface px-5 py-4 shadow-sm" onPress={() => router.push('/favorites' as any)}>
+            <View className="flex-row items-center">
+              <Heart size={22} color={colors.danger} className="mr-3" />
+              <Text className="font-semibold text-text-primary text-base">Sản phẩm yêu thích</Text>
+            </View>
+            <ChevronRight size={20} color="#9CA3AF" />
+          </TouchableOpacity>
 
           <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài khoản</Text>
           <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">

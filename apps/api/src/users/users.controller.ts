@@ -32,6 +32,12 @@ export class UsersController {
     return this.usersService.getProfile(currentUser.id);
   }
 
+  @Public()
+  @Get(':userId/public')
+  getPublicProfile(@Param('userId') userId: string) {
+    return this.usersService.getPublicProfile(userId);
+  }
+
   @Delete('me/account')
   deleteAccount(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.usersService.deleteAccount(currentUser.id);

@@ -1789,8 +1789,11 @@ export class RentalsService {
         await tx.payout.update({
           where: { id: payout.id },
           data: {
-            status: PayoutStatus.PAID,
-            paidAt: new Date(),
+            // Returning the asset releases the payout for finance review.
+            // Money is marked paid only after an authorized finance user
+            // actually transfers it to the owner.
+            status: PayoutStatus.PENDING,
+            paidAt: null,
           },
         });
       }

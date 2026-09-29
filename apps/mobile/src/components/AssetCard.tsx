@@ -2,8 +2,8 @@ import { colors } from '../theme/colors';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Asset } from '../types/domain';
-import { MapPin, Star } from 'lucide-react-native';
-import { Link } from 'expo-router';
+import { MapPin, Star, User, ShieldCheck } from 'lucide-react-native';
+import { Link, useRouter } from 'expo-router';
 
 interface AssetCardProps {
   asset: Asset;
@@ -11,58 +11,77 @@ interface AssetCardProps {
 }
 
 export function AssetCard({ asset, adminPreview = false }: AssetCardProps) {
+  const router = useRouter();
   const coverImage = asset.images?.find((img) => img.isCover)?.url || asset.images?.[0]?.url;
+  const owner = asset.owner;
+  const ownerName = owner?.fullName || 'Người đăng';
   const detailHref = adminPreview
-    ? {
-        pathname: '/asset/[id]',
-        params: { id: asset.id, admin: '1' },
-      }
+    ? { pathname: '/asset/[id]', params: { id: asset.id, admin: '1' } }
     : `/asset/${asset.id}`;
 
   return (
-    <Link href={detailHref as never} asChild>
-      <TouchableOpacity className="bg-surface rounded-2xl overflow-hidden mb-5 w-full shadow-sm border border-gray-100">
-        {coverImage ? (
-          <Image 
-            source={{ uri: coverImage }} 
-            style={{ width: '100%', height: 200 }} 
-            contentFit="cover"
-            transition={200}
-            className="bg-gray-100"
-          />
-        ) : (
-          <View className="w-full h-[200px] bg-gray-100 items-center justify-center">
-            <Text className="text-text-secondary">Chưa có ảnh</Text>
-          </View>
-        )}
-        
-        <View className="p-4">
-          <View className="flex-row justify-between items-start mb-1.5">
-            <Text className="text-lg font-extrabold text-text-primary flex-1 mr-2 leading-tight" numberOfLines={1}>
-              {asset.title}
-            </Text>
-            {asset.rating !== undefined && (
-              <View className="flex-row items-center bg-primary-soft/50 px-2.5 py-1 rounded-full">
-                <Star size={12} color={colors.primary.DEFAULT} fill={colors.primary.DEFAULT} />
-                <Text className="text-primary font-bold text-[11px] ml-1">{asset.rating}</Text>
-              </View>
-            )}
-          </View>
-
-          <Text className="text-primary font-bold text-[17px] mb-3">
-            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(asset.pricePerDay)}<Text className="text-xs text-text-secondary font-medium">/ngày</Text>
-          </Text>
-
-          <View className="flex-row items-center">
-            <View className="w-5 h-5 rounded-full bg-gray-50 items-center justify-center mr-1.5">
-              <MapPin size={12} color="#6B7280" />
-            </View>
-            <Text className="text-text-secondary text-[13px] font-medium" numberOfLines={1}>
-              {asset.location?.district}, {asset.location?.city}
-            </Text>
+    <View className="mb-4 w-full overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={`Xem hồ sơ ${ownerName}`}
+        className="flex-row items-center px-4 py-3"
+        onPress={() => router.push({
+          pathname: '/profile/[id]',
+          params: {
+            id: asset.ownerId,
+            name: ownerName,
+            avatar: owner?.avatarUrl ?? '',
+            trustScore: String(owner?.trustScore ?? 0),
+          },
+        })}
+      >
+        <View className="mr-3 h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary-soft">
+          {owner?.avatarUrl ? (
+            <Image source={{ uri: owner.avatarUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+          ) : (
+            <User size={20} color={colors.primary.DEFAULT} />
+          )}
+        </View>
+        <View className="flex-1">
+          <Text className="font-bold text-text-primary" numberOfLines={1}>{ownerName}</Text>
+          <View className="mt-0.5 flex-row items-center">
+            <ShieldCheck size={13} color={colors.success} />
+            <Text className="ml-1 text-xs text-text-secondary">Người cho thuê</Text>
           </View>
         </View>
+        {asset.rating > 0 ? (
+          <View className="flex-row items-center rounded-full bg-primary-soft px-2 py-1">
+            <Star size={12} color={colors.primary.DEFAULT} fill={colors.primary.DEFAULT} />
+            <Text className="ml-1 text-xs font-bold text-primary">{asset.rating.toFixed(1)}</Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
-    </Link>
+
+      <Link href={detailHref as never} asChild>
+        <TouchableOpacity accessibilityRole="button">
+          {coverImage ? (
+            <Image source={{ uri: coverImage }} style={{ width: '100%', aspectRatio: 1.55 }} contentFit="cover" transition={200} className="bg-gray-100" />
+          ) : (
+            <View className="w-full items-center justify-center bg-gray-100" style={{ aspectRatio: 1.55 }}>
+              <Text className="text-text-secondary">Chưa có ảnh</Text>
+            </View>
+          )}
+
+          <View className="px-4 pb-4 pt-3">
+            <Text className="text-lg font-extrabold leading-tight text-text-primary" numberOfLines={2}>{asset.title}</Text>
+            <Text className="mt-1 text-[17px] font-bold text-primary">
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(asset.pricePerDay)}
+              <Text className="text-xs font-medium text-text-secondary">/ngày</Text>
+            </Text>
+            <View className="mt-2 flex-row items-center">
+              <MapPin size={14} color="#6B7280" />
+              <Text className="ml-1.5 flex-1 text-[13px] font-medium text-text-secondary" numberOfLines={1}>
+                {asset.location?.district}, {asset.location?.city}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Link>
+    </View>
   );
 }

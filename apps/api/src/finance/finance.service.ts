@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -10,6 +11,7 @@ import {
   PayoutStatus,
   Prisma,
   RefundStatus,
+  RentalStatus,
   RoleName,
 } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -368,6 +370,17 @@ export class FinanceService {
 
     if (!payout) {
       throw new NotFoundException('Payout not found');
+    }
+
+    if (
+      dto.status === PayoutStatus.PAID &&
+      (payout.rental.status !== RentalStatus.COMPLETED ||
+        payout.status !== PayoutStatus.PENDING &&
+        payout.status !== PayoutStatus.PAID)
+    ) {
+      throw new ConflictException(
+        'Only a pending payout for a completed rental without an active dispute can be marked as paid',
+      );
     }
 
     const updated = await this.prisma.payout.update({

@@ -35,8 +35,9 @@ export class PaymentService {
     rawBody: Buffer | undefined,
     signature: string | undefined,
     timestamp: string | undefined,
+    authorization?: string,
   ) {
-    this.verifySepaySignature(rawBody, signature, timestamp);
+    this.verifySepaySignature(rawBody, signature, timestamp, authorization);
 
     if (dto.transferType !== 'in') {
       return { success: true, ignored: true };
@@ -129,7 +130,17 @@ export class PaymentService {
     rawBody: Buffer | undefined,
     signature: string | undefined,
     timestampValue: string | undefined,
+    authorization?: string,
   ) {
+    const secret = this.configService.getOrThrow<string>('SEPAY_WEBHOOK_SECRET');
+    const apiKeyPrefix = 'apikey ';
+    if (
+      authorization?.toLowerCase().startsWith(apiKeyPrefix) &&
+      authorization.slice(apiKeyPrefix.length) === secret
+    ) {
+      return;
+    }
+
     const timestamp = Number(timestampValue);
     const now = Math.floor(Date.now() / 1000);
 
@@ -142,9 +153,6 @@ export class PaymentService {
       throw new UnauthorizedException('Invalid SePay webhook signature');
     }
 
-    const secret = this.configService.getOrThrow<string>(
-      'SEPAY_WEBHOOK_SECRET',
-    );
     const expected = `sha256=${createHmac('sha256', secret)
       .update(`${timestamp}.${rawBody.toString('utf8')}`)
       .digest('hex')}`;

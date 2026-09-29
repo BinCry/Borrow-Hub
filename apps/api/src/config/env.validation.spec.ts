@@ -37,6 +37,8 @@ describe('validateEnv', () => {
     SWAGGER_ENABLED: 'false',
     REQUEST_LOG_RETENTION_DAYS: '30',
     SEPAY_ENABLED: 'true',
+    SEPAY_MERCHANT_ID: 'SP-TEST-NV863845',
+    SEPAY_API_KEY: 'spsk_test_rv1sS6xs74mALnH2GcTPRQv1G5iXfpt5',
     SEPAY_ACCOUNT_NUMBER: '0123456789',
     SEPAY_ACCOUNT_NAME: 'RENTLOOP COMPANY',
     SEPAY_BANK_NAME: 'Vietcombank',

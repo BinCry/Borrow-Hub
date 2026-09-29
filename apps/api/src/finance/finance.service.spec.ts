@@ -3,6 +3,7 @@ import {
   NotificationType,
   PaymentStatus,
   PayoutStatus,
+  RentalStatus,
   RefundStatus,
   RoleName,
 } from '@prisma/client';
@@ -34,6 +35,7 @@ describe('FinanceService', () => {
     status: PayoutStatus.PENDING,
     paidAt: null,
     rental: {
+      status: RentalStatus.COMPLETED,
       asset: {
         title: 'Canon R6',
       },

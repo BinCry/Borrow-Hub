@@ -186,6 +186,8 @@ function readSepayConfig(raw: Record<string, unknown>, nodeEnv: string) {
   if (!enabled) {
     return {
       SEPAY_ENABLED: false,
+      SEPAY_MERCHANT_ID: getString(raw, 'SEPAY_MERCHANT_ID'),
+      SEPAY_API_KEY: getString(raw, 'SEPAY_API_KEY'),
       SEPAY_ACCOUNT_NUMBER: undefined,
       SEPAY_ACCOUNT_NAME: undefined,
       SEPAY_BANK_NAME: undefined,
@@ -195,10 +197,14 @@ function readSepayConfig(raw: Record<string, unknown>, nodeEnv: string) {
 
   return {
     SEPAY_ENABLED: true,
+    SEPAY_MERCHANT_ID: requireString(raw, 'SEPAY_MERCHANT_ID'),
+    SEPAY_API_KEY: requireSecret(raw, 'SEPAY_API_KEY'),
     SEPAY_ACCOUNT_NUMBER: requireString(raw, 'SEPAY_ACCOUNT_NUMBER'),
     SEPAY_ACCOUNT_NAME: requireString(raw, 'SEPAY_ACCOUNT_NAME'),
     SEPAY_BANK_NAME: requireString(raw, 'SEPAY_BANK_NAME'),
-    SEPAY_WEBHOOK_SECRET: requireSecret(raw, 'SEPAY_WEBHOOK_SECRET'),
+    // SePay IPN Secret Key is provider-generated and may be shorter than
+    // application-managed secrets; it is still only accepted over HTTPS.
+    SEPAY_WEBHOOK_SECRET: requireString(raw, 'SEPAY_WEBHOOK_SECRET'),
   };
 }
 

@@ -71,6 +71,8 @@ export default function AssetDetailScreen() {
         await apiClient.post(`/favorites/assets/${id}`);
         setFavoriteOverride(true);
       }
+      await queryClient.invalidateQueries({ queryKey: ['favorites'] });
+      await queryClient.invalidateQueries({ queryKey: ['assets'] });
     } catch {
       Alert.alert('Không thể cập nhật', 'Vui lòng thử lại sau.');
     } finally {
