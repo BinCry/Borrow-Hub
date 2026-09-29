@@ -27,6 +27,7 @@ import { colors } from '../../theme/colors';
 
 const resetSchema = z
   .object({
+    code: z.string().regex(/^\d{6}$/, 'Mã xác nhận phải có 6 chữ số').optional(),
     password: z
       .string()
       .min(8, 'Mật khẩu phải có ít nhất 8 ký tự')
@@ -67,7 +68,8 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function ResetPasswordScreen() {
-  const { token } = useLocalSearchParams<{ token?: string }>();
+  const { token, code: routeCode } = useLocalSearchParams<{ token?: string; code?: string }>();
+  const initialCode = Array.isArray(routeCode) ? routeCode[0] : routeCode;
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,19 +81,22 @@ export default function ResetPasswordScreen() {
     formState: { errors },
   } = useForm<ResetForm>({
     resolver: zodResolver(resetSchema),
-    defaultValues: { password: '', confirmPassword: '' },
+    defaultValues: { code: initialCode ?? '', password: '', confirmPassword: '' },
   });
 
-  const submit = handleSubmit(async ({ password }) => {
-    if (!token) {
-      setSubmitError('Token đặt lại mật khẩu bị thiếu.');
+  const submit = handleSubmit(async ({ code, password }) => {
+    if (!token && !code) {
+      setSubmitError('Nhập mã xác nhận 6 số trong email.');
       return;
     }
 
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      await apiClient.post('/auth/reset-password', { token, newPassword: password });
+      await apiClient.post('/auth/reset-password', {
+        ...(token ? { token } : { code }),
+        newPassword: password,
+      });
       setIsSuccess(true);
     } catch (error) {
       setSubmitError(
@@ -153,7 +158,7 @@ export default function ResetPasswordScreen() {
                   <Text className="font-bold text-white">Đăng nhập</Text>
                 </Pressable>
               </View>
-            ) : !token ? (
+            ) : false ? (
               <View className="mt-8 rounded-2xl border border-danger/30 bg-danger/10 p-5">
                 <Text className="font-bold text-danger">Liên kết đặt lại không hợp lệ</Text>
                 <Text className="mt-1 leading-5 text-text-secondary">
@@ -178,6 +183,29 @@ export default function ResetPasswordScreen() {
                       {submitError}
                     </Text>
                   </View>
+                ) : null}
+
+                {!token ? (
+                  <Controller
+                    control={control}
+                    name="code"
+                    render={({ field: { onBlur, onChange, value } }) => (
+                      <View>
+                        <Text className="mb-2 text-sm font-semibold text-text-primary">Mã xác nhận 6 số</Text>
+                        <TextInput
+                          className="h-[54px] rounded-2xl border border-white bg-white/70 px-4 text-base tracking-[6px] text-text-primary"
+                          value={value}
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                          placeholder="000000"
+                          placeholderTextColor={colors.text.muted}
+                        />
+                        {errors.code ? <Text className="mt-2 text-sm text-danger">{errors.code.message}</Text> : null}
+                      </View>
+                    )}
+                  />
                 ) : null}
 
                 <PasswordField

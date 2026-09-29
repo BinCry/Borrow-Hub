@@ -339,12 +339,15 @@ export class AuthService {
 
     const resetToken = randomBytes(32).toString('hex');
     const resetTokenHash = hashPasswordResetToken(resetToken);
+    const resetCode = String(Math.floor(100000 + Math.random() * 900000));
+    const resetCodeHash = hashPasswordResetToken(resetCode);
     const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
         passwordResetTokenHash: resetTokenHash,
+        passwordResetCodeHash: resetCodeHash,
         passwordResetExpiresAt: expiresAt,
       },
     });
@@ -353,6 +356,7 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       token: resetToken,
+      code: resetCode,
     });
 
     if (!delivered) {
@@ -376,6 +380,7 @@ export class AuthService {
       return {
         success: true,
         developmentResetToken: resetToken,
+        developmentResetCode: resetCode,
       };
     }
 
@@ -383,9 +388,17 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const resetTokenHash = hashPasswordResetToken(dto.token);
-    const user = await this.prisma.user.findUnique({
-      where: { passwordResetTokenHash: resetTokenHash },
+    if (!dto.token && !dto.code) {
+      throw new BadRequestException('Reset token or verification code is required');
+    }
+    const resetTokenHash = dto.token ? hashPasswordResetToken(dto.token) : undefined;
+    const resetCodeHash = dto.code ? hashPasswordResetToken(dto.code) : undefined;
+    const resetCredentials = [
+      ...(resetTokenHash ? [{ passwordResetTokenHash: resetTokenHash }] : []),
+      ...(resetCodeHash ? [{ passwordResetCodeHash: resetCodeHash }] : []),
+    ];
+    const user = await this.prisma.user.findFirst({
+      where: { OR: resetCredentials },
       select: {
         id: true,
         status: true,
@@ -409,7 +422,7 @@ export class AuthService {
       where: {
         id: user.id,
         status: UserStatus.ACTIVE,
-        passwordResetTokenHash: resetTokenHash,
+        OR: resetCredentials,
         passwordResetExpiresAt: {
           gt: new Date(),
         },
@@ -417,6 +430,7 @@ export class AuthService {
       data: {
         passwordHash,
         passwordResetTokenHash: null,
+        passwordResetCodeHash: null,
         passwordResetExpiresAt: null,
         refreshTokenHash: null,
       },

@@ -45,6 +45,7 @@ type ApiErrorResponse = {
 type ForgotPasswordResponse = {
   success: boolean;
   developmentResetToken?: string;
+  developmentResetCode?: string;
 };
 
 function getApiErrorMessage(error: unknown, fallback: string) {
@@ -70,6 +71,7 @@ export default function ForgotPasswordScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [developmentResetToken, setDevelopmentResetToken] = useState<string | null>(null);
+  const [developmentResetCode, setDevelopmentResetCode] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const horizontalPadding = width < 380 ? 20 : 28;
 
@@ -94,6 +96,7 @@ export default function ForgotPasswordScreen() {
         email: data.email.trim().toLowerCase(),
       });
       setDevelopmentResetToken(response.data.developmentResetToken ?? null);
+      setDevelopmentResetCode(response.data.developmentResetCode ?? null);
       setIsSuccess(true);
     } catch (error: unknown) {
       setSubmitError(
@@ -209,6 +212,11 @@ export default function ForgotPasswordScreen() {
                       <Text selectable className="mt-2 text-sm leading-5 text-text-secondary">
                         Reset token: {developmentResetToken}
                       </Text>
+                      {developmentResetCode ? (
+                        <Text selectable className="mt-2 text-sm font-bold leading-5 text-text-primary">
+                          Verification code: {developmentResetCode}
+                        </Text>
+                      ) : null}
                       <Pressable
                         className="mt-3 h-11 items-center justify-center rounded-xl bg-primary"
                         onPress={() =>
@@ -220,8 +228,28 @@ export default function ForgotPasswordScreen() {
                       >
                         <Text className="font-bold text-white">Open reset page</Text>
                       </Pressable>
+                      {developmentResetCode ? (
+                        <Pressable
+                          className="mt-2 h-11 items-center justify-center rounded-xl border border-primary"
+                          onPress={() =>
+                            router.push({
+                              pathname: '/auth/reset-password',
+                              params: { code: developmentResetCode },
+                            })
+                          }
+                        >
+                          <Text className="font-bold text-primary-dark">Test with verification code</Text>
+                        </Pressable>
+                      ) : null}
                     </View>
                   ) : null}
+
+                  <Pressable
+                    className="mt-3 h-11 items-center justify-center rounded-xl border border-primary"
+                    onPress={() => router.push('/auth/reset-password')}
+                  >
+                    <Text className="font-bold text-primary-dark">Nhập mã xác nhận từ email</Text>
+                  </Pressable>
 
                   <Pressable
                     className="mt-8 h-[54px] flex-row items-center justify-center rounded-2xl bg-primary px-5"

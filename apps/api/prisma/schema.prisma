@@ -285,6 +285,7 @@ model User {
   avatarUrl        String?           @map("avatar_url")
   dateOfBirth      DateTime?         @map("date_of_birth")
   passwordResetTokenHash String?     @unique @map("password_reset_token_hash")
+  passwordResetCodeHash String?      @unique @map("password_reset_code_hash")
   passwordResetExpiresAt DateTime?   @map("password_reset_expires_at")
   accountDeletionTokenHash String?   @unique @map("account_deletion_token_hash")
   accountDeletionExpiresAt DateTime? @map("account_deletion_expires_at")

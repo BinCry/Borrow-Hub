@@ -6,6 +6,7 @@ type PasswordResetEmail = {
   email: string;
   fullName: string;
   token: string;
+  code: string;
 };
 
 type AccountDeletionEmail = PasswordResetEmail;
@@ -81,7 +82,7 @@ export class MailService {
         from: this.fromAddress,
         to: input.email,
         subject: 'Đặt lại mật khẩu RentLoop',
-        text: [
+        text: [`Verification code: ${input.code}`,
           `Xin chào ${input.fullName},`,
           '',
           'Bạn vừa yêu cầu đặt lại mật khẩu RentLoop.',
@@ -89,7 +90,7 @@ export class MailService {
           '',
           'Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.',
         ].join('\n'),
-        html: [
+        html: [`<p>Verification code: <strong>${escapeHtml(input.code)}</strong></p>`,
           `<p>Xin chào ${safeName},</p>`,
           '<p>Bạn vừa yêu cầu đặt lại mật khẩu RentLoop.</p>',
           `<p><a href="${safeResetUrl}">Đặt lại mật khẩu</a>. Liên kết có hiệu lực trong 30 phút.</p>`,

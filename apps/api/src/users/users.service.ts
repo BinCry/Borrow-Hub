@@ -315,6 +315,7 @@ export class UsersService {
           passwordHash: '',
           refreshTokenHash: null,
           passwordResetTokenHash: null,
+          passwordResetCodeHash: null,
           passwordResetExpiresAt: null,
           accountDeletionTokenHash: null,
           accountDeletionExpiresAt: null,

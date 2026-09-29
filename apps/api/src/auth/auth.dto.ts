@@ -64,8 +64,13 @@ export class ForgotPasswordDto {
 }
 
 export class ResetPasswordDto {
+  @IsOptional()
   @IsString()
-  token!: string;
+  token?: string;
+
+  @IsOptional()
+  @Matches(/^\d{6}$/)
+  code?: string;
 
   @IsString()
   @MinLength(8)
