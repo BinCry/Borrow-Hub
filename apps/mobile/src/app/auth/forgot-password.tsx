@@ -42,6 +42,11 @@ type ApiErrorResponse = {
   message?: string | string[];
 };
 
+type ForgotPasswordResponse = {
+  success: boolean;
+  developmentResetToken?: string;
+};
+
 function getApiErrorMessage(error: unknown, fallback: string) {
   const response = (
     error as {
@@ -64,6 +69,7 @@ export default function ForgotPasswordScreen() {
   const { width } = useWindowDimensions();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [developmentResetToken, setDevelopmentResetToken] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const horizontalPadding = width < 380 ? 20 : 28;
 
@@ -84,9 +90,10 @@ export default function ForgotPasswordScreen() {
     setSubmitError(null);
 
     try {
-      await apiClient.post('/auth/forgot-password', {
+      const response = await apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', {
         email: data.email.trim().toLowerCase(),
       });
+      setDevelopmentResetToken(response.data.developmentResetToken ?? null);
       setIsSuccess(true);
     } catch (error: unknown) {
       setSubmitError(
@@ -193,6 +200,28 @@ export default function ForgotPasswordScreen() {
                   <Text className="mt-3 max-w-[390px] text-base leading-6 text-text-secondary">
                     Nếu {getValues('email')} tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu sẽ được gửi. Liên kết chỉ có hiệu lực trong thời gian ngắn.
                   </Text>
+
+                  {developmentResetToken ? (
+                    <View className="mt-5 rounded-2xl border border-warning/30 bg-warning/10 p-4">
+                      <Text className="font-bold text-text-primary">
+                        Development mode: SMTP is not configured
+                      </Text>
+                      <Text selectable className="mt-2 text-sm leading-5 text-text-secondary">
+                        Reset token: {developmentResetToken}
+                      </Text>
+                      <Pressable
+                        className="mt-3 h-11 items-center justify-center rounded-xl bg-primary"
+                        onPress={() =>
+                          router.push({
+                            pathname: '/auth/reset-password',
+                            params: { token: developmentResetToken },
+                          })
+                        }
+                      >
+                        <Text className="font-bold text-white">Open reset page</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
 
                   <Pressable
                     className="mt-8 h-[54px] flex-row items-center justify-center rounded-2xl bg-primary px-5"
