@@ -8,6 +8,7 @@ export interface ChatMessage {
   messageType: 'TEXT' | 'IMAGE' | 'SYSTEM';
   content: string;
   attachmentUrl?: string | null;
+  metadata?: { rentalId?: string; [key: string]: unknown } | null;
   createdAt: string;
   sender?: User;
 }

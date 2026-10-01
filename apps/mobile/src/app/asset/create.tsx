@@ -40,7 +40,6 @@ const createAssetSchema = z.object({
     (value) => Number.isInteger(Number(value)) && Number(value) > 0,
     'Giá trị phải là số nguyên dương',
   ),
-  categoryId: z.string().min(1, 'Hãy chọn danh mục'),
   city: z.string().trim().min(2, 'Hãy nhập tỉnh/thành phố').max(100),
   district: z.string().trim().min(2, 'Hãy nhập quận/huyện').max(100),
   condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR', 'WORN']),
@@ -50,6 +49,7 @@ type CreateAssetForm = z.infer<typeof createAssetSchema>;
 type Category = {
   id: string;
   name: string;
+  slug: string;
   children?: Category[];
 };
 type UploadedImage = {
@@ -117,11 +117,6 @@ export default function CreateListingScreen() {
     queryKey: ['me'],
     queryFn: async () => (await apiClient.get<User>('/auth/me')).data,
   });
-  const categoriesQuery = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => flattenCategories((await apiClient.get<Category[]>('/categories')).data),
-    enabled: isEditing || meQuery.data?.verificationStatus === 'VERIFIED',
-  });
   const {
     control,
     handleSubmit,
@@ -135,7 +130,6 @@ export default function CreateListingScreen() {
       description: '',
       pricePerDay: '',
       estimatedValue: '',
-      categoryId: '',
       city: '',
       district: '',
       condition: 'GOOD',
@@ -150,6 +144,10 @@ export default function CreateListingScreen() {
       if (selectedImages.length === 0) {
         throw new Error('IMAGE_REQUIRED');
       }
+
+      const categories = flattenCategories((await apiClient.get<Category[]>('/categories')).data);
+      const electronics = categories.find((category) => category.slug === 'electronics');
+      if (!electronics) throw new Error('ELECTRONICS_UNAVAILABLE');
 
       const uploadedImages = await Promise.all(
         selectedImages.map(async (asset) => {
@@ -169,6 +167,7 @@ export default function CreateListingScreen() {
 
       const payload = {
         ...data,
+        categoryId: electronics.id,
         pricePerDay: Number(data.pricePerDay),
         estimatedValue: Number(data.estimatedValue),
         minimumDurationDays: 1,
@@ -216,7 +215,6 @@ export default function CreateListingScreen() {
       description: current.description,
       pricePerDay: String(current.pricePerDay),
       estimatedValue: String(current.estimatedValue ?? current.pricePerDay),
-      categoryId: current.categoryId ?? '',
       city: current.location.city,
       district: current.location.district,
       condition: current.condition,
@@ -315,7 +313,7 @@ export default function CreateListingScreen() {
           contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          <Text className="mb-2 font-semibold text-text-primary">Hình ảnh tài sản</Text>
+          <Text className="mb-2 font-semibold text-text-primary">Hình ảnh thiết bị điện tử</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
             {selectedImages.map((image, index) => (
               <View key={`${image.uri}-${index}`} className="relative mr-3">
@@ -364,58 +362,6 @@ export default function CreateListingScreen() {
             error={errors.description?.message}
             multiline
           />
-
-          <Text className="mb-2 font-semibold text-text-primary">Danh mục</Text>
-          {categoriesQuery.isLoading ? (
-            <ActivityIndicator className="mb-5" color={colors.primary.DEFAULT} />
-          ) : categoriesQuery.isError ? (
-            <TouchableOpacity
-              className="mb-5 min-h-12 items-center justify-center rounded-xl border border-danger"
-              onPress={() => void categoriesQuery.refetch()}
-            >
-              <Text className="font-semibold text-danger">Tải lại danh mục</Text>
-            </TouchableOpacity>
-          ) : (categoriesQuery.data ?? []).length === 0 ? (
-            <TouchableOpacity
-              className="mb-5 min-h-12 items-center justify-center rounded-xl border border-border bg-surface px-4"
-              onPress={() => void categoriesQuery.refetch()}
-            >
-              <Text className="text-center font-semibold text-text-secondary">
-                Chưa có danh mục. Chạm để tải lại
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <Controller
-              control={control}
-              name="categoryId"
-              render={({ field: { onChange, value } }) => (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5">
-                  {(categoriesQuery.data ?? []).map((category) => (
-                    <TouchableOpacity
-                      key={category.id}
-                      className={`mr-2 min-h-11 justify-center rounded-full border px-4 ${
-                        value === category.id
-                          ? 'border-primary bg-primary'
-                          : 'border-border bg-surface'
-                      }`}
-                      onPress={() => onChange(category.id)}
-                    >
-                      <Text
-                        className={`font-semibold ${
-                          value === category.id ? 'text-white' : 'text-text-primary'
-                        }`}
-                      >
-                        {category.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-            />
-          )}
-          {errors.categoryId ? (
-            <Text className="-mt-3 mb-4 text-sm text-danger">{errors.categoryId.message}</Text>
-          ) : null}
 
           <Text className="mb-2 font-semibold text-text-primary">Tình trạng</Text>
           <Controller

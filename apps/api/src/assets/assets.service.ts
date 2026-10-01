@@ -42,6 +42,7 @@ type SearchAssetRecord = Prisma.AssetGetPayload<{
       select: {
         id: true;
         fullName: true;
+        avatarUrl: true;
         trustScore: true;
       };
     };
@@ -58,6 +59,7 @@ type AssetDetailRecord = Prisma.AssetGetPayload<{
       select: {
         id: true;
         fullName: true;
+        avatarUrl: true;
         trustScore: true;
         verification: {
           select: {
@@ -258,6 +260,7 @@ export class AssetsService {
           select: {
             id: true,
             fullName: true,
+            avatarUrl: true,
             trustScore: true,
             verification: {
               select: {
@@ -321,6 +324,9 @@ export class AssetsService {
         },
       },
       include: {
+        owner: {
+          select: { id: true, fullName: true, avatarUrl: true, trustScore: true },
+        },
         category: true,
         images: {
           orderBy: [{ sortOrder: 'asc' }],
@@ -911,6 +917,7 @@ export class AssetsService {
         select: {
           id: true,
           fullName: true,
+          avatarUrl: true,
           trustScore: true,
         },
       },

@@ -36,6 +36,7 @@ import { colors } from '../../theme/colors';
 import type { AssetStatus } from '../../types/domain';
 import { synchronizeRemovedAsset } from '../../utils/assetCache';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { getAssetConditionLabel } from '../../utils/asset-condition';
 
 type ListingFilter = AssetStatus | 'ALL';
 
@@ -345,7 +346,7 @@ function ListingCard({
 
         <View className="mt-3 flex-row flex-wrap gap-2">
           <InfoChip label={asset.category?.name ?? 'Chưa phân loại'} />
-          <InfoChip label={asset.condition} />
+          <InfoChip label={getAssetConditionLabel(asset.condition)} />
           <InfoChip label={`${asset.images?.length ?? 0} ảnh`} />
         </View>
 

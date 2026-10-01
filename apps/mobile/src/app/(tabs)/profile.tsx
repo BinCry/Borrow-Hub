@@ -66,6 +66,12 @@ export default function ProfileScreen() {
       });
       await apiClient.patch('/users/me', { avatarUrl: upload.data.url });
       await queryClient.invalidateQueries({ queryKey: ['me'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['assets'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-assets'] }),
+        queryClient.invalidateQueries({ queryKey: ['public-profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['favorites'] }),
+      ]);
       Alert.alert('Đã cập nhật ảnh đại diện', 'Ảnh đại diện mới đã được lưu.');
     } catch {
       Alert.alert('Không thể cập nhật ảnh', 'Kiểm tra kết nối và thử lại.');

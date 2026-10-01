@@ -175,19 +175,19 @@ export default function LoginScreen() {
       />
 
       <Image
-        source={require('../../../assets/images/auth-background-v2.png')}
+        source={require('../../../assets/images/borrow-auth-mint-leaves.webp')}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
-        contentPosition="center"
+        contentPosition="top"
         transition={220}
         priority="high"
         accessible={false}
       />
       <LinearGradient
         colors={[
-          'rgba(247,248,245,0.08)',
-          'rgba(247,248,245,0.52)',
-          'rgba(247,248,245,0.97)',
+          'rgba(240,253,244,0.02)',
+          'rgba(240,253,244,0.12)',
+          'rgba(240,253,244,0.20)',
         ]}
         locations={[0, 0.48, 0.82]}
         style={StyleSheet.absoluteFill}

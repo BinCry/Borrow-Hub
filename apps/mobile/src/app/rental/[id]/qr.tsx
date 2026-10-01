@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, ShieldAlert } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ export default function QrScreen() {
     handoverId: string;
   }>();
   const router = useRouter();
+  const [now, setNow] = useState(Date.now);
   const qrQuery = useQuery({
     queryKey: ['handoverQr', id, handoverId],
     queryFn: async () =>
@@ -29,7 +31,17 @@ export default function QrScreen() {
       ).data,
     enabled: Boolean(id && handoverId),
     staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [qrQuery.data?.expiresAt]);
+  const remainingSeconds = qrQuery.data
+    ? Math.max(0, Math.ceil((new Date(qrQuery.data.expiresAt).getTime() - now) / 1000))
+    : 0;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -47,7 +59,7 @@ export default function QrScreen() {
         <View className="w-11" />
       </View>
 
-      {qrQuery.isLoading ? (
+      {qrQuery.isFetching ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
         </View>
@@ -57,11 +69,26 @@ export default function QrScreen() {
             Không thể tạo mã bàn giao. Vui lòng quay lại và thử lại.
           </Text>
         </View>
+      ) : remainingSeconds <= 0 ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-center text-xl font-bold text-text-primary">Mã QR đã hết hạn</Text>
+          <Text className="mt-2 text-center text-text-secondary">Mỗi mã bàn giao chỉ có hiệu lực trong 1 phút.</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            className="mt-6 min-h-14 w-full items-center justify-center rounded-xl bg-primary"
+            onPress={() => void qrQuery.refetch()}
+          >
+            <Text className="text-lg font-bold text-white">Tạo mã QR mới</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <View className="flex-1 items-center justify-center px-6">
           <View className="w-full items-center rounded-3xl border border-border bg-white p-8 shadow-sm">
             <Text className="mb-6 text-xs font-bold uppercase tracking-widest text-text-secondary">
               Mã xác nhận dùng một lần
+            </Text>
+            <Text accessibilityLiveRegion="polite" className="mb-4 font-bold text-text-primary">
+              Còn {remainingSeconds} giây
             </Text>
             <QRCode
               value={qrQuery.data.qrPayload}
@@ -85,7 +112,7 @@ export default function QrScreen() {
           <View className="mt-6 flex-row items-center rounded-xl border border-warning/20 bg-warning/10 p-4">
             <ShieldAlert size={20} color={colors.warning} />
             <Text className="ml-3 flex-1 text-sm font-medium text-warning">
-              Không gửi mã qua mạng xã hội. Mã hết hạn sau thời gian ngắn và chỉ dùng một lần.
+              Không gửi mã qua mạng xã hội. Mã hết hạn sau 1 phút và chỉ dùng một lần.
             </Text>
           </View>
         </View>

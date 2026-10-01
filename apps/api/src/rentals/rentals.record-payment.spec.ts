@@ -148,6 +148,16 @@ describe('RentalsService recordPayment', () => {
     );
   });
 
+  it('does not append another event or notification when an already settled payment is retried', async () => {
+    prisma.payment.findUnique.mockReset()
+      .mockResolvedValueOnce({ rental: { rentalFee: rental.rentalFee } })
+      .mockResolvedValueOnce({ ...pendingPayment, status: PaymentStatus.SUCCESS });
+    await service.settleVerifiedPayment(pendingPayment.id, 'same-provider-transaction');
+    expect(chatService.appendSystemMessageForRental).not.toHaveBeenCalled();
+    expect(notificationsService.createMany).not.toHaveBeenCalled();
+    expect(prisma.payment.update).not.toHaveBeenCalled();
+  });
+
   it('settles a sandbox payment once and emits payment and contract notifications', async () => {
     await service.recordPayment(rental.id, renterUser, {
       providerTransactionId: 'sandbox-rental-1',
@@ -200,5 +210,11 @@ describe('RentalsService recordPayment', () => {
       expect.objectContaining({ type: 'SIGNATURE_REQUIRED' }),
     );
     expect(analyticsService.track).toHaveBeenCalled();
+    expect(chatService.appendSystemMessageForRental).toHaveBeenCalledTimes(1);
+    expect(chatService.appendSystemMessageForRental).toHaveBeenCalledWith(
+      rental.id,
+      renterUser.id,
+      expect.stringContaining('Thanh toán'),
+    );
   });
 });

@@ -10,6 +10,7 @@ import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatEventsService } from './chat-events.service';
 import { ChatTimelineService } from './chat-timeline.service';
+import { conversationInclude, groupConversations, participantPairWhere } from './conversation.include';
 import { ChatQueryDto, CreateConversationDto, SendMessageDto } from './chat.dto';
 
 const OFF_PLATFORM_WARNING =
@@ -25,8 +26,12 @@ export class ChatService {
   ) {}
 
   async listMine(currentUser: AuthenticatedUser, query: ChatQueryDto) {
+    const rental = query.rentalId
+      ? await this.prisma.rentalRequest.findUnique({ where: { id: query.rentalId } })
+      : null;
+    if (query.rentalId && !rental) return [];
     const where: Prisma.ConversationWhereInput = {
-      ...(query.rentalId ? { rentalId: query.rentalId } : {}),
+      ...(rental ? { rental: participantPairWhere(rental) } : {}),
       ...(this.isStaff(currentUser)
         ? {}
         : {
@@ -38,11 +43,12 @@ export class ChatService {
           }),
     };
 
-    return this.prisma.conversation.findMany({
+    const conversations = await this.prisma.conversation.findMany({
       where,
       include: this.conversationInclude(),
       orderBy: [{ updatedAt: 'desc' }],
     });
+    return groupConversations(conversations);
   }
 
   async createConversation(
@@ -69,44 +75,11 @@ export class ChatService {
       );
     }
 
-    const existing = await this.prisma.conversation.findUnique({
-      where: { rentalId: rental.id },
-      include: this.conversationInclude(),
-    });
-
-    if (existing) {
-      return existing;
-    }
-
-    const conversation = await this.prisma.conversation.create({
-      data: {
-        rentalId: rental.id,
-        members: {
-          create: [
-            { userId: rental.ownerId },
-            { userId: rental.renterId },
-            ...([rental.ownerId, rental.renterId].includes(currentUser.id)
-              ? []
-              : [{ userId: currentUser.id }]),
-          ],
-        },
-        messages: {
-          create: {
-            senderId: currentUser.id,
-            messageType: MessageType.SYSTEM,
-            content: `Conversation created for rental "${rental.asset.title}"`,
-          },
-        },
-      },
-      include: this.conversationInclude(),
-    });
-
-    this.chatEventsService.emitConversationCreated(
-      conversation,
-      conversation.members.map((member) => member.userId),
+    const conversation = await this.chatTimelineService.ensureConversationForRental(
+      rental,
+      this.isStaff(currentUser) ? currentUser.id : undefined,
     );
-
-    return conversation;
+    return this.findAccessibleConversation(conversation.id, currentUser);
   }
 
   async getConversation(
@@ -125,9 +98,10 @@ export class ChatService {
       currentUser,
     );
 
-    return this.prisma.message.findMany({
-      where: { conversationId: conversation.id },
+    const messages = await this.prisma.message.findMany({
+      where: { conversation: { rental: participantPairWhere(conversation.rental) } },
       include: {
+        conversation: { select: { rentalId: true } },
         sender: {
           select: {
             id: true,
@@ -138,6 +112,15 @@ export class ChatService {
       },
       orderBy: [{ createdAt: 'asc' }],
     });
+    return messages.map(({ conversation: source, ...message }) => ({
+      ...message,
+      metadata: {
+        rentalId: source.rentalId,
+        ...(message.metadata && typeof message.metadata === 'object' && !Array.isArray(message.metadata)
+          ? message.metadata
+          : {}),
+      },
+    }));
   }
 
   async sendMessage(
@@ -267,7 +250,7 @@ export class ChatService {
       {
         type: NotificationType.SYSTEM,
         title: 'Tin nhắn mới',
-        content: `${currentUser.fullName} vừa gửi tin nhắn trong cuộc trao đổi cho đơn "${conversation.rental.asset.title}".`,
+        content: `${currentUser.fullName} vừa gửi tin nhắn cho bạn.`,
         metadata: {
           conversationId: conversation.id,
           rentalId: conversation.rentalId,
@@ -329,55 +312,15 @@ export class ChatService {
       throw new ForbiddenException('You cannot access this conversation');
     }
 
-    return conversation;
+    const threads = await this.prisma.conversation.findMany({
+      where: { rental: participantPairWhere(conversation.rental) },
+      include: this.conversationInclude(),
+    });
+    return groupConversations(threads)[0];
   }
 
   private conversationInclude() {
-    return {
-      rental: {
-        include: {
-          asset: true,
-          owner: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-            },
-          },
-          renter: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-            },
-          },
-        },
-      },
-      members: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-            },
-          },
-        },
-      },
-      messages: {
-        include: {
-          sender: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-            },
-          },
-        },
-        orderBy: [{ createdAt: 'asc' as const }],
-        take: 50,
-      },
-    } satisfies Prisma.ConversationInclude;
+    return conversationInclude;
   }
 
   private isStaff(currentUser: AuthenticatedUser) {

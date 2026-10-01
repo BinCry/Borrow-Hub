@@ -151,6 +151,13 @@ describe('AssetsService search enhancements', () => {
     });
 
     expect(result.pagination.total).toBe(1);
+    expect(prisma.asset.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          owner: { select: { id: true, fullName: true, avatarUrl: true, trustScore: true } },
+        }),
+      }),
+    );
     expect(result.data).toEqual([
       expect.objectContaining({
         id: 'asset-1',

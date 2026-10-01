@@ -17,6 +17,7 @@ import { synchronizeRemovedAsset } from '../../utils/assetCache';
 import { AssetsService } from '../../services/assets/assets.service';
 import { AdminService } from '../../services/admin/admin.service';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { getAssetConditionLabel } from '../../utils/asset-condition';
 
 const { width } = Dimensions.get('window');
 
@@ -291,7 +292,7 @@ export default function AssetDetailScreen() {
 
           <View className="mb-6 rounded-2xl border border-border bg-surface p-4">
             <Text className="mb-3 text-lg font-bold text-text-primary">Thông tin sản phẩm</Text>
-            <DetailRow label="Tình trạng" value={asset.condition} />
+            <DetailRow label="Tình trạng" value={getAssetConditionLabel(asset.condition)} />
             {asset.brand ? <DetailRow label="Thương hiệu" value={asset.brand} /> : null}
             {asset.model ? <DetailRow label="Model" value={asset.model} /> : null}
             {asset.estimatedValue ? <DetailRow label="Giá trị tham khảo" value={new Intl.NumberFormat('vi-VN').format(asset.estimatedValue) + ' VND'} /> : null}

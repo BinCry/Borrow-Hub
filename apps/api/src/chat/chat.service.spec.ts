@@ -25,7 +25,12 @@ describe('ChatService', () => {
   const conversation = {
     id: 'conversation-1',
     rentalId: 'rental-1',
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+    messages: [],
     rental: {
+      ownerId: 'owner-1',
+      renterId: 'user-1',
       asset: {
         id: 'asset-1',
         title: 'Canon R6',
@@ -40,6 +45,7 @@ describe('ChatService', () => {
     },
     conversation: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
     },
     conversationMember: {
@@ -63,6 +69,7 @@ describe('ChatService', () => {
 
   const chatTimelineService = {
     appendSystemMessageForRental: jest.fn(),
+    ensureConversationForRental: jest.fn(),
   };
 
   let service: ChatService;
@@ -70,6 +77,7 @@ describe('ChatService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.conversation.findUnique.mockResolvedValue(conversation);
+    prisma.conversation.findMany.mockResolvedValue([conversation]);
     prisma.rentalRequest.findUnique.mockResolvedValue({
       id: 'rental-1',
       ownerId: 'owner-1',
@@ -84,6 +92,72 @@ describe('ChatService', () => {
       chatEventsService as never,
       chatTimelineService as never,
     );
+  });
+
+  it('uses the same conversation resolver as lifecycle events when opening chat', async () => {
+    chatTimelineService.ensureConversationForRental.mockResolvedValue(conversation);
+    await expect(service.createConversation(renterUser, { rentalId: 'rental-1' }))
+      .resolves.toEqual(conversation);
+    expect(chatTimelineService.ensureConversationForRental).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'rental-1', ownerId: 'owner-1', renterId: renterUser.id }),
+      undefined,
+    );
+    expect(prisma.conversation.create).not.toHaveBeenCalled();
+  });
+
+  it('does not let an unrelated user create or reuse a rental conversation', async () => {
+    await expect(service.createConversation({ ...renterUser, id: 'stranger' }, { rentalId: 'rental-1' }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(chatTimelineService.ensureConversationForRental).not.toHaveBeenCalled();
+  });
+
+  it('groups legacy threads for one pair while keeping a different pair separate', async () => {
+    const olderMessage = { id: 'message-old', content: 'Old rental', createdAt: new Date('2026-01-02') };
+    const newerMessage = { id: 'message-new', content: 'New rental', createdAt: new Date('2026-03-02') };
+    prisma.conversation.findMany.mockResolvedValue([
+      { ...conversation, messages: [olderMessage] },
+      { ...conversation, id: 'conversation-2', rentalId: 'rental-2',
+        createdAt: new Date('2026-02-01'), messages: [newerMessage],
+        rental: { ...conversation.rental, ownerId: 'user-1', renterId: 'owner-1' } },
+      { ...conversation, id: 'conversation-other', rentalId: 'rental-other',
+        rental: { ...conversation.rental, ownerId: 'owner-2' } },
+    ]);
+
+    const result = await service.listMine(renterUser, {});
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe('conversation-1');
+    expect(result[0].messages).toEqual([olderMessage, newerMessage]);
+    expect(result[1].id).toBe('conversation-other');
+    expect(prisma.conversation.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { members: { some: { userId: renterUser.id } } },
+    }));
+  });
+
+  it('opens an old duplicate ID as the canonical thread and keeps the original rental references', async () => {
+    const legacy = { ...conversation, id: 'legacy-thread', rentalId: 'rental-2', createdAt: new Date('2026-02-01') };
+    prisma.conversation.findUnique.mockResolvedValueOnce(legacy);
+    prisma.conversation.findMany.mockResolvedValue([legacy, conversation]);
+    expect((await service.getConversation(legacy.id, renterUser)).id).toBe(conversation.id);
+
+    prisma.message.findMany.mockResolvedValue([
+      { id: 'old-event', metadata: null, conversation: { rentalId: 'rental-2' } },
+      { id: 'new-event', metadata: { rentalId: 'rental-3' }, conversation: { rentalId: 'rental-1' } },
+    ]);
+    const messages = await service.listMessages(conversation.id, renterUser);
+    expect(messages.map((message) => message.metadata.rentalId)).toEqual(['rental-2', 'rental-3']);
+    expect(prisma.message.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { conversation: { rental: { OR: [
+        { ownerId: 'owner-1', renterId: 'user-1' },
+        { ownerId: 'user-1', renterId: 'owner-1' },
+      ] } } },
+    }));
+  });
+
+  it('rejects unrelated readers before querying shared history', async () => {
+    await expect(service.listMessages(conversation.id, { ...renterUser, id: 'stranger' }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.conversation.findMany).not.toHaveBeenCalled();
+    expect(prisma.message.findMany).not.toHaveBeenCalled();
   });
 
   it('creates an image message when attachmentUrl is provided', async () => {
@@ -223,6 +297,6 @@ describe('ChatService', () => {
       'owner-1',
       'Owner approved your request.',
     );
-    expect(result.id).toBe('message-5');
+    expect(result?.id).toBe('message-5');
   });
 });

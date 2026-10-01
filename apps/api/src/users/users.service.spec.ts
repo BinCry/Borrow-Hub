@@ -10,6 +10,7 @@ describe('UsersService account deletion', () => {
       updateMany: jest.fn(),
     },
     asset: { updateMany: jest.fn() },
+    review: { aggregate: jest.fn() },
     userAddress: { deleteMany: jest.fn() },
     userVerification: { deleteMany: jest.fn() },
     favoriteAsset: { deleteMany: jest.fn() },
@@ -57,6 +58,39 @@ describe('UsersService account deletion', () => {
       BadRequestException,
     );
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('returns public activity and ratings without exposing account or verification details', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'owner-1', fullName: 'Owner', avatarUrl: null, trustScore: 80,
+      createdAt: new Date('2026-01-01'),
+      verification: { verificationStatus: 'VERIFIED' },
+      _count: { ownedAssets: 2, rentalsAsOwner: 3 },
+      ownedAssets: [], receivedReviews: [],
+    });
+    prisma.review.aggregate.mockResolvedValue({ _avg: { rating: 4.5 }, _count: { _all: 2 } });
+
+    const result = await service.getPublicProfile('owner-1');
+
+    expect(result).toMatchObject({
+      isVerified: true, verificationStatus: 'VERIFIED', activeListingCount: 2, totalRentals: 3,
+      averageRating: 4.5, reviewCount: 2, assets: [], reviews: [],
+    });
+    const { select, where } = prisma.user.findUnique.mock.calls[0][0];
+    expect(where).toEqual({ id: 'owner-1', status: 'ACTIVE' });
+    expect(select.email).toBeUndefined();
+    expect(select.phone).toBeUndefined();
+    expect(select.addresses).toBeUndefined();
+    expect(select.verification).toEqual({ select: { verificationStatus: true } });
+    expect(select.ownedAssets.where).toEqual({ status: 'ACTIVE' });
+    expect(select.receivedReviews.where).toEqual({ status: 'PUBLISHED' });
+    expect(select._count.select.rentalsAsOwner.where).toEqual({
+      payments: { some: { status: { in: ['SUCCESS', 'PARTIALLY_REFUNDED', 'REFUNDED'] } } },
+    });
+    expect(prisma.review.aggregate).toHaveBeenCalledWith({
+      where: { revieweeId: 'owner-1', status: 'PUBLISHED' },
+      _avg: { rating: true }, _count: { _all: true },
+    });
   });
 
   it('anonymizes the account and removes KYC files after the transaction', async () => {

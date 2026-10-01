@@ -29,6 +29,7 @@ export class FavoritesService {
               select: {
                 id: true,
                 fullName: true,
+                avatarUrl: true,
                 trustScore: true,
               },
             },

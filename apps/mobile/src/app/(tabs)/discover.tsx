@@ -8,13 +8,10 @@ import { Search, SlidersHorizontal } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useFocusEffect } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../services/api/client';
 import { vietnamLocations } from '../../data/vietnamLocations';
 import type { AssetSearchFilters } from '../../services/assets/assets.service';
 
 type FilterDraft = {
-  categoryId: string;
   condition: AssetCondition | '';
   city: string;
   district: string;
@@ -24,7 +21,6 @@ type FilterDraft = {
   sort: NonNullable<AssetSearchFilters['sort']>;
 };
 
-type Category = { id: string; name: string; children?: Category[] };
 
 const conditionOptions: { value: AssetCondition; label: string }[] = [
   { value: 'NEW', label: 'Mới' },
@@ -49,27 +45,17 @@ const sortOptions: { value: NonNullable<AssetSearchFilters['sort']>; label: stri
 ];
 
 const emptyFilters: FilterDraft = {
-  categoryId: '', condition: '', city: '', district: '', deliveryMethod: '',
+  condition: '', city: '', district: '', deliveryMethod: '',
   minPrice: '', maxPrice: '', sort: 'newest',
 };
-
-function flattenCategories(categories: Category[]): Category[] {
-  return categories.flatMap((category) => [category, ...flattenCategories(category.children ?? [])]);
-}
 
 export function DiscoverContent({ adminPreview = false }: { adminPreview?: boolean }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [filters, setFilters] = useState<FilterDraft>(emptyFilters);
   const debouncedSearch = useDebounce(searchQuery, 500);
-  const categoriesQuery = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => flattenCategories((await apiClient.get<Category[]>('/categories')).data),
-  });
-
   const appliedFilters = useMemo(() => ({
     keyword: debouncedSearch.trim() || undefined,
-    categoryId: filters.categoryId || undefined,
     condition: filters.condition || undefined,
     city: filters.city || undefined,
     district: filters.district || undefined,
@@ -97,7 +83,7 @@ export function DiscoverContent({ adminPreview = false }: { adminPreview?: boole
             <Search size={20} color="#9CA3AF" />
             <TextInput
               className="flex-1 ml-2 text-base text-text-primary h-12"
-              placeholder="Tìm kiếm tài sản..."
+              placeholder="Tìm máy ảnh, laptop, loa..."
               placeholderTextColor={colors.text.muted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -127,17 +113,7 @@ export function DiscoverContent({ adminPreview = false }: { adminPreview?: boole
               <TouchableOpacity onPress={() => setFilterVisible(false)}><Text className="font-bold text-primary">Đóng</Text></TouchableOpacity>
             </View>
 
-            <Text className="mb-2 font-bold text-text-primary">Danh mục</Text>
-            <FlatList
-              horizontal
-              data={categoriesQuery.data ?? []}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              className="mb-4"
-              renderItem={({ item }) => (
-                <Chip label={item.name} selected={filters.categoryId === item.id} onPress={() => setFilters((current) => ({ ...current, categoryId: current.categoryId === item.id ? '' : item.id }))} />
-              )}
-            />
+
 
             <Text className="mb-2 font-bold text-text-primary">Tình trạng</Text>
             <View className="mb-4 flex-row flex-wrap gap-2">

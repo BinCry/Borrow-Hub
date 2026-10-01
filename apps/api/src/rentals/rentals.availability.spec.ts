@@ -112,6 +112,25 @@ describe('RentalsService availability enforcement', () => {
     expect(prisma.rentalRequest.create).not.toHaveBeenCalled();
   });
 
+  it('notifies only the owner and appends the new booking to the shared chat', async () => {
+    prisma.assetAvailability.findFirst.mockResolvedValue(null);
+    prisma.assetAvailability.count.mockResolvedValue(0);
+    prisma.rentalRequest.create.mockResolvedValue({
+      id: 'rental-new', assetId: asset.id, ownerId: asset.ownerId, renterId: renterUser.id,
+      status: 'PENDING_OWNER',
+    });
+    await service.create(renterUser, {
+      assetId: asset.id, startAt: '2026-10-20T02:00:00.000Z',
+      endAt: '2026-10-22T02:00:00.000Z', deliveryMethod: 'pickup',
+    });
+    expect(notificationsService.createMany).toHaveBeenCalledWith(
+      [asset.ownerId], expect.objectContaining({ type: 'RENTAL_REQUEST_CREATED', referenceId: 'rental-new' }),
+    );
+    expect(chatService.appendSystemMessageForRental).toHaveBeenCalledWith(
+      'rental-new', renterUser.id, expect.stringContaining(asset.title),
+    );
+  });
+
   it('rejects rentals outside explicitly opened availability windows', async () => {
     prisma.assetAvailability.findFirst
       .mockResolvedValueOnce(null)

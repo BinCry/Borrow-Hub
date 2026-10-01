@@ -10,6 +10,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as argon2 from 'argon2';
 import {
   DisputeStatus,
+  PaymentStatus,
   PayoutStatus,
   Prisma,
   RefundStatus,
@@ -88,6 +89,13 @@ export class AdminService {
       { reason: { contains: 'fake', mode: 'insensitive' as const } },
       { reason: { contains: 'prohibited', mode: 'insensitive' as const } },
     ];
+    const paidRentalWhere: Prisma.RentalRequestWhereInput = {
+      payments: {
+        some: {
+          status: { in: [PaymentStatus.SUCCESS, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED] },
+        },
+      },
+    };
 
     const [
       totalUsers,
@@ -128,15 +136,26 @@ export class AdminService {
       this.prisma.asset.count({
         where: { status: 'ACTIVE' },
       }),
-      this.prisma.rentalRequest.count(),
       this.prisma.rentalRequest.count({
-        where: { status: 'COMPLETED' },
+        where: paidRentalWhere,
       }),
       this.prisma.rentalRequest.count({
-        where: { status: 'CANCELLED' },
+        where: {
+          status: 'COMPLETED',
+          ...paidRentalWhere,
+        },
       }),
       this.prisma.rentalRequest.count({
-        where: { status: 'OVERDUE' },
+        where: {
+          status: 'CANCELLED',
+          ...paidRentalWhere,
+        },
+      }),
+      this.prisma.rentalRequest.count({
+        where: {
+          status: 'OVERDUE',
+          ...paidRentalWhere,
+        },
       }),
       this.prisma.dispute.count({
         where: {

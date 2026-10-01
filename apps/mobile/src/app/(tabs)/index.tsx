@@ -1,4 +1,4 @@
-import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAssets } from '../../hooks/useAssets';
 import { AssetCard } from '../../components/AssetCard';
@@ -6,9 +6,11 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Search, Bell, SlidersHorizontal } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../services/api/client';
+import { colors } from '../../theme/colors';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -22,19 +24,39 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="px-5 pt-2 pb-4 bg-surface z-10 shadow-sm border-b border-border">
+      <Image
+        source={require('../../../assets/images/borrow-auth-mint-leaves.webp')}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        contentPosition="top"
+        transition={220}
+        priority="high"
+        accessible={false}
+        pointerEvents="none"
+      />
+      <LinearGradient
+        colors={[
+          'rgba(240,253,244,0.02)',
+          'rgba(240,253,244,0.12)',
+          'rgba(240,253,244,0.20)',
+        ]}
+        locations={[0, 0.48, 0.82]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <View className="px-5 pt-2 pb-4 bg-primary-soft/90 z-10 border-b border-primary/15">
         <View className="flex-row justify-between items-center mb-4">
           <View>
-            <Text className="text-2xl font-extrabold text-primary tracking-tight">RentLoop</Text>
-            <Text className="text-text-secondary text-sm mt-0.5">Thuê mọi thứ bạn cần quanh đây</Text>
+            <Text className="text-2xl font-extrabold text-primary-dark tracking-tight">RentLoop</Text>
+            <Text className="text-primary-dark text-sm mt-0.5">Thuê mọi thứ bạn cần quanh đây</Text>
           </View>
           <TouchableOpacity
             accessibilityLabel="Mở thông báo"
-            className="w-10 h-10 bg-surfaceSecondary rounded-full items-center justify-center"
+            className="w-10 h-10 bg-white/80 border border-primary/15 rounded-full items-center justify-center"
             onPress={() => router.push('/notifications' as never)}
           >
             <View>
-              <Bell size={20} color="#4B5563" />
+              <Bell size={20} color={colors.primary.dark} />
               {unreadCount > 0 ? (
                 <View className="absolute -right-3 -top-3 min-h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1">
                   <Text className="text-[10px] font-extrabold text-white">{unreadCount > 99 ? '99+' : unreadCount}</Text>
@@ -46,12 +68,12 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           accessibilityLabel="Tìm kiếm tài sản"
-          className="flex-row items-center bg-surfaceSecondary rounded-xl px-4 py-3 border border-border"
+          className="flex-row items-center bg-white/90 rounded-xl px-4 py-3 border border-primary/20"
           onPress={() => router.push('/discover')}
         >
-          <Search size={20} color="#9CA3AF" />
-          <Text className="text-text-muted ml-3 flex-1 text-base">Tìm kiếm thiết bị, máy ảnh...</Text>
-          <SlidersHorizontal size={20} color="#4B5563" />
+          <Search size={20} color={colors.primary.DEFAULT} />
+          <Text className="text-text-secondary ml-3 flex-1 text-base">Tìm kiếm thiết bị, máy ảnh...</Text>
+          <SlidersHorizontal size={20} color={colors.primary.dark} />
         </TouchableOpacity>
       </View>
 
@@ -95,15 +117,22 @@ export default function HomeScreen() {
             <View className="mb-6">
               <View className="w-full h-[160px] rounded-2xl overflow-hidden mb-6 relative">
                 <Image 
-                  source={require('../../../assets/images/auth-background-v2.png')}
+                  source={require('../../../assets/images/borrow-home-lifestyle-v2.webp')}
                   style={{ width: '100%', height: '100%' }}
                   contentFit="cover"
                   contentPosition="center"
                   priority="high"
+                  accessible={false}
                 />
-                <View className="absolute inset-0 bg-black/45 p-5 justify-end">
-                  <Text className="text-white font-extrabold text-xl mb-1">Mượn đúng món, dùng đúng lúc</Text>
-                  <Text className="text-white/90 text-sm font-medium">Khám phá đồ dùng hữu ích ngay trong cộng đồng</Text>
+                <LinearGradient
+                  colors={['rgba(12,35,25,0.08)', 'rgba(12,35,25,0.82)']}
+                  locations={[0.15, 1]}
+                  style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
+                  pointerEvents="none"
+                />
+                <View className="absolute inset-0 p-5 justify-end">
+                  <Text className="text-white font-extrabold text-xl mb-1">Thuê dễ dàng, dùng thông minh</Text>
+                  <Text className="text-white/90 text-sm font-medium">Đừng quên trả đồ đúng hạn nhé!  </Text>
                 </View>
               </View>
               

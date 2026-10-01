@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, scanFromURLAsync, useCameraPermissions } from 'expo-camera';
+import { launchImageLibraryAsync } from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, QrCode, ShieldCheck } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiClient } from '../../../services/api/client';
@@ -25,6 +26,8 @@ export default function HandoverScreen() {
   const queryClient = useQueryClient();
   const [permission, requestPermission] = useCameraPermissions();
   const [hasScanned, setHasScanned] = useState(false);
+  const [isPickingImage, setIsPickingImage] = useState(false);
+  const scanLocked = useRef(false);
   const rentalQuery = useRental(id);
   const meQuery = useQuery({
     queryKey: ['me'],
@@ -62,10 +65,44 @@ export default function HandoverScreen() {
       router.back();
     },
     onError: () => {
+      scanLocked.current = false;
       setHasScanned(false);
       Alert.alert('Mã không hợp lệ', 'Mã có thể đã hết hạn hoặc đã được sử dụng.');
     },
   });
+
+  async function pickQrImage() {
+    if (scanLocked.current) return;
+    scanLocked.current = true;
+    setIsPickingImage(true);
+    let submitted = false;
+    try {
+      const result = await launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 1,
+      });
+      if (result.canceled || !result.assets[0]) return;
+
+      const codes = await scanFromURLAsync(result.assets[0].uri, ['qr']);
+      const values = [...new Set(codes.map((code) => code.data).filter(Boolean))];
+      if (values.length !== 1) {
+        Alert.alert(
+          values.length ? 'Ảnh có nhiều mã QR' : 'Không tìm thấy mã QR',
+          'Vui lòng chọn ảnh rõ nét, chỉ chứa một mã QR bàn giao.',
+        );
+        return;
+      }
+      setHasScanned(true);
+      submitted = true;
+      confirmMutation.mutate(extractHandoverToken(values[0]));
+    } catch {
+      Alert.alert('Không thể đọc ảnh QR', 'Vui lòng chọn ảnh khác hoặc quét mã bằng camera.');
+    } finally {
+      setIsPickingImage(false);
+      if (!submitted) scanLocked.current = false;
+    }
+  }
 
   const isLoading = rentalQuery.isLoading || meQuery.isLoading;
 
@@ -98,7 +135,7 @@ export default function HandoverScreen() {
             {isReturn ? 'Tạo phiên nhận lại an toàn' : 'Tạo phiên bàn giao an toàn'}
           </Text>
           <Text className="mt-2 text-center leading-6 text-text-secondary">
-            Mã QR chỉ có hiệu lực trong thời gian ngắn và được khóa ngay sau lần xác nhận đầu tiên.
+            Mã QR chỉ có hiệu lực trong 1 phút và được khóa ngay sau lần xác nhận đầu tiên.
           </Text>
           <TouchableOpacity
             className={`mt-8 min-h-14 w-full flex-row items-center justify-center rounded-xl bg-primary ${
@@ -142,9 +179,11 @@ export default function HandoverScreen() {
             facing="back"
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
             onBarcodeScanned={
-              hasScanned
+              hasScanned || isPickingImage
                 ? undefined
                 : ({ data }) => {
+                    if (scanLocked.current) return;
+                    scanLocked.current = true;
                     setHasScanned(true);
                     confirmMutation.mutate(extractHandoverToken(data));
                   }
@@ -165,6 +204,24 @@ export default function HandoverScreen() {
           </View>
         </View>
       )}
+      {!isLoading && !isOwner ? (
+        <View className="border-t border-border bg-surface px-6 py-4">
+          <TouchableOpacity
+            accessibilityRole="button"
+            disabled={isPickingImage || hasScanned}
+            className={`min-h-14 items-center justify-center rounded-xl bg-primary ${
+              isPickingImage || hasScanned ? 'opacity-70' : ''
+            }`}
+            onPress={() => void pickQrImage()}
+          >
+            {isPickingImage || confirmMutation.isPending ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-lg font-bold text-white">Chọn ảnh QR từ thư viện</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }

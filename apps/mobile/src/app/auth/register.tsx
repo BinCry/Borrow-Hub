@@ -151,19 +151,19 @@ export default function RegisterScreen() {
       />
 
       <Image
-        source={require('../../../assets/images/auth-background-v2.png')}
+        source={require('../../../assets/images/borrow-auth-mint-leaves.webp')}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
-        contentPosition="center"
+        contentPosition="top"
         transition={220}
         priority="high"
         accessible={false}
       />
       <LinearGradient
         colors={[
-          'rgba(247,248,245,0.04)',
-          'rgba(247,248,245,0.68)',
-          'rgba(247,248,245,0.98)',
+          'rgba(240,253,244,0.02)',
+          'rgba(240,253,244,0.12)',
+          'rgba(240,253,244,0.20)',
         ]}
         locations={[0, 0.3, 0.64]}
         style={StyleSheet.absoluteFill}

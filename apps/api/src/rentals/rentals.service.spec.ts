@@ -5,6 +5,7 @@ import {
   NotificationType,
   RentalStatus,
   RoleName,
+  SignatureMethod,
 } from '@prisma/client';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { RentalsService } from './rentals.service';
@@ -102,6 +103,8 @@ describe('RentalsService QR handover', () => {
     systemConfig: {
       findUnique: jest.fn(),
     },
+    contractSignature: { upsert: jest.fn(), findMany: jest.fn() },
+    rentalContract: { update: jest.fn() },
     $transaction: jest.fn(),
   };
 
@@ -171,6 +174,11 @@ describe('RentalsService QR handover', () => {
     });
 
     expect(prisma.handover.create).toHaveBeenCalled();
+    expect(chatService.appendSystemMessageForRental).toHaveBeenCalledWith(
+      rental.id,
+      ownerUser.id,
+      'Phiên bàn giao cho "Canon R6" đã sẵn sàng.',
+    );
     expect(notificationsService.createMany).toHaveBeenCalledWith([renterUser.id], {
       type: NotificationType.HANDOVER_READY,
       title: 'Phiên bàn giao đã sẵn sàng',
@@ -184,6 +192,41 @@ describe('RentalsService QR handover', () => {
       referenceId: rental.id,
     });
     expect(result.id).toBe(handover.id);
+  });
+
+  it.each([
+    { signer: ownerUser, recipient: renterUser, bothSigned: false },
+    { signer: renterUser, recipient: ownerUser, bothSigned: false },
+    { signer: ownerUser, recipient: renterUser, bothSigned: true },
+    { signer: renterUser, recipient: ownerUser, bothSigned: true },
+  ])('notifies only the other party and records each signature: $signer.id, complete=$bothSigned', async ({ signer, recipient, bothSigned }) => {
+    prisma.rentalRequest.findUnique.mockResolvedValue({
+      ...rental, status: RentalStatus.AWAITING_SIGNATURE, contract: { id: 'contract-1' },
+    });
+    prisma.contractSignature.findMany.mockResolvedValue(
+      (bothSigned ? [ownerUser, renterUser] : [signer]).map((user) => ({ userId: user.id })),
+    );
+    await service.signContract(rental.id, signer, { signatureMethod: SignatureMethod.IN_APP });
+    expect(notificationsService.createMany).toHaveBeenCalledWith(
+      [recipient.id], expect.objectContaining({
+        type: bothSigned ? NotificationType.RENTAL_CONFIRMED : NotificationType.CONTRACT_SIGNED,
+      }),
+    );
+    expect(chatService.appendSystemMessageForRental).toHaveBeenCalledTimes(1);
+    expect(chatService.appendSystemMessageForRental).toHaveBeenCalledWith(
+      rental.id, signer.id, expect.stringContaining('Canon R6'),
+    );
+  });
+
+  it('records manual delivery confirmation in chat and notifies only the owner', async () => {
+    prisma.rentalRequest.update.mockResolvedValue({ ...rental, status: RentalStatus.ONGOING });
+    await service.confirmHandover(rental.id, handover.id, renterUser, {});
+    expect(notificationsService.createMany).toHaveBeenCalledWith(
+      [ownerUser.id], expect.objectContaining({ type: NotificationType.HANDOVER_COMPLETED }),
+    );
+    expect(chatService.appendSystemMessageForRental).toHaveBeenCalledWith(
+      rental.id, renterUser.id, 'Tài sản "Canon R6" đã được bàn giao thành công.',
+    );
   });
 
   it('prevents staff accounts from creating rental requests', async () => {
@@ -204,6 +247,7 @@ describe('RentalsService QR handover', () => {
       expiresAt: new Date('2026-08-12T10:10:00.000Z'),
     });
 
+    const beforeGeneration = Date.now();
     const result = await service.generateHandoverQr(
       rental.id,
       handover.id,
@@ -211,6 +255,9 @@ describe('RentalsService QR handover', () => {
     );
 
     expect(prisma.handoverQrSession.create).toHaveBeenCalled();
+    const expiresAt = prisma.handoverQrSession.create.mock.calls[0][0].data.expiresAt.getTime();
+    expect(expiresAt).toBeGreaterThanOrEqual(beforeGeneration + 60_000);
+    expect(expiresAt).toBeLessThanOrEqual(Date.now() + 60_000);
     expect(auditService.create).toHaveBeenCalled();
     expect(result).toEqual(
       expect.objectContaining({
@@ -281,6 +328,15 @@ describe('RentalsService QR handover', () => {
     expect(prisma.handoverQrSession.updateMany).toHaveBeenCalled();
     expect(prisma.handover.updateMany).toHaveBeenCalled();
     expect(result.status).toBe(RentalStatus.ONGOING);
+    expect(notificationsService.createMany).toHaveBeenCalledWith(
+      [ownerUser.id],
+      expect.objectContaining({ type: NotificationType.HANDOVER_COMPLETED }),
+    );
+    expect(chatService.appendSystemMessageForRental).toHaveBeenCalledWith(
+      rental.id,
+      renterUser.id,
+      'Tài sản "Canon R6" đã được xác nhận bàn giao bằng QR.',
+    );
   });
 
   it('prevents staff accounts from confirming handover as the renter', async () => {

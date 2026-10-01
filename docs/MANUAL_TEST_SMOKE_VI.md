@@ -28,12 +28,12 @@ Chạy bộ này sau mỗi build hoặc trước khi demo. Dùng A = chủ tài 
 - [v] B không thể thuê tài sản của chính mình.
 - [ ] Ngày sai, thời lượng ngoài min/max hoặc vượt lịch mở → bị chặn.
 - [ ] Hai yêu cầu trùng lịch đã được duyệt → chỉ một yêu cầu thành công.
-- [ ] A duyệt → AWAITING_PAYMENT; A từ chối → DECLINED.
-- [ ] B thanh toán thành công → `Payment = SUCCESS` (đã nhận tiền), `Payout = PENDING`, trạng thái đơn AWAITING_SIGNATURE và hợp đồng được tạo.
+- [v] A duyệt → AWAITING_PAYMENT; A từ chối → DECLINED.
+- [v] B thanh toán thành công → `Payment = SUCCESS` (đã nhận tiền), `Payout = PENDING`, trạng thái đơn AWAITING_SIGNATURE và hợp đồng được tạo.
 - [ ] Thanh toán lặp/webhook lặp không tạo tiền hoặc hợp đồng lần hai.
 - [ ] Hai bên ký → CONFIRMED; người thứ ba không ký được.
 - [ ] A bắt đầu bàn giao → READY_FOR_HANDOVER; QR hợp lệ đưa đơn sang ONGOING.
-- [ ] QR sai, hết hạn hoặc đã dùng → bị từ chối.
+- [v] QR sai, hết hạn hoặc đã dùng → bị từ chối.
 - [ ] B yêu cầu trả; A xác nhận trả → COMPLETED, payout vẫn PENDING để admin/finance chuyển tiền.
 - [ ] Đánh giá chỉ tạo được sau COMPLETED và mỗi bên chỉ đánh giá một lần.
 
@@ -52,6 +52,9 @@ Chạy bộ này sau mỗi build hoặc trước khi demo. Dùng A = chủ tài 
 
 - [ ] B và A gửi/nhận chat thời gian thực; tin có số điện thoại/link tạo cảnh báo.
 - [ ] Sự kiện đặt thuê, thanh toán, ký và bàn giao tạo thông báo đúng người.
+- [ ] A và B chỉ có một hộp trò chuyện chung: tạo đơn thứ hai hoặc đổi vai trò thuê/cho thuê vẫn dùng hộp cũ; sự kiện đặt thuê, thanh toán, từng lượt ký và bàn giao được thêm vào đó, kèm liên kết đúng đơn thuê.
+- [ ] Nếu A–B đã có nhiều hộp từ trước, danh sách chỉ hiện một hộp và giữ được lịch sử của tất cả các hộp cũ; mở liên kết hộp cũ vẫn tới hộp chung. A–C phải có hộp riêng, C không đọc được hộp A–B.
+- [ ] Mở chat đồng thời từ hai thiết bị hoặc tạo hai đơn giữa cùng A–B không sinh thêm hộp. Thông báo đặt thuê đến chủ đồ, ký/bàn giao đến bên còn lại; xác nhận thanh toán đến người thuê, yêu cầu ký đến cả hai.
 - [ ] Đánh dấu một/tất cả thông báo đã đọc; số chưa đọc không bị sai.
 - [ ] Tắt mạng khi gửi form → hết loading, báo lỗi và thử lại không tạo bản ghi trùng.
 - [ ] Nhấn nút gửi liên tục → chỉ tạo một yêu cầu/thanh toán/hành động.

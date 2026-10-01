@@ -137,6 +137,9 @@ export default function MessagesScreen() {
                   <Text className="text-text-secondary" numberOfLines={1}>
                     {lastMessage?.content || `Trao đổi về ${item.rental.asset.title}`}
                   </Text>
+                  <Text className="mt-1 text-xs text-text-muted" numberOfLines={1}>
+                    Trao đổi và cập nhật các đơn thuê
+                  </Text>
                 </View>
               </TouchableOpacity>
             );

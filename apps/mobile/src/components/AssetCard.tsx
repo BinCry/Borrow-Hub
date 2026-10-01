@@ -4,6 +4,8 @@ import { Image } from 'expo-image';
 import { Asset } from '../types/domain';
 import { MapPin, Star, User, ShieldCheck } from 'lucide-react-native';
 import { Link, useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../services/api/client';
 
 interface AssetCardProps {
   asset: Asset;
@@ -14,6 +16,19 @@ export function AssetCard({ asset, adminPreview = false }: AssetCardProps) {
   const router = useRouter();
   const coverImage = asset.images?.find((img) => img.isCover)?.url || asset.images?.[0]?.url;
   const owner = asset.owner;
+  // Older API deployments omit avatarUrl from listing owners.
+  const ownerProfile = useQuery({
+    queryKey: ['public-profile', asset.ownerId],
+    queryFn: async () => (await apiClient.get<{
+      id: string;
+      fullName: string;
+      avatarUrl?: string | null;
+      trustScore?: number;
+    }>(`/users/${asset.ownerId}/public`)).data,
+    enabled: Boolean(asset.ownerId) && owner?.avatarUrl === undefined,
+    staleTime: 60_000,
+  });
+  const avatarUrl = owner?.avatarUrl === undefined ? ownerProfile.data?.avatarUrl : owner.avatarUrl;
   const ownerName = owner?.fullName || 'Người đăng';
   const detailHref = adminPreview
     ? { pathname: '/asset/[id]', params: { id: asset.id, admin: '1' } }
@@ -30,14 +45,14 @@ export function AssetCard({ asset, adminPreview = false }: AssetCardProps) {
           params: {
             id: asset.ownerId,
             name: ownerName,
-            avatar: owner?.avatarUrl ?? '',
+            avatar: avatarUrl ?? '',
             trustScore: String(owner?.trustScore ?? 0),
           },
         })}
       >
         <View className="mr-3 h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary-soft">
-          {owner?.avatarUrl ? (
-            <Image source={{ uri: owner.avatarUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={{ width: 40, height: 40 }} contentFit="cover" recyclingKey={avatarUrl} />
           ) : (
             <User size={20} color={colors.primary.DEFAULT} />
           )}
@@ -58,17 +73,17 @@ export function AssetCard({ asset, adminPreview = false }: AssetCardProps) {
       </TouchableOpacity>
 
       <Link href={detailHref as never} asChild>
-        <TouchableOpacity accessibilityRole="button">
+        <TouchableOpacity accessibilityRole="button" className="flex-row items-start px-4 pb-4">
           {coverImage ? (
-            <Image source={{ uri: coverImage }} style={{ width: '100%', aspectRatio: 1.55 }} contentFit="cover" transition={200} className="bg-gray-100" />
+            <Image source={{ uri: coverImage }} style={{ width: 104, height: 104, borderRadius: 12 }} contentFit="cover" transition={200} className="bg-gray-100" />
           ) : (
-            <View className="w-full items-center justify-center bg-gray-100" style={{ aspectRatio: 1.55 }}>
+            <View className="items-center justify-center rounded-xl bg-gray-100" style={{ width: 104, height: 104 }}>
               <Text className="text-text-secondary">Chưa có ảnh</Text>
             </View>
           )}
 
-          <View className="px-4 pb-4 pt-3">
-            <Text className="text-lg font-extrabold leading-tight text-text-primary" numberOfLines={2}>{asset.title}</Text>
+          <View className="ml-3 flex-1">
+            <Text className="text-base font-extrabold leading-tight text-text-primary" numberOfLines={2}>{asset.title}</Text>
             <Text className="mt-1 text-[17px] font-bold text-primary">
               {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(asset.pricePerDay)}
               <Text className="text-xs font-medium text-text-secondary">/ngày</Text>

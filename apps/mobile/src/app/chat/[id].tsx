@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Send, ShieldCheck } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -55,6 +55,11 @@ export default function ChatScreen() {
     },
   });
   const conversation = conversationQuery.data;
+  useEffect(() => {
+    if (conversation?.id && conversation.id !== id) {
+      router.replace(`/chat/${conversation.id}`);
+    }
+  }, [conversation?.id, id, router]);
   const otherUser = conversation?.members.find(
     (member) => member.userId !== meQuery.data?.id,
   )?.user;
@@ -123,9 +128,20 @@ export default function ChatScreen() {
               if (isSystem) {
                 return (
                   <View className="mb-4 items-center px-8">
-                    <Text className="text-center text-xs text-text-muted">
+                    <Text className="text-center text-xs text-text-secondary">
                       {item.content}
                     </Text>
+                    {typeof item.metadata?.rentalId === 'string' && (
+                      <TouchableOpacity
+                        accessibilityLabel={`Xem đơn thuê ${item.metadata.rentalId}`}
+                        onPress={() => router.push(`/rental/${item.metadata!.rentalId}`)}
+                        className="mt-1 min-h-11 justify-center"
+                      >
+                        <Text className="text-center text-xs font-semibold text-primary-dark">
+                          Đơn {item.metadata.rentalId} · Xem chi tiết
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 );
               }

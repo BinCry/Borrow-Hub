@@ -140,6 +140,35 @@ export class UsersService {
         avatarUrl: true,
         trustScore: true,
         createdAt: true,
+        verification: { select: { verificationStatus: true } },
+        _count: {
+          select: {
+            ownedAssets: { where: { status: 'ACTIVE' } },
+            rentalsAsOwner: {
+              where: {
+                payments: { some: { status: { in: ['SUCCESS', 'PARTIALLY_REFUNDED', 'REFUNDED'] } } },
+              },
+            },
+          },
+        },
+        ownedAssets: {
+          where: { status: 'ACTIVE' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 12,
+          select: {
+            id: true, title: true, pricePerDay: true, city: true, district: true,
+            images: { orderBy: { isCover: 'desc' }, take: 1, select: { url: true } },
+          },
+        },
+        receivedReviews: {
+          where: { status: 'PUBLISHED' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 10,
+          select: {
+            id: true, rating: true, comment: true, createdAt: true,
+            reviewer: { select: { fullName: true } },
+          },
+        },
       },
     });
 
@@ -147,7 +176,27 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    const ratings = await this.prisma.review.aggregate({
+      where: { revieweeId: userId, status: 'PUBLISHED' },
+      _avg: { rating: true },
+      _count: { _all: true },
+    });
+
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      trustScore: user.trustScore,
+      createdAt: user.createdAt,
+      isVerified: user.verification?.verificationStatus === 'VERIFIED',
+      verificationStatus: user.verification?.verificationStatus ?? 'NOT_STARTED',
+      activeListingCount: user._count.ownedAssets,
+      totalRentals: user._count.rentalsAsOwner,
+      averageRating: ratings._avg.rating,
+      reviewCount: ratings._count._all,
+      assets: user.ownedAssets,
+      reviews: user.receivedReviews,
+    };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {

@@ -146,6 +146,15 @@ describe('AdminService', () => {
 
     const result = await service.getDashboard();
 
+    // Count rentals with a successful payment, not payment attempts or unpaid requests.
+    const payments = { some: { status: { in: ['SUCCESS', 'PARTIALLY_REFUNDED', 'REFUNDED'] } } };
+    expect(prisma.rentalRequest.count.mock.calls).toEqual([
+      [{ where: { payments } }],
+      [{ where: { status: 'COMPLETED', payments } }],
+      [{ where: { status: 'CANCELLED', payments } }],
+      [{ where: { status: 'OVERDUE', payments } }],
+    ]);
+
     expect(result.users).toEqual({
       total: 100,
       verified: 72,

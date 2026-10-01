@@ -195,6 +195,12 @@ export class RentalsService {
       assetEstimatedValue: asset.estimatedValue,
     });
 
+    await this.chatService.appendSystemMessageForRental(
+      rental.id,
+      currentUser.id,
+      `${currentUser.fullName} vừa gửi yêu cầu thuê "${asset.title}".`,
+    );
+
     await this.analyticsService.track({
       eventType: AnalyticsEventType.RENTAL_REQUEST_CREATED,
       userId: currentUser.id,
@@ -800,6 +806,11 @@ export class RentalsService {
 
     const rental = settlement.rental;
     const sideEffects = await Promise.allSettled([
+      this.chatService.appendSystemMessageForRental(
+        rental.id,
+        rental.renterId,
+        `Thanh toán cho đơn thuê "${rental.asset.title}" đã thành công. Hợp đồng đã sẵn sàng, đang chờ hai bên ký.`,
+      ),
       this.notificationsService.createMany([rental.renterId], {
         type: NotificationType.PAYMENT_SUCCESS,
         metadata: {
@@ -961,13 +972,13 @@ export class RentalsService {
       },
     );
 
-    if (bothSigned) {
-      await this.chatService.appendSystemMessageForRental(
-        rental.id,
-        currentUser.id,
-        'Contract signed.',
-      );
-    }
+    await this.chatService.appendSystemMessageForRental(
+      rental.id,
+      currentUser.id,
+      bothSigned
+        ? `Hai bên đã ký xong hợp đồng cho "${rental.asset.title}".`
+        : `${currentUser.fullName} đã ký hợp đồng cho đơn thuê "${rental.asset.title}".`,
+    );
 
     await this.analyticsService.track({
       eventType: AnalyticsEventType.CONTRACT_SIGNED,
@@ -1070,6 +1081,14 @@ export class RentalsService {
       });
     }
 
+    await this.chatService.appendSystemMessageForRental(
+      rental.id,
+      currentUser.id,
+      dto.type === HandoverType.DELIVERY
+        ? `Phiên bàn giao cho "${rental.asset.title}" đã sẵn sàng.`
+        : `Phiên hoàn trả cho "${rental.asset.title}" đã sẵn sàng.`,
+    );
+
     return handover;
   }
 
@@ -1112,13 +1131,13 @@ export class RentalsService {
       },
     );
 
-    if (handover.type === HandoverType.RETURN) {
-      await this.chatService.appendSystemMessageForRental(
-        rental.id,
-        currentUser.id,
-        'Asset marked returned.',
-      );
-    }
+    await this.chatService.appendSystemMessageForRental(
+      rental.id,
+      currentUser.id,
+      handover.type === HandoverType.RETURN
+        ? 'Asset marked returned.'
+        : `Tài sản "${rental.asset.title}" đã được bàn giao thành công.`,
+    );
 
     await this.analyticsService.track({
       eventType:
@@ -1150,8 +1169,7 @@ export class RentalsService {
       throw new ConflictException('Handover QR can only be generated for a pending session');
     }
 
-    const ttlMinutes = await this.getNumericConfig('handover_qr_ttl_minutes', 10);
-    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 60 * 1000);
     const token = randomBytes(24).toString('base64url');
 
     await this.prisma.handoverQrSession.updateMany({
@@ -1307,15 +1325,13 @@ export class RentalsService {
           source: 'qr',
         },
       }),
-      ...(isReturn
-        ? [
-            this.chatService.appendSystemMessageForRental(
-              session.rental.id,
-              currentUser.id,
-              'Asset marked returned.',
-            ),
-          ]
-        : []),
+      this.chatService.appendSystemMessageForRental(
+        session.rental.id,
+        currentUser.id,
+        isReturn
+          ? 'Asset marked returned.'
+          : `Tài sản "${session.rental.asset.title}" đã được xác nhận bàn giao bằng QR.`,
+      ),
     ]);
 
     return updated;
