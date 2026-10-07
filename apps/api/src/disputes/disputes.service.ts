@@ -43,6 +43,31 @@ const TERMINAL_DISPUTE_STATUSES: DisputeStatus[] = [
   DisputeStatus.CLOSED,
 ];
 
+const ALLOWED_DISPUTE_TRANSITIONS: Record<DisputeStatus, DisputeStatus[]> = {
+  [DisputeStatus.OPEN]: [
+    DisputeStatus.WAITING_RESPONSE,
+    DisputeStatus.UNDER_REVIEW,
+    DisputeStatus.RESOLVED,
+    DisputeStatus.REJECTED,
+    DisputeStatus.CLOSED,
+  ],
+  [DisputeStatus.WAITING_RESPONSE]: [
+    DisputeStatus.UNDER_REVIEW,
+    DisputeStatus.RESOLVED,
+    DisputeStatus.REJECTED,
+    DisputeStatus.CLOSED,
+  ],
+  [DisputeStatus.UNDER_REVIEW]: [
+    DisputeStatus.WAITING_RESPONSE,
+    DisputeStatus.RESOLVED,
+    DisputeStatus.REJECTED,
+    DisputeStatus.CLOSED,
+  ],
+  [DisputeStatus.RESOLVED]: [],
+  [DisputeStatus.REJECTED]: [],
+  [DisputeStatus.CLOSED]: [],
+};
+
 @Injectable()
 export class DisputesService {
   constructor(
@@ -89,54 +114,62 @@ export class DisputesService {
       currentUser.id,
     );
 
-    const dispute = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.dispute.create({
-        data: {
-          rentalId: rental.id,
-          openedById: currentUser.id,
-          reason: dto.reason,
-          description: dto.description,
-          status: DisputeStatus.OPEN,
-          events: {
-            create: {
-              actorId: currentUser.id,
-              eventType: DisputeEventType.OPENED,
-              content: dto.description,
-              metadata: {
-                reason: dto.reason,
+    let dispute: Awaited<ReturnType<typeof this.prisma.dispute.create>>;
+    try {
+      dispute = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.dispute.create({
+          data: {
+            rentalId: rental.id,
+            openedById: currentUser.id,
+            reason: dto.reason,
+            description: dto.description,
+            status: DisputeStatus.OPEN,
+            events: {
+              create: {
+                actorId: currentUser.id,
+                eventType: DisputeEventType.OPENED,
+                content: dto.description,
+                metadata: {
+                  reason: dto.reason,
+                },
               },
             },
+            evidences: evidenceRecords.length
+              ? {
+                  create: evidenceRecords.map((evidence) => ({
+                    evidenceId: evidence.id,
+                    uploadedById: currentUser.id,
+                  })),
+                }
+              : undefined,
           },
-          evidences: evidenceRecords.length
-            ? {
-                create: evidenceRecords.map((evidence) => ({
-                  evidenceId: evidence.id,
-                  uploadedById: currentUser.id,
-                })),
-              }
-            : undefined,
-        },
-        include: this.disputeInclude(),
-      });
+          include: this.disputeInclude(),
+        });
 
-      await tx.rentalRequest.update({
-        where: { id: rental.id },
-        data: {
-          status: RentalStatus.DISPUTED,
-        },
-      });
-
-      if (rental.payout) {
-        await tx.payout.update({
-          where: { id: rental.payout.id },
+        await tx.rentalRequest.update({
+          where: { id: rental.id },
           data: {
-            status: 'BLOCKED',
+            status: RentalStatus.DISPUTED,
           },
         });
-      }
 
-      return created;
-    });
+        if (rental.payout) {
+          await tx.payout.update({
+            where: { id: rental.payout.id },
+            data: {
+              status: 'BLOCKED',
+            },
+          });
+        }
+
+        return created;
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintViolation(error)) {
+        throw new ConflictException('This rental already has an active dispute');
+      }
+      throw error;
+    }
 
     await this.notificationsService.createMany(
       [rental.ownerId, rental.renterId].filter(
@@ -210,6 +243,7 @@ export class DisputesService {
     dto: RespondDisputeDto,
   ) {
     const dispute = await this.findAccessibleDispute(disputeId, currentUser);
+
     this.ensureMutable(dispute.status);
 
     const evidenceRecords = await this.loadEvidenceForRental(
@@ -476,6 +510,8 @@ export class DisputesService {
     this.assertDisputeManager(currentUser);
     const dispute = await this.findAccessibleDispute(disputeId, currentUser);
 
+    this.ensureStatusTransition(dispute.status, dto.status);
+
     if (
       TERMINAL_DISPUTE_STATUSES.includes(dto.status) &&
       !dto.resolutionSummary
@@ -639,6 +675,21 @@ export class DisputesService {
     if (TERMINAL_DISPUTE_STATUSES.includes(status)) {
       throw new ConflictException('This dispute has already been closed');
     }
+  }
+
+  private ensureStatusTransition(current: DisputeStatus, next: DisputeStatus) {
+    if (!ALLOWED_DISPUTE_TRANSITIONS[current].includes(next)) {
+      throw new ConflictException(
+        `Cannot change dispute status from ${current} to ${next}`,
+      );
+    }
+  }
+
+  private isUniqueConstraintViolation(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    );
   }
 
   private buildScopeFilter(

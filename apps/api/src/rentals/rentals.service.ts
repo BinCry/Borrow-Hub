@@ -1589,64 +1589,72 @@ export class RentalsService {
       throw new ConflictException('This rental already has an active dispute');
     }
 
-    const dispute = await this.prisma.$transaction(async (tx) => {
-      await tx.rentalRequest.update({
-        where: { id: rental.id },
-        data: {
-          status: RentalStatus.DISPUTED,
-          message: options.description,
-        },
-      });
-
-      if (rental.payout) {
-        await tx.payout.update({
-          where: { id: rental.payout.id },
+    let dispute: { id: string };
+    try {
+      dispute = await this.prisma.$transaction(async (tx) => {
+        await tx.rentalRequest.update({
+          where: { id: rental.id },
           data: {
-            status: PayoutStatus.BLOCKED,
+            status: RentalStatus.DISPUTED,
+            message: options.description,
           },
         });
-      }
 
-      return tx.dispute.create({
-        data: {
-          rentalId: rental.id,
-          openedById: currentUser.id,
-          reason: options.reason,
-          description: options.description,
-          status: options.initialStatus ?? DisputeStatus.OPEN,
-          events: {
-            create: [
-              {
-                actorId: currentUser.id,
-                eventType: DisputeEventType.OPENED,
-                content: options.eventContent,
-                metadata:
-                  options.openEventMetadata ??
-                  ({
-                    source: options.analyticsSource,
-                  } as Prisma.InputJsonValue),
-              },
-              ...(
-                options.extraEventPayloads?.map((event) => ({
+        if (rental.payout) {
+          await tx.payout.update({
+            where: { id: rental.payout.id },
+            data: {
+              status: PayoutStatus.BLOCKED,
+            },
+          });
+        }
+
+        return tx.dispute.create({
+          data: {
+            rentalId: rental.id,
+            openedById: currentUser.id,
+            reason: options.reason,
+            description: options.description,
+            status: options.initialStatus ?? DisputeStatus.OPEN,
+            events: {
+              create: [
+                {
                   actorId: currentUser.id,
-                  eventType: event.eventType,
-                  content: event.content,
-                  metadata: event.metadata,
-                })) ?? []
-              ),
-            ],
+                  eventType: DisputeEventType.OPENED,
+                  content: options.eventContent,
+                  metadata:
+                    options.openEventMetadata ??
+                    ({
+                      source: options.analyticsSource,
+                    } as Prisma.InputJsonValue),
+                },
+                ...(
+                  options.extraEventPayloads?.map((event) => ({
+                    actorId: currentUser.id,
+                    eventType: event.eventType,
+                    content: event.content,
+                    metadata: event.metadata,
+                  })) ?? []
+                ),
+              ],
+            },
+            evidences: options.evidenceRecords?.length
+              ? {
+                  create: options.evidenceRecords.map((evidence) => ({
+                    evidenceId: evidence.id,
+                    uploadedById: currentUser.id,
+                  })),
+                }
+              : undefined,
           },
-          evidences: options.evidenceRecords?.length
-            ? {
-                create: options.evidenceRecords.map((evidence) => ({
-                  evidenceId: evidence.id,
-                  uploadedById: currentUser.id,
-                })),
-              }
-            : undefined,
-        },
+        });
       });
-    });
+    } catch (error) {
+      if (this.isUniqueConstraintViolation(error)) {
+        throw new ConflictException('This rental already has an active dispute');
+      }
+      throw error;
+    }
 
     await this.notificationsService.createMany([rental.renterId], {
       type: NotificationType.SYSTEM,
@@ -2095,6 +2103,13 @@ export class RentalsService {
     return this.configService?.get<boolean>('SEPAY_ENABLED')
       ? PaymentProvider.SEPAY
       : PaymentProvider.SANDBOX;
+  }
+
+  private isUniqueConstraintViolation(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    );
   }
 
   private rentalInclude() {

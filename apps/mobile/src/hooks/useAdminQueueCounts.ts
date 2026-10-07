@@ -24,8 +24,15 @@ export function useAdminQueueCounts(options: { enabled?: boolean } = {}) {
     enabled,
   });
   const openDisputesQuery = useQuery({
-    queryKey: ['admin', 'queue-counts', 'disputes', 'OPEN'],
-    queryFn: () => AdminService.listDisputes('OPEN'),
+    queryKey: ['admin', 'queue-counts', 'disputes', 'ACTIVE'],
+    queryFn: async () => {
+      const lists = await Promise.all(
+        (['OPEN', 'WAITING_RESPONSE', 'UNDER_REVIEW'] as const).map((status) =>
+          AdminService.listDisputes(status),
+        ),
+      );
+      return lists.flat();
+    },
     enabled,
   });
 

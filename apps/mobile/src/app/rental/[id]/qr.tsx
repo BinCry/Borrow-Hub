@@ -35,7 +35,6 @@ export default function QrScreen() {
     refetchOnReconnect: false,
   });
   useEffect(() => {
-    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [qrQuery.data?.expiresAt]);

@@ -53,6 +53,7 @@ describe('PaymentService SePay webhook', () => {
       }
       throw new Error(`Unexpected config key: ${key}`);
     }),
+    get: jest.fn(),
   };
   const rentalsService = {
     settleVerifiedPayment: jest.fn(),

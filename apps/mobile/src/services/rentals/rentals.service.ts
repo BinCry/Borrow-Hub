@@ -18,6 +18,14 @@ export interface CreateRentalPayload {
   message?: string;
 }
 
+export interface ReportIssuePayload {
+  description: string;
+  repairEstimate?: number;
+  repairCurrency?: string;
+  damageItems?: string[];
+  evidenceIds?: string[];
+}
+
 type ApiRental = {
   id: string;
   assetId: string;
@@ -126,5 +134,17 @@ export const RentalsService = {
   async settleSandboxPayment(id: string): Promise<Rental> {
     const response = await apiClient.post<ApiRental>(`/rentals/${id}/pay`, {});
     return mapRental(response.data);
+  },
+
+  async reportIssue(id: string, payload: ReportIssuePayload): Promise<unknown> {
+    const response = await apiClient.post(`/rentals/${id}/report-issue`, payload);
+    return response.data;
+  },
+
+  async markAssetNotReturned(id: string, description?: string): Promise<unknown> {
+    const response = await apiClient.post(`/rentals/${id}/asset-not-returned`, {
+      ...(description?.trim() ? { description: description.trim() } : {}),
+    });
+    return response.data;
   },
 };

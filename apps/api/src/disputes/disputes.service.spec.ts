@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import {
   DisputeStatus,
   PayoutStatus,
@@ -198,5 +198,20 @@ describe('DisputesService', () => {
     await expect(
       service.acceptDamageReport('dispute-1', renterUser, {}),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects reopening a terminal dispute', async () => {
+    prisma.dispute.findUnique.mockResolvedValue({
+      ...dispute,
+      status: DisputeStatus.CLOSED,
+    });
+
+    await expect(
+      service.updateStatus('dispute-1', disputeOfficer, {
+        status: DisputeStatus.UNDER_REVIEW,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

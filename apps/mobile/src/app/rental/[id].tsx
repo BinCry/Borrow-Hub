@@ -217,6 +217,34 @@ export default function RentalDetailScreen() {
 
         <Timeline status={rental.status} />
 
+        {rental.status === 'RETURN_PENDING' && isOwner ? (
+          <ActionButton
+            label="Report damage / dispute"
+            icon={AlertCircle}
+            tone="danger"
+            disabled={false}
+            onPress={() => router.push(`/rental/${id}/dispute?mode=damage`)}
+          />
+        ) : null}
+        {rental.status === 'OVERDUE' && isOwner ? (
+          <ActionButton
+            label="Report asset not returned"
+            icon={AlertCircle}
+            tone="danger"
+            disabled={false}
+            onPress={() => router.push(`/rental/${id}/dispute?mode=not-returned`)}
+          />
+        ) : null}
+        {rental.status === 'DISPUTED' && (isOwner || isRenter) ? (
+          <ActionButton
+            label="View and respond to dispute"
+            icon={AlertCircle}
+            tone="danger"
+            disabled={false}
+            onPress={() => router.push(`/rental/${id}/dispute`)}
+          />
+        ) : null}
+
         <View className="mt-4 rounded-2xl border border-border bg-surface p-4">
           <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
             Thao tác
