@@ -130,7 +130,7 @@ describe('DisputesService', () => {
         disputeId: 'dispute-1',
         actorId: renterUser.id,
         eventType: 'RESOLVED',
-        content: 'Renter accepted the reported damage.',
+        content: 'Người thuê đã chấp nhận báo cáo hư hỏng.',
         metadata: {
           acceptedByRenter: true,
         },

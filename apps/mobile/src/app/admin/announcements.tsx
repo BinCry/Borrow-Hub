@@ -36,7 +36,7 @@ export default function AdminAnnouncementsScreen() {
       );
     },
     onError: () => {
-      Alert.alert('Không thể gửi thông báo', 'Kiểm tra quyền admin hoặc thử lại sau.');
+      Alert.alert('Không thể gửi thông báo', 'Kiểm tra quyền quản trị hoặc thử lại sau.');
     },
   });
 
@@ -83,7 +83,7 @@ export default function AdminAnnouncementsScreen() {
           <ChevronLeft size={28} color={colors.text.primary} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-lg font-bold text-text-primary">
-          Thông báo admin
+          Thông báo quản trị
         </Text>
         <View className="w-11" />
       </View>
@@ -107,7 +107,7 @@ export default function AdminAnnouncementsScreen() {
                   Tạo bài thông báo
                 </Text>
                 <Text className="mt-1 text-sm font-semibold leading-5 text-text-secondary">
-                  Gửi thông báo chính thức với tư cách admin đến toàn bộ người dùng đang hoạt động.
+                  Gửi thông báo chính thức với tư cách quản trị viên đến toàn bộ người dùng đang hoạt động.
                 </Text>
               </View>
             </View>
@@ -148,7 +148,7 @@ export default function AdminAnnouncementsScreen() {
           <View className="mt-4 rounded-lg border border-border bg-surface p-4">
             <View className="mb-3 flex-row items-center">
               <BellRing size={20} color={colors.primary.DEFAULT} />
-              <Text className="ml-2 text-sm font-extrabold uppercase text-text-secondary">
+              <Text className="ml-2 text-sm font-extrabold text-text-secondary">
                 Xem trước
               </Text>
             </View>

@@ -141,9 +141,24 @@ export const RentalsService = {
     return response.data;
   },
 
-  async markAssetNotReturned(id: string, description?: string): Promise<unknown> {
+  async markAssetNotReturned(id: string, description?: string, evidenceIds?: string[]): Promise<unknown> {
     const response = await apiClient.post(`/rentals/${id}/asset-not-returned`, {
       ...(description?.trim() ? { description: description.trim() } : {}),
+      ...(evidenceIds?.length ? { evidenceIds } : {}),
+    });
+    return response.data;
+  },
+
+  async uploadEvidence(id: string, payload: {
+    fileUrl: string;
+    fileKey?: string;
+    type?: 'PHOTO' | 'VIDEO' | 'DOCUMENT' | 'REPAIR_QUOTE' | 'OTHER';
+    description?: string;
+    tag?: string;
+  }) {
+    const response = await apiClient.post<{ id: string }>(`/rentals/${id}/evidences`, {
+      type: payload.type ?? 'PHOTO',
+      ...payload,
     });
     return response.data;
   },

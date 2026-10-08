@@ -42,12 +42,12 @@ export default function AdminModerationTab() {
       <View className="border-b border-border bg-surface px-5 pb-4 pt-3">
         <View className="flex-row items-center justify-between">
           <View className="min-w-0 flex-1 pr-4">
-            <Text className="text-xs font-extrabold uppercase text-primary">Kiểm duyệt</Text>
+            <Text className="text-xs font-extrabold text-primary">Kiểm duyệt</Text>
             <Text className="mt-1 text-2xl font-extrabold text-text-primary">
               Hàng chờ nội dung
             </Text>
             <Text className="mt-1 text-sm font-semibold text-text-secondary">
-              KYC, bài đăng, review và báo cáo cần quyết định
+              KYC, bài đăng, đánh giá và báo cáo cần quyết định
             </Text>
           </View>
           <TouchableOpacity
@@ -118,7 +118,7 @@ function ModerationContent({
       <QueueCard
         icon={ShieldCheck}
         title="Xác thực danh tính"
-        description="Đối chiếu giấy tờ, ảnh selfie và cập nhật trạng thái verified/rejected."
+        description="Đối chiếu giấy tờ, ảnh chân dung và cập nhật trạng thái xác thực hoặc từ chối."
         count={`${queueCounts.pendingKyc}`}
         meta="KYC"
         tone="primary"
@@ -129,32 +129,32 @@ function ModerationContent({
         title="Bài đăng chờ duyệt"
         description="Kiểm tra mô tả, hình ảnh, giá thuê và trạng thái tài sản trước khi xuất hiện."
         count={`${queueCounts.pendingListings}`}
-        meta="Listing"
+        meta="Bài đăng"
         tone="info"
         onPress={onListings}
       />
       <QueueCard
         icon={Flag}
         title="Báo cáo mở"
-        description="Xử lý báo cáo người dùng, bài đăng, review hoặc tin nhắn có dấu hiệu vi phạm."
+        description="Xử lý báo cáo người dùng, bài đăng, đánh giá hoặc tin nhắn có dấu hiệu vi phạm."
         count={`${queueCounts.openReports}`}
-        meta="Report"
+        meta="Báo cáo"
         tone="warning"
         onPress={onReports}
       />
       <QueueCard
         icon={Star}
-        title="Review cần kiểm duyệt"
+        title="Đánh giá cần kiểm duyệt"
         description="Ẩn hoặc khôi phục đánh giá không phù hợp, bị báo cáo hoặc thiếu ngữ cảnh."
-        count="Mod"
-        meta="Review"
+        count="Duyệt"
+        meta="Đánh giá"
         tone="primary"
         onPress={onReviews}
       />
       <QueueCard
         icon={Users}
         title="Người dùng"
-        description="Xem vai trò, trạng thái tài khoản, điểm tin cậy và quyết định suspend/ban."
+        description="Xem vai trò, trạng thái tài khoản, điểm tin cậy và quyết định đình chỉ hoặc cấm tài khoản."
         count={`${data.users.total}`}
         meta={`${data.users.suspended + data.users.banned} hạn chế`}
         tone="danger"
@@ -204,7 +204,7 @@ function QueueCard({
           <View className="flex-row items-start justify-between">
             <View className="min-w-0 flex-1 pr-3">
               <Text className="text-base font-extrabold text-text-primary">{title}</Text>
-              <Text className="mt-1 text-xs font-bold uppercase text-text-muted">{meta}</Text>
+              <Text className="mt-1 text-xs font-bold text-text-muted">{meta}</Text>
             </View>
             <View className="min-w-12 items-center rounded-full bg-surfaceSecondary px-3 py-1">
               <Text className="text-xs font-extrabold text-text-primary">{count}</Text>

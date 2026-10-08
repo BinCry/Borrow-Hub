@@ -145,8 +145,8 @@ export class ReportsService {
       ),
       {
         type: NotificationType.SYSTEM,
-        title: 'Report đã được phân công',
-        content: `Report ${updated.id} đã được cập nhật người phụ trách.`,
+        title: 'Báo cáo đã được phân công',
+        content: `Báo cáo ${updated.id} đã được cập nhật người phụ trách.`,
         referenceType: 'report',
         referenceId: updated.id,
       },
@@ -220,8 +220,8 @@ export class ReportsService {
       [report.reporterId].filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Report đã đổi trạng thái',
-        content: `Report ${updated.id} đã chuyển sang ${updated.status}.`,
+        title: 'Báo cáo đã đổi trạng thái',
+        content: `Báo cáo ${updated.id} đã chuyển sang ${({ OPEN: 'mới mở', UNDER_REVIEW: 'đang xem xét', RESOLVED: 'đã giải quyết', REJECTED: 'đã từ chối', CLOSED: 'đã đóng' } satisfies Record<ReportStatus, string>)[updated.status]}.`,
         referenceType: 'report',
         referenceId: updated.id,
       },
@@ -242,7 +242,7 @@ export class ReportsService {
       return moderationSummary;
     }
 
-    return `${resolutionSummary.trim()}\nModeration action: ${moderationSummary}`;
+    return `${resolutionSummary.trim()}\nBiện pháp xử lý: ${moderationSummary}`;
   }
 
   private async applyModerationAction(
@@ -288,10 +288,10 @@ export class ReportsService {
       [targetUser.id].filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Tài khoản nhận cảnh báo từ moderation',
+        title: 'Tài khoản nhận cảnh báo từ bộ phận kiểm duyệt',
         content: actionNote
-          ? `Tài khoản của bạn vừa nhận cảnh báo do report đã được xác nhận. Ghi chú: ${actionNote}`
-          : 'Tài khoản của bạn vừa nhận cảnh báo do report đã được xác nhận.',
+          ? `Tài khoản của bạn vừa nhận cảnh báo do báo cáo đã được xác nhận. Ghi chú: ${actionNote}`
+          : 'Tài khoản của bạn vừa nhận cảnh báo do báo cáo đã được xác nhận.',
         referenceType: 'report',
         referenceId: report.id,
       },
@@ -308,7 +308,7 @@ export class ReportsService {
       },
     });
 
-    return `WARN_REPORTED_USER -> ${targetUser.id}`;
+    return `Cảnh báo người dùng: ${targetUser.id}`;
   }
 
   private async suspendReportedUser(
@@ -339,8 +339,8 @@ export class ReportsService {
         type: NotificationType.SYSTEM,
         title: 'Tài khoản đã bị tạm ngưng',
         content: actionNote
-          ? `Tài khoản của bạn đã bị tạm ngưng sau khi report được xác nhận. Ghi chú: ${actionNote}`
-          : 'Tài khoản của bạn đã bị tạm ngưng sau khi report được xác nhận.',
+          ? `Tài khoản của bạn đã bị tạm ngưng sau khi báo cáo được xác nhận. Ghi chú: ${actionNote}`
+          : 'Tài khoản của bạn đã bị tạm ngưng sau khi báo cáo được xác nhận.',
         referenceType: 'report',
         referenceId: report.id,
       },
@@ -361,7 +361,7 @@ export class ReportsService {
       },
     });
 
-    return `SUSPEND_REPORTED_USER -> ${targetUser.id}`;
+    return `Đình chỉ người dùng: ${targetUser.id}`;
   }
 
   private async hideReportedAsset(
@@ -402,10 +402,10 @@ export class ReportsService {
       [asset.ownerId].filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.ASSET_MODERATED,
-        title: 'Listing bị ẩn do report hợp lệ',
+        title: 'Bài đăng bị ẩn do báo cáo hợp lệ',
         content: actionNote
-          ? `Tài sản "${asset.title}" đã bị ẩn sau khi report được xác nhận. Ghi chú: ${actionNote}`
-          : `Tài sản "${asset.title}" đã bị ẩn sau khi report được xác nhận.`,
+          ? `Tài sản "${asset.title}" đã bị ẩn sau khi báo cáo được xác nhận. Ghi chú: ${actionNote}`
+          : `Tài sản "${asset.title}" đã bị ẩn sau khi báo cáo được xác nhận.`,
         referenceType: 'asset',
         referenceId: asset.id,
       },
@@ -426,7 +426,7 @@ export class ReportsService {
       },
     });
 
-    return `HIDE_ASSET -> ${asset.id}`;
+    return `Ẩn bài đăng: ${asset.id}`;
   }
 
   private async hideReportedReview(
@@ -468,10 +468,10 @@ export class ReportsService {
       [review.reviewerId].filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Review đã bị ẩn',
+        title: 'Đánh giá đã bị ẩn',
         content: actionNote
-          ? `Review của bạn đã bị ẩn sau khi report được xác nhận. Ghi chú: ${actionNote}`
-          : 'Review của bạn đã bị ẩn sau khi report được xác nhận.',
+          ? `Đánh giá của bạn đã bị ẩn sau khi báo cáo được xác nhận. Ghi chú: ${actionNote}`
+          : 'Đánh giá của bạn đã bị ẩn sau khi báo cáo được xác nhận.',
         referenceType: 'report',
         referenceId: report.id,
       },
@@ -492,7 +492,7 @@ export class ReportsService {
       },
     });
 
-    return `HIDE_REVIEW -> ${review.id}`;
+    return `Ẩn đánh giá: ${review.id}`;
   }
 
   private async hideReportedChatMessage(
@@ -528,7 +528,7 @@ export class ReportsService {
     await this.prisma.message.update({
       where: { id: message.id },
       data: {
-        content: 'Nội dung đã bị ẩn bởi moderator do vi phạm chính sách.',
+        content: 'Nội dung đã bị ẩn bởi nhân viên kiểm duyệt do vi phạm chính sách.',
         attachmentUrl: null,
         metadata: {
           ...(this.asJsonObject(message.metadata) ?? {}),
@@ -548,8 +548,8 @@ export class ReportsService {
         type: NotificationType.SYSTEM,
         title: 'Tin nhắn đã bị ẩn',
         content: actionNote
-          ? `Một tin nhắn của bạn đã bị ẩn sau khi report được xác nhận. Ghi chú: ${actionNote}`
-          : 'Một tin nhắn của bạn đã bị ẩn sau khi report được xác nhận.',
+          ? `Một tin nhắn của bạn đã bị ẩn sau khi báo cáo được xác nhận. Ghi chú: ${actionNote}`
+          : 'Một tin nhắn của bạn đã bị ẩn sau khi báo cáo được xác nhận.',
         referenceType: 'report',
         referenceId: report.id,
       },
@@ -565,14 +565,14 @@ export class ReportsService {
         hadAttachment: Boolean(message.attachmentUrl),
       },
       afterData: {
-        content: 'Nội dung đã bị ẩn bởi moderator do vi phạm chính sách.',
+        content: 'Nội dung đã bị ẩn bởi nhân viên kiểm duyệt do vi phạm chính sách.',
         hadAttachment: false,
         reportId: report.id,
         actionNote,
       },
     });
 
-    return `HIDE_CHAT_MESSAGE -> ${message.id}`;
+    return `Ẩn tin nhắn: ${message.id}`;
   }
 
   private async resolveReportedUser(report: {

@@ -93,14 +93,14 @@ export default function ContractScreen() {
           <View className="mb-3 h-16 w-16 items-center justify-center rounded-full border border-primary/20 bg-primary-soft">
             <Shield size={32} color={colors.primary.DEFAULT} />
           </View>
-          <Text className="text-center text-xl font-extrabold uppercase tracking-wider text-text-primary">
+          <Text className="text-center text-xl font-extrabold tracking-wider text-text-primary">
             Thỏa thuận thuê tài sản
           </Text>
           <Text className="mt-1 font-semibold text-text-secondary">
             Số {contract.contractNumber} · Phiên bản {contract.version}
           </Text>
           <View className="mt-3 rounded-full bg-success/10 px-3 py-1.5">
-            <Text className="text-xs font-extrabold uppercase text-success">
+            <Text className="text-xs font-extrabold text-success">
               {contract.status === 'ACTIVE' ? 'Đã có hiệu lực' : 'Chờ đủ chữ ký'}
             </Text>
           </View>
@@ -152,7 +152,7 @@ export default function ContractScreen() {
         </ContractSection>
 
         <View className="rounded-2xl border border-border bg-surface p-4">
-          <Text className="text-xs font-bold uppercase text-text-secondary">
+          <Text className="text-xs font-bold text-text-secondary">
             Mã kiểm tra nội dung
           </Text>
           <Text selectable className="mt-2 font-mono text-xs leading-5 text-text-muted">
@@ -237,7 +237,7 @@ function ContractSection({
 }) {
   return (
     <View className="mb-4 rounded-2xl border border-border bg-surface p-5">
-      <Text className="mb-3 text-base font-extrabold uppercase tracking-wide text-text-primary">
+      <Text className="mb-3 text-base font-extrabold tracking-wide text-text-primary">
         {title}
       </Text>
       {children}

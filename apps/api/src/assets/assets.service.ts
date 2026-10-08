@@ -717,15 +717,15 @@ export class AssetsService {
   private buildModerationTitle(status: AssetStatus) {
     switch (status) {
       case AssetStatus.ACTIVE:
-        return 'Listing đã được duyệt';
+        return 'Bài đăng đã được duyệt';
       case AssetStatus.REJECTED:
-        return 'Listing bị từ chối';
+        return 'Bài đăng bị từ chối';
       case AssetStatus.SUSPENDED:
-        return 'Listing đã bị khóa';
+        return 'Bài đăng đã bị khóa';
       case AssetStatus.PAUSED:
-        return 'Listing đã tạm dừng';
+        return 'Bài đăng đã tạm dừng';
       case AssetStatus.ARCHIVED:
-        return 'Listing đã lưu trữ';
+        return 'Bài đăng đã lưu trữ';
       default:
         return 'Cập nhật trạng thái tài sản';
     }
@@ -736,7 +736,16 @@ export class AssetsService {
     status: AssetStatus,
     reason?: string,
   ) {
-    const baseMessage = `Tài sản "${assetTitle}" đã được cập nhật sang trạng thái ${status}.`;
+    const statusLabels: Record<AssetStatus, string> = {
+      DRAFT: 'bản nháp',
+      PENDING_REVIEW: 'chờ duyệt',
+      ACTIVE: 'đang hiển thị',
+      PAUSED: 'tạm dừng',
+      REJECTED: 'đã từ chối',
+      SUSPENDED: 'đã khóa',
+      ARCHIVED: 'đã lưu trữ',
+    };
+    const baseMessage = `Tài sản "${assetTitle}" đã được cập nhật sang trạng thái ${statusLabels[status]}.`;
 
     if (!reason?.trim()) {
       return baseMessage;

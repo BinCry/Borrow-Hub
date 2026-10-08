@@ -119,8 +119,8 @@ describe('FinanceService', () => {
     });
     expect(notificationsService.createMany).toHaveBeenCalledWith([ownerUser.id], {
       type: NotificationType.PAYOUT_COMPLETED,
-      title: 'Payout đã hoàn tất',
-      content: 'Payout cho đơn "Canon R6" đã được ghi nhận thành công.',
+      title: 'Chi trả đã hoàn tất',
+      content: 'Khoản chi trả cho đơn "Canon R6" đã được ghi nhận thành công.',
       referenceType: 'payout',
       referenceId: payout.id,
     });

@@ -15,7 +15,6 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   ScrollView,
   Text,
   TextInput,
@@ -32,6 +31,7 @@ import {
   UpdateDisputeStatusPayload,
 } from '../../../services/admin/admin.service';
 import { colors } from '../../../theme/colors';
+import { getStatusLabel } from '../../../utils/status-labels';
 
 const statusLabels: Record<AdminDisputeStatus, string> = {
   OPEN: 'Mới mở',
@@ -97,11 +97,11 @@ export default function AdminDisputeDetailScreen() {
     const trimmedNote = note.trim();
     const payload: UpdateDisputeStatusPayload = {
       status,
-      note: trimmedNote || `Admin changed dispute status to ${status}.`,
+      note: trimmedNote || `Quản trị viên cập nhật trạng thái: ${statusLabels[status]}.`,
     };
 
     if (isTerminal(status)) {
-      payload.resolutionSummary = trimmedNote || `Closed as ${status} from RentLoop admin mobile.`;
+      payload.resolutionSummary = trimmedNote || `Kết quả xử lý: ${statusLabels[status]}.`;
     }
 
     Alert.alert(title, `Tranh chấp sẽ chuyển sang trạng thái ${statusLabels[status]}.`, [
@@ -213,7 +213,7 @@ function DisputeDetail({
         </View>
 
         <View className="mt-4 rounded-xl bg-surface-secondary p-3">
-          <InfoLine icon={AlertCircle} label="Lý do" value={dispute.reason} />
+          <InfoLine icon={AlertCircle} label="Lý do" value={getStatusLabel(dispute.reason)} />
           <InfoLine icon={Clock3} label="Tạo lúc" value={formatDate(dispute.createdAt)} />
           <InfoLine icon={Clock3} label="Cập nhật" value={formatDate(dispute.updatedAt)} />
           <InfoLine icon={FileText} label="Mã đơn" value={dispute.rentalId} />
@@ -228,16 +228,16 @@ function DisputeDetail({
       </Section>
 
       <Section title="Trạng thái đơn thuê">
-        <InfoLine icon={FileText} label="Rental" value={dispute.rental.status} />
+        <InfoLine icon={FileText} label="Đơn thuê" value={getStatusLabel(dispute.rental.status)} />
         <InfoLine icon={Clock3} label="Bắt đầu" value={formatDate(dispute.rental.startAt)} />
         <InfoLine icon={Clock3} label="Kết thúc" value={formatDate(dispute.rental.endAt)} />
-        <InfoLine icon={FileText} label="Payout" value={dispute.rental.payout?.status ?? 'Không có'} />
+        <InfoLine icon={FileText} label="Khoản chi trả" value={getStatusLabel(dispute.rental.payout?.status)} />
         {dispute.rental.handovers?.map((handover) => (
           <InfoLine
             key={handover.id}
             icon={CheckCircle2}
-            label={handover.type}
-            value={`${handover.status} - ${formatDate(handover.confirmedAt ?? handover.createdAt)}`}
+            label={getStatusLabel(handover.type)}
+            value={`${getStatusLabel(handover.status)} - ${formatDate(handover.confirmedAt ?? handover.createdAt)}`}
           />
         ))}
       </Section>
@@ -252,11 +252,11 @@ function DisputeDetail({
         )}
       </Section>
 
-      <Section title="Timeline">
+      <Section title="Diễn biến">
         {dispute.events.map((event) => (
           <View key={event.id} className="mb-3 rounded-xl border border-border p-3">
             <View className="mb-1 flex-row items-center justify-between">
-              <Text className="font-extrabold text-text-primary">{event.eventType}</Text>
+              <Text className="font-extrabold text-text-primary">{getStatusLabel(event.eventType)}</Text>
               <Text className="text-xs font-bold text-text-secondary">
                 {formatDate(event.createdAt)}
               </Text>
@@ -316,7 +316,7 @@ function DisputeDetail({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View className="mt-4 rounded-2xl border border-border bg-surface p-4">
-      <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">{title}</Text>
+      <Text className="mb-3 text-xs font-extrabold text-text-secondary">{title}</Text>
       {children}
     </View>
   );
@@ -371,7 +371,7 @@ function PartyLine({
         <UserRound size={19} color={colors.primary.DEFAULT} />
       </View>
       <View className="min-w-0 flex-1">
-        <Text className="text-xs font-bold uppercase text-text-secondary">{label}</Text>
+        <Text className="text-xs font-bold text-text-secondary">{label}</Text>
         <Text className="mt-0.5 font-extrabold text-text-primary">
           {user?.fullName ?? fallback ?? 'Không rõ'}
         </Text>
@@ -387,26 +387,24 @@ function EvidenceCard({
   item: AdminDispute['evidences'][number];
 }) {
   const isImage = item.evidence.type === 'IMAGE' || /\.(png|jpe?g|webp)$/i.test(item.evidence.fileUrl);
-  const openFile = () => {
-    void Linking.openURL(item.evidence.fileUrl);
-  };
-
   return (
-    <TouchableOpacity className="mb-3 overflow-hidden rounded-xl border border-border" onPress={openFile}>
+    <View className="mb-3 overflow-hidden rounded-xl border border-border">
       {isImage ? (
-        <Image source={{ uri: item.evidence.fileUrl }} style={{ height: 160, width: '100%' }} contentFit="cover" />
+        <View className="h-56 w-full items-center justify-center bg-surface-secondary p-2">
+          <Image source={{ uri: item.evidence.fileUrl }} style={{ height: '100%', width: '100%' }} contentFit="contain" />
+        </View>
       ) : (
         <View className="h-28 items-center justify-center bg-surface-secondary">
           <ImageIcon size={32} color={colors.text.muted} />
         </View>
       )}
       <View className="p-3">
-        <Text className="font-extrabold text-text-primary">{item.evidence.type}</Text>
+        <Text className="font-extrabold text-text-primary">{getStatusLabel(item.evidence.type)}</Text>
         <Text className="mt-1 text-sm text-text-secondary">
           {item.uploadedBy.fullName} - {formatDate(item.createdAt)}
         </Text>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 

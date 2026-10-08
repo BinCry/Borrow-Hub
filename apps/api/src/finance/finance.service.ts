@@ -407,8 +407,8 @@ export class FinanceService {
     ) {
       await this.notificationsService.createMany([payout.ownerId], {
         type: NotificationType.PAYOUT_COMPLETED,
-        title: 'Payout đã hoàn tất',
-        content: `Payout cho đơn "${updated.rental.asset.title}" đã được ghi nhận thành công.`,
+        title: 'Chi trả đã hoàn tất',
+        content: `Khoản chi trả cho đơn "${updated.rental.asset.title}" đã được ghi nhận thành công.`,
         referenceType: 'payout',
         referenceId: updated.id,
       });

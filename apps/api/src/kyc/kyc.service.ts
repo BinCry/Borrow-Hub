@@ -261,8 +261,8 @@ export class KycService {
     await Promise.allSettled([
       this.notificationsService.createMany([userId], {
         type: NotificationType.KYC_UPDATED,
-        title: 'Trạng thái eKYC đã được cập nhật',
-        content: `Yêu cầu eKYC của bạn đã chuyển sang trạng thái ${updated.verificationStatus}.`,
+        title: 'Trạng thái xác thực danh tính đã được cập nhật',
+        content: `Yêu cầu xác thực danh tính của bạn đã chuyển sang trạng thái ${({ NOT_STARTED: 'chưa bắt đầu', PENDING: 'chờ duyệt', VERIFIED: 'đã xác thực', REJECTED: 'đã từ chối', REQUIRES_REVIEW: 'cần xem lại' } satisfies Record<VerificationStatus, string>)[updated.verificationStatus]}.`,
         referenceType: 'kyc',
         referenceId: updated.id,
       }),

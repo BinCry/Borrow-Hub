@@ -39,7 +39,7 @@ export default function AdminOperationsTab() {
       <View className="border-b border-border bg-surface px-5 pb-4 pt-3">
         <View className="flex-row items-center justify-between">
           <View className="min-w-0 flex-1 pr-4">
-            <Text className="text-xs font-extrabold uppercase text-primary">Vận hành</Text>
+            <Text className="text-xs font-extrabold text-primary">Vận hành</Text>
             <Text className="mt-1 text-2xl font-extrabold text-text-primary">
               Đơn & tranh chấp
             </Text>
@@ -122,7 +122,7 @@ function OperationsContent({
         </View>
       </TouchableOpacity>
 
-      <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+      <Text className="mb-3 text-xs font-extrabold text-text-secondary">
         Dòng đơn thuê
       </Text>
       <View className="mb-5 flex-row flex-wrap gap-3">
@@ -148,13 +148,13 @@ function OperationsContent({
       </View>
 
       <View className="rounded-lg border border-border bg-surface p-4">
-        <Text className="mb-2 text-xs font-extrabold uppercase text-text-secondary">
+        <Text className="mb-2 text-xs font-extrabold text-text-secondary">
           Chỉ số vận hành
         </Text>
         <MetricLine label="Tỷ lệ hoàn tất" value={formatPercent(data.marketplace.completionRate)} />
         <MetricLine label="Tỷ lệ hủy" value={formatPercent(data.marketplace.cancellationRate)} />
         <MetricLine label="Vấn đề mở" value={`${data.marketplace.openIssues}`} />
-        <MetricLine label="Tỷ lệ dispute" value={formatPercent(data.trust.disputeRate)} />
+        <MetricLine label="Tỷ lệ tranh chấp" value={formatPercent(data.trust.disputeRate)} />
         <MetricLine label="Trả muộn" value={formatPercent(data.trust.lateReturnRate)} />
       </View>
     </ScrollView>

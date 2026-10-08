@@ -152,8 +152,8 @@ export default function RentalsScreen() {
                   </Text>
                   <Text className="text-text-secondary text-sm mb-3">
                     {activeTab === 'renter'
-                      ? `Owner: ${item.owner?.fullName}`
-                      : `Renter: ${item.renter?.fullName}`}
+                      ? `Chủ tài sản: ${item.owner?.fullName}`
+                      : `Người thuê: ${item.renter?.fullName}`}
                   </Text>
                   <View className="flex-row">
                     <View

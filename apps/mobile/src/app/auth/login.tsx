@@ -223,7 +223,7 @@ export default function LoginScreen() {
                   />
                 </View>
                 <View className="ml-3">
-                  <Text className="text-[11px] font-semibold uppercase tracking-[2.4px] text-primary-dark">
+                  <Text className="text-[11px] font-semibold tracking-[2.4px] text-primary-dark">
                     RentLoop
                   </Text>
                   <Text className="mt-0.5 text-sm text-text-secondary">

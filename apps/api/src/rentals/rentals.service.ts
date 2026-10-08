@@ -1456,7 +1456,7 @@ export class RentalsService {
           ? [
               {
                 eventType: DisputeEventType.EVIDENCE_ATTACHED,
-                content: `Attached ${evidenceRecords.length} damage evidence item(s)`,
+                content: `Đã đính kèm ${evidenceRecords.length} bằng chứng hư hỏng`,
               },
             ]
           : []),
@@ -1464,7 +1464,7 @@ export class RentalsService {
           ? [
               {
                 eventType: DisputeEventType.NOTE,
-                content: `Repair estimate submitted: ${dto.repairEstimate} ${repairCurrency}`,
+                content: `Chi phí sửa chữa dự kiến: ${dto.repairEstimate} ${repairCurrency}`,
               },
             ]
           : []),
@@ -1504,16 +1504,23 @@ export class RentalsService {
 
     const description =
       dto.description?.trim() ||
-      `Owner marked asset "${rental.asset.title}" as not returned.`;
+      `Chủ tài sản báo chưa nhận lại "${rental.asset.title}".`;
+
+    const evidenceRecords = await this.loadEvidenceForRental(
+      rental.id,
+      dto.evidenceIds,
+      currentUser.id,
+    );
 
     return this.createRentalDispute(currentUser, rental, {
       reason: 'LOST_ASSET',
       description,
       eventContent: description,
       renterNotificationTitle: 'Chủ tài sản báo chưa nhận lại tài sản',
-      renterNotificationContent: `Chủ tài sản đã đánh dấu "${rental.asset.title}" là chưa được hoàn trả và mở dispute xử lý.`,
+      renterNotificationContent: `Chủ tài sản đã đánh dấu "${rental.asset.title}" là chưa được hoàn trả và mở tranh chấp để xử lý.`,
       auditAction: 'dispute.create.asset-not-returned',
       analyticsSource: 'rentals.markAssetNotReturned',
+      evidenceRecords,
     });
   }
 

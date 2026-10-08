@@ -24,6 +24,7 @@ import {
 } from '../../services/admin/admin.service';
 import { apiClient } from '../../services/api/client';
 import { colors } from '../../theme/colors';
+import { getStatusLabel } from '../../utils/status-labels';
 import type { User } from '../../types/domain';
 
 function getRoles(user: AdminUser) {
@@ -273,8 +274,8 @@ function UserRow({
           <Text className="text-base font-extrabold text-text-primary">{user.fullName}</Text>
           <Text className="mt-0.5 text-sm text-text-secondary">{user.email}</Text>
           <View className="mt-3 flex-row flex-wrap gap-2">
-            <Badge label={getPrimaryRole(user)} tone={staff ? 'primary' : 'muted'} />
-            <Badge label={user.status} tone={active ? 'success' : 'danger'} />
+            <Badge label={getStatusLabel(getPrimaryRole(user))} tone={staff ? 'primary' : 'muted'} />
+            <Badge label={getStatusLabel(user.status)} tone={active ? 'success' : 'danger'} />
             <Badge
               label={getVerificationLabel(user)}
               tone={user.verification?.verificationStatus === 'VERIFIED' ? 'success' : 'muted'}
@@ -290,7 +291,7 @@ function UserRow({
 
       <View className="mt-4 flex-row items-center justify-between border-t border-border pt-3">
         <View>
-          <Text className="text-xs font-bold uppercase text-text-secondary">Điểm uy tín</Text>
+          <Text className="text-xs font-bold text-text-secondary">Điểm uy tín</Text>
           <Text className="mt-1 text-lg font-extrabold text-text-primary">{user.trustScore}</Text>
         </View>
         <TouchableOpacity

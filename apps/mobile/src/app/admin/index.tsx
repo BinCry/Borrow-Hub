@@ -75,7 +75,7 @@ export default function AdminDashboardScreen() {
             <ChevronLeft size={26} color={colors.text.primary} />
           </TouchableOpacity>
           <View className="min-w-0 flex-1">
-            <Text className="text-xs font-extrabold uppercase text-primary">Admin console</Text>
+            <Text className="text-xs font-extrabold text-primary">Khu vực quản trị</Text>
             <Text className="mt-1 text-2xl font-extrabold text-text-primary">Quản trị</Text>
             <Text className="mt-1 text-sm font-semibold text-text-secondary">
               Điều phối người dùng, kiểm duyệt và tài chính
@@ -91,7 +91,7 @@ export default function AdminDashboardScreen() {
       ) : !isAdmin(meQuery.data) ? (
         <EmptyState
           title="Không có quyền quản trị"
-          description="Tài khoản này chưa được gán vai trò ADMIN hoặc SUPER_ADMIN."
+          description="Tài khoản này chưa được gán vai trò quản trị viên hoặc quản trị viên cấp cao."
           buttonText="Quay lại"
           onPress={() => router.back()}
         />
@@ -171,7 +171,7 @@ function DashboardContent({
             <Banknote size={24} color={colors.primary.DEFAULT} />
           </View>
           <View className="min-w-0 flex-1">
-            <Text className="text-xs font-extrabold uppercase text-text-secondary">GMV</Text>
+            <Text className="text-xs font-extrabold text-text-secondary">Tổng giá trị giao dịch</Text>
             <Text className="mt-1 text-2xl font-extrabold text-text-primary">
               {formatMoney(data.finance.gmv)}
             </Text>
@@ -183,7 +183,7 @@ function DashboardContent({
         </View>
       </TouchableOpacity>
 
-      <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+      <Text className="mb-3 text-xs font-extrabold text-text-secondary">
         Lối tắt quản trị
       </Text>
       <View className="mb-5 gap-3">
@@ -207,10 +207,10 @@ function DashboardContent({
           tone="danger"
           onPress={onDisputesPress}
         />
-        <AdminAction icon={Star} label="Review" value="Mod" onPress={onReviewsPress} />
+        <AdminAction icon={Star} label="Đánh giá" value="Duyệt" onPress={onReviewsPress} />
         <AdminAction
           icon={Flag}
-          label="Report"
+          label="Báo cáo"
           value={`${queueCounts.openReports}`}
           tone="warning"
           onPress={onReportsPress}

@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import {
   CheckCircle2,
   ChevronLeft,
-  ExternalLink,
   Image as ImageIcon,
   RefreshCcw,
   ShieldCheck,
@@ -14,7 +13,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Linking,
   RefreshControl,
   Text,
   TextInput,
@@ -30,6 +28,7 @@ import {
   KycVerificationStatus,
   ReviewKycPayload,
 } from '../../services/admin/admin.service';
+import { getStatusLabel } from '../../utils/status-labels';
 import { colors } from '../../theme/colors';
 
 type KycFilter = KycVerificationStatus | 'ALL';
@@ -182,7 +181,7 @@ export default function AdminKycScreen() {
                   {
                     verificationStatus: 'VERIFIED',
                     faceMatchStatus: 'MATCHED',
-                    reviewNote: 'Approved from RentLoop admin mobile.',
+                    reviewNote: 'Đã được quản trị viên duyệt.',
                   },
                   'Duyệt hồ sơ KYC?',
                   `${item.user.fullName} sẽ được xác thực danh tính.`,
@@ -194,7 +193,7 @@ export default function AdminKycScreen() {
                   {
                     verificationStatus: 'REJECTED',
                     faceMatchStatus: 'NOT_MATCHED',
-                    reviewNote: note.trim() || 'Rejected from RentLoop admin mobile.',
+                    reviewNote: note.trim() || 'Đã bị quản trị viên từ chối.',
                   },
                   'Từ chối hồ sơ KYC?',
                   `${item.user.fullName} sẽ nhận trạng thái KYC bị từ chối.`,
@@ -267,28 +266,28 @@ function KycCard({
           </View>
 
           <View className="mt-3 flex-row flex-wrap gap-2">
-            <InfoChip label={request.documentType} />
+            <InfoChip label={getStatusLabel(request.documentType)} />
             <InfoChip label={request.maskedDocumentNumber} />
-            <InfoChip label={`Trust ${request.user.trustScore}`} />
+            <InfoChip label={`Điểm uy tín ${request.user.trustScore}`} />
           </View>
         </View>
       </View>
 
       <View className="mt-4 rounded-xl bg-surface-secondary p-3">
         <InfoLine label="Số điện thoại" value={request.user.phone} />
-        <InfoLine label="Face match" value={request.faceMatchStatus} />
+        <InfoLine label="Đối chiếu khuôn mặt" value={getStatusLabel(request.faceMatchStatus)} />
         <InfoLine label="Gửi lúc" value={formatDate(request.createdAt)} />
         <InfoLine label="Cập nhật" value={formatDate(request.updatedAt)} />
       </View>
 
       <View className="mt-4">
-        <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+        <Text className="mb-3 text-xs font-extrabold text-text-secondary">
           Tài liệu
         </Text>
         <View className="flex-row gap-3">
           <KycImage label="Mặt trước" url={request.documentFrontUrl} />
           <KycImage label="Mặt sau" url={request.documentBackUrl} />
-          <KycImage label="Selfie" url={request.selfieUrl} />
+          <KycImage label="Ảnh chân dung" url={request.selfieUrl} />
         </View>
       </View>
 
@@ -391,20 +390,14 @@ function InfoLine({ label, value }: { label: string; value: string }) {
 }
 
 function KycImage({ label, url }: { label: string; url?: string | null }) {
-  const openImage = () => {
-    if (url) {
-      void Linking.openURL(url);
-    }
-  };
-
   return (
-    <TouchableOpacity
+    <View
       className="min-h-32 flex-1 overflow-hidden rounded-xl border border-border bg-surface-secondary"
-      disabled={!url}
-      onPress={openImage}
     >
       {url ? (
-        <Image source={{ uri: url }} style={{ height: 96, width: '100%' }} contentFit="cover" />
+        <View className="h-28 w-full items-center justify-center bg-surface-secondary p-2">
+          <Image source={{ uri: url }} style={{ height: '100%', width: '100%' }} contentFit="contain" />
+        </View>
       ) : (
         <View className="h-24 items-center justify-center">
           <ImageIcon size={26} color={colors.text.muted} />
@@ -412,8 +405,7 @@ function KycImage({ label, url }: { label: string; url?: string | null }) {
       )}
       <View className="min-h-9 flex-row items-center justify-center px-2">
         <Text className="text-center text-xs font-bold text-text-secondary">{label}</Text>
-        {url ? <ExternalLink size={12} color={colors.text.secondary} /> : null}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }

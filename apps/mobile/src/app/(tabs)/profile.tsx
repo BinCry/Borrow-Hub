@@ -163,7 +163,7 @@ export default function ProfileScreen() {
                   {user?.trustScore ?? 0}
                 </Text>
               </View>
-              <Text className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Điểm uy tín</Text>
+              <Text className="text-[11px] font-bold tracking-wider text-text-secondary">Điểm uy tín</Text>
             </View>
             <View className="mx-7 h-8 w-px bg-border" />
             <View className="min-w-24 items-center">
@@ -180,7 +180,7 @@ export default function ProfileScreen() {
                   {user?.verificationStatus === 'VERIFIED' ? 'Đã xác thực' : 'Chưa xác thực'}
                 </Text>
               </View>
-              <Text className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Danh tính</Text>
+              <Text className="text-[11px] font-bold tracking-wider text-text-secondary">Danh tính</Text>
             </View>
           </View>
         </View>
@@ -189,7 +189,7 @@ export default function ProfileScreen() {
         <View className="p-5">
           {canAccessAdmin ? (
             <>
-              <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Quản trị</Text>
+              <Text className="text-[13px] font-extrabold text-text-secondary mb-3 ml-1 tracking-widest">Quản trị</Text>
               <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
                 <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/admin' as any)}>
                   <View className="flex-row items-center">
@@ -201,7 +201,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center" onPress={() => router.push('/admin/announcements' as any)}>
                   <View className="flex-row items-center">
                     <Megaphone size={22} color={colors.primary.DEFAULT} className="mr-3" />
-                    <Text className="font-semibold text-text-primary text-base">Thông báo admin</Text>
+                    <Text className="font-semibold text-text-primary text-base">Thông báo quản trị</Text>
                   </View>
                   <ChevronRight size={20} color="#9CA3AF" />
                 </TouchableOpacity>
@@ -211,7 +211,7 @@ export default function ProfileScreen() {
 
           {!canAccessAdmin ? (
             <>
-              <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài sản của tôi</Text>
+              <Text className="text-[13px] font-extrabold text-text-secondary mb-3 ml-1 tracking-widest">Tài sản của tôi</Text>
               <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
                 <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/asset/create')}>
                   <View className="flex-row items-center">
@@ -240,7 +240,7 @@ export default function ProfileScreen() {
             <ChevronRight size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
-          <Text className="text-[13px] font-extrabold text-text-secondary uppercase mb-3 ml-1 tracking-widest">Tài khoản</Text>
+          <Text className="text-[13px] font-extrabold text-text-secondary mb-3 ml-1 tracking-widest">Tài khoản</Text>
           <View className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-6">
             <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-b border-gray-100" onPress={() => router.push('/profile/kyc' as any)}>
               <View className="flex-row items-center">

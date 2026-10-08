@@ -214,7 +214,7 @@ export default function RegisterScreen() {
                       contentFit="contain"
                     />
                   </View>
-                  <Text className="ml-2.5 text-[11px] font-semibold uppercase tracking-[2.2px] text-primary-dark">
+                  <Text className="ml-2.5 text-[11px] font-semibold tracking-[2.2px] text-primary-dark">
                     RentLoop
                   </Text>
                 </View>

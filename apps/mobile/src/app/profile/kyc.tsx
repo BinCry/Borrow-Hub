@@ -243,7 +243,7 @@ export default function KycScreen() {
 
             {!isLocked ? (
               <>
-                <Text className="mb-2 ml-1 text-xs font-extrabold uppercase tracking-widest text-text-secondary">
+                <Text className="mb-2 ml-1 text-xs font-extrabold tracking-widest text-text-secondary">
                   Số căn cước công dân
                 </Text>
                 <TextInput
@@ -257,7 +257,7 @@ export default function KycScreen() {
                   onChangeText={setDocumentNumber}
                 />
 
-                <Text className="mb-3 ml-1 text-xs font-extrabold uppercase tracking-widest text-text-secondary">
+                <Text className="mb-3 ml-1 text-xs font-extrabold tracking-widest text-text-secondary">
                   Tài liệu xác minh
                 </Text>
                 {evidenceCards.map(({ kind, title, description, icon: Icon }) => {

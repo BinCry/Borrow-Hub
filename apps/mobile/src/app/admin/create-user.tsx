@@ -39,18 +39,18 @@ type CreateStaffForm = z.infer<typeof createStaffSchema>;
 const roleOptions: { role: CreateStaffForm['role']; label: string; description: string }[] = [
   {
     role: 'ADMIN',
-    label: 'Admin',
-    description: 'Quản lý người dùng, KYC, listing và cấu hình vận hành.',
+    label: 'Quản trị viên',
+    description: 'Quản lý người dùng, xác thực danh tính, bài đăng và cấu hình vận hành.',
   },
   {
     role: 'MODERATOR',
     label: 'Kiểm duyệt',
-    description: 'Duyệt nội dung, listing và đánh giá.',
+    description: 'Duyệt nội dung, bài đăng và đánh giá.',
   },
   {
     role: 'CUSTOMER_SUPPORT',
     label: 'CSKH',
-    description: 'Hỗ trợ người dùng và xử lý ticket.',
+    description: 'Hỗ trợ người dùng và xử lý phiếu hỗ trợ.',
   },
   {
     role: 'DISPUTE_OFFICER',
@@ -136,8 +136,8 @@ export default function CreateInternalUserScreen() {
           </View>
         ) : !isSuperAdmin(meQuery.data) ? (
           <EmptyState
-            title="Chỉ SUPER_ADMIN mới được tạo nhân sự"
-            description="Tài khoản ADMIN vẫn xem được bảng quản trị nhưng không được cấp tài khoản nội bộ mới."
+            title="Chỉ quản trị viên cấp cao mới được tạo nhân sự"
+            description="Tài khoản quản trị viên vẫn xem được bảng quản trị nhưng không được cấp tài khoản nội bộ mới."
             buttonText="Quay lại"
             onPress={() => router.back()}
           />
@@ -191,7 +191,7 @@ export default function CreateInternalUserScreen() {
             secureTextEntry
           />
 
-          <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+          <Text className="mb-3 text-xs font-extrabold text-text-secondary">
             Vai trò
           </Text>
           <Controller

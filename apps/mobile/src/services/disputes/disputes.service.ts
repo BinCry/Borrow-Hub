@@ -32,6 +32,16 @@ export type Dispute = {
     createdAt: string;
     actor?: User | null;
   }[];
+  evidences: {
+    id: string;
+    uploadedById: string;
+    evidence: {
+      id: string;
+      type: string;
+      fileUrl: string;
+      metadata?: Record<string, unknown> | null;
+    };
+  }[];
 };
 
 export type RespondDisputePayload = {

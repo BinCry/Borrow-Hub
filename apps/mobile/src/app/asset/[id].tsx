@@ -1,3 +1,4 @@
+import { getDeliveryMethodLabel } from '../../utils/status-labels';
 import { colors } from '../../theme/colors';
 import { View, Text, ScrollView, TouchableOpacity, FlatList, Dimensions, Alert, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
@@ -298,7 +299,7 @@ export default function AssetDetailScreen() {
             {asset.estimatedValue ? <DetailRow label="Giá trị tham khảo" value={new Intl.NumberFormat('vi-VN').format(asset.estimatedValue) + ' VND'} /> : null}
             <DetailRow label="Số lượt cho thuê" value={String(asset.completedRentalCount)} />
             <DetailRow label="Thời gian thuê" value={`${asset.minimumDurationDays ?? 1} - ${asset.maximumDurationDays ?? 30} ngày`} />
-            <DetailRow label="Hình thức nhận" value={asset.deliveryMethods.length ? asset.deliveryMethods.join(', ') : 'Nhận trực tiếp'} />
+            <DetailRow label="Hình thức nhận" value={asset.deliveryMethods?.length ? asset.deliveryMethods.map(getDeliveryMethodLabel).join(', ') : 'Nhận trực tiếp'} />
           </View>
 
           {asset.accessories?.length ? (

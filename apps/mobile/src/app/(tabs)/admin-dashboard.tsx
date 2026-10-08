@@ -55,7 +55,7 @@ export default function AdminDashboardTab() {
       <View className="border-b border-border bg-surface px-5 pb-4 pt-3">
         <View className="flex-row items-center justify-between">
           <View className="min-w-0 flex-1 pr-4">
-            <Text className="text-xs font-extrabold uppercase text-primary">Admin console</Text>
+            <Text className="text-xs font-extrabold text-primary">Khu vực quản trị</Text>
             <Text className="mt-1 text-2xl font-extrabold text-text-primary">Tổng quan</Text>
             <Text className="mt-1 text-sm font-semibold text-text-secondary">
               Sức khỏe vận hành và các hàng chờ cần xử lý
@@ -137,7 +137,7 @@ function DashboardContent({
       >
         <View className="flex-row items-start justify-between">
           <View className="min-w-0 flex-1 pr-4">
-            <Text className="text-xs font-extrabold uppercase text-text-secondary">
+            <Text className="text-xs font-extrabold text-text-secondary">
               Doanh số đang quản lý
             </Text>
             <Text className="mt-2 text-3xl font-extrabold text-text-primary">
@@ -152,13 +152,13 @@ function DashboardContent({
           </View>
         </View>
         <View className="mt-4 flex-row gap-2">
-          <InsightPill label="Take rate" value={formatPercent(data.finance.takeRate)} />
-          <InsightPill label="Refund" value={`${data.finance.refundCount}`} tone="warning" />
-          <InsightPill label="Payout chặn" value={`${data.finance.blockedPayoutCount}`} tone="danger" />
+          <InsightPill label="Tỷ lệ nền tảng" value={formatPercent(data.finance.takeRate)} />
+          <InsightPill label="Hoàn tiền" value={`${data.finance.refundCount}`} tone="warning" />
+          <InsightPill label="Khoản chi trả bị chặn" value={`${data.finance.blockedPayoutCount}`} tone="danger" />
         </View>
       </TouchableOpacity>
 
-      <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+      <Text className="mb-3 text-xs font-extrabold text-text-secondary">
         Cần xử lý ngay
       </Text>
       <View className="mb-5 gap-3">
@@ -196,7 +196,7 @@ function DashboardContent({
         />
       </View>
 
-      <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+      <Text className="mb-3 text-xs font-extrabold text-text-secondary">
         Chỉ số vận hành
       </Text>
       <View className="mb-5 flex-row flex-wrap gap-3">
@@ -211,13 +211,13 @@ function DashboardContent({
           icon={AlertTriangle}
           label="Vấn đề mở"
           value={`${openIssues}`}
-          helper={`${data.risk.fraudReports} báo cáo fraud`}
+          helper={`${data.risk.fraudReports} báo cáo gian lận`}
           tone="danger"
           onPress={onReports}
         />
         <MetricPanel
           icon={ClipboardCheck}
-          label="Listing active"
+          label="Bài đăng đang hoạt động"
           value={`${data.marketplace.activeListings}`}
           helper={`${data.marketplace.totalRentals} đơn thuê`}
           tone="info"
@@ -233,7 +233,7 @@ function DashboardContent({
       </View>
 
       <View className="rounded-lg border border-border bg-surface p-4">
-        <Text className="mb-2 text-xs font-extrabold uppercase text-text-secondary">
+        <Text className="mb-2 text-xs font-extrabold text-text-secondary">
           Trạng thái đơn thuê
         </Text>
         <MetricLine label="Tổng đơn" value={`${data.marketplace.totalRentals}`} />

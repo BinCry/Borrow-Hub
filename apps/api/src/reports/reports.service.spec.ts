@@ -90,7 +90,7 @@ describe('ReportsService', () => {
       status: ReportStatus.RESOLVED,
       targetType: ReportTargetType.ASSET,
       targetId: 'asset-1',
-      resolutionSummary: 'Listing vi phạm chính sách.\nModeration action: HIDE_ASSET -> asset-1',
+      resolutionSummary: 'Listing vi phạm chính sách.\nBiện pháp xử lý: Ẩn bài đăng: asset-1',
     });
 
     const result = await service.updateStatus('report-1', moderator, {
@@ -106,14 +106,14 @@ describe('ReportsService', () => {
     });
     expect(notificationsService.createMany).toHaveBeenCalledWith(['owner-1'], {
       type: 'ASSET_MODERATED',
-      title: 'Listing bị ẩn do report hợp lệ',
+      title: 'Bài đăng bị ẩn do báo cáo hợp lệ',
       content:
-        'Tài sản "Canon R6" đã bị ẩn sau khi report được xác nhận. Ghi chú: Ẩn listing để chờ xác minh giấy tờ.',
+        'Tài sản "Canon R6" đã bị ẩn sau khi báo cáo được xác nhận. Ghi chú: Ẩn listing để chờ xác minh giấy tờ.',
       referenceType: 'asset',
       referenceId: 'asset-1',
     });
     expect(result.status).toBe(ReportStatus.RESOLVED);
-    expect(result.resolutionSummary).toContain('Moderation action: HIDE_ASSET -> asset-1');
+    expect(result.resolutionSummary).toContain('Biện pháp xử lý: Ẩn bài đăng: asset-1');
   });
 
   it('warns the reported user when resolving a user report', async () => {
@@ -137,7 +137,7 @@ describe('ReportsService', () => {
       targetType: ReportTargetType.USER,
       targetId: 'user-2',
       resolutionSummary:
-        'Đã cảnh báo user về hành vi quấy rối.\nModeration action: WARN_REPORTED_USER -> user-2',
+        'Đã cảnh báo user về hành vi quấy rối.\nBiện pháp xử lý: Cảnh báo người dùng: user-2',
     });
 
     await service.updateStatus('report-2', moderator, {
@@ -148,8 +148,8 @@ describe('ReportsService', () => {
 
     expect(notificationsService.createMany).toHaveBeenCalledWith(['user-2'], {
       type: 'SYSTEM',
-      title: 'Tài khoản nhận cảnh báo từ moderation',
-      content: 'Tài khoản của bạn vừa nhận cảnh báo do report đã được xác nhận.',
+      title: 'Tài khoản nhận cảnh báo từ bộ phận kiểm duyệt',
+      content: 'Tài khoản của bạn vừa nhận cảnh báo do báo cáo đã được xác nhận.',
       referenceType: 'report',
       referenceId: 'report-2',
     });
@@ -177,7 +177,7 @@ describe('ReportsService', () => {
       status: ReportStatus.RESOLVED,
       targetType: ReportTargetType.REVIEW,
       targetId: 'review-1',
-      resolutionSummary: 'Ẩn review spam.\nModeration action: HIDE_REVIEW -> review-1',
+      resolutionSummary: 'Ẩn review spam.\nBiện pháp xử lý: Ẩn đánh giá: review-1',
     });
 
     await service.updateStatus('report-3', moderator, {

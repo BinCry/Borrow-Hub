@@ -31,6 +31,14 @@ import {
   UpdateDisputeStatusDto,
 } from './disputes.dto';
 
+function disputeStatusLabel(status: DisputeStatus): string {
+  const labels: Record<DisputeStatus, string> = {
+    OPEN: 'mới mở', WAITING_RESPONSE: 'chờ phản hồi', UNDER_REVIEW: 'đang xử lý',
+    RESOLVED: 'đã giải quyết', REJECTED: 'đã từ chối', CLOSED: 'đã đóng',
+  };
+  return labels[status];
+}
+
 const ACTIVE_DISPUTE_STATUSES: DisputeStatus[] = [
   DisputeStatus.OPEN,
   DisputeStatus.WAITING_RESPONSE,
@@ -177,8 +185,8 @@ export class DisputesService {
       ),
       {
         type: NotificationType.SYSTEM,
-        title: 'Dispute mới được mở',
-        content: `${currentUser.fullName} vừa mở dispute cho đơn thuê "${rental.asset.title}".`,
+        title: 'Tranh chấp mới được mở',
+        content: `${currentUser.fullName} vừa mở tranh chấp cho đơn thuê "${rental.asset.title}".`,
         referenceType: 'dispute',
         referenceId: dispute.id,
       },
@@ -277,7 +285,7 @@ export class DisputesService {
             disputeId: dispute.id,
             actorId: currentUser.id,
             eventType: DisputeEventType.EVIDENCE_ATTACHED,
-            content: `Attached ${evidenceRecords.length} evidence item(s)`,
+            content: `Đã đính kèm ${evidenceRecords.length} bằng chứng`,
           },
         });
       }
@@ -302,8 +310,8 @@ export class DisputesService {
       this.collectDisputeWatchers(updated, currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Dispute có phản hồi mới',
-        content: `${currentUser.fullName} vừa cập nhật dispute cho đơn "${updated.rental.asset.title}".`,
+        title: 'Tranh chấp có phản hồi mới',
+        content: `${currentUser.fullName} vừa cập nhật tranh chấp cho đơn "${updated.rental.asset.title}".`,
         referenceType: 'dispute',
         referenceId: updated.id,
       },
@@ -348,7 +356,7 @@ export class DisputesService {
     }
 
     const resolutionSummary =
-      dto.note?.trim() || 'Renter accepted the reported damage and repair estimate';
+      dto.note?.trim() || 'Người thuê đã chấp nhận báo cáo hư hỏng và chi phí sửa chữa';
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.disputeEvent.create({
@@ -356,7 +364,7 @@ export class DisputesService {
           disputeId: dispute.id,
           actorId: currentUser.id,
           eventType: DisputeEventType.RESOLVED,
-          content: dto.note?.trim() || 'Renter accepted the reported damage.',
+          content: dto.note?.trim() || 'Người thuê đã chấp nhận báo cáo hư hỏng.',
           metadata: {
             acceptedByRenter: true,
           },
@@ -391,7 +399,7 @@ export class DisputesService {
       this.collectDisputeWatchers(updated, currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Damage report đã được chấp nhận',
+        title: 'Báo cáo hư hỏng đã được chấp nhận',
         content: `Người thuê đã chấp nhận báo cáo hư hỏng cho đơn "${updated.rental.asset.title}".`,
         referenceType: 'dispute',
         referenceId: updated.id,
@@ -464,8 +472,8 @@ export class DisputesService {
           actorId: currentUser.id,
           eventType: DisputeEventType.ASSIGNED,
           content: dto.assignedToId
-            ? `Assigned dispute to ${dto.assignedToId}`
-            : 'Unassigned dispute',
+            ? `Đã phân công xử lý cho ${dto.assignedToId}`
+            : 'Đã bỏ phân công xử lý',
         },
       });
 
@@ -483,8 +491,8 @@ export class DisputesService {
       this.collectDisputeWatchers(updated, currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Dispute được phân công xử lý',
-        content: `Dispute cho đơn "${updated.rental.asset.title}" vừa được cập nhật người phụ trách.`,
+        title: 'Tranh chấp được phân công xử lý',
+        content: `Tranh chấp cho đơn "${updated.rental.asset.title}" vừa được cập nhật người phụ trách.`,
         referenceType: 'dispute',
         referenceId: updated.id,
       },
@@ -535,7 +543,7 @@ export class DisputesService {
           eventType: TERMINAL_DISPUTE_STATUSES.includes(dto.status)
             ? DisputeEventType.RESOLVED
             : DisputeEventType.STATUS_CHANGED,
-          content: dto.note ?? `Dispute status changed to ${dto.status}`,
+          content: dto.note ?? `Trạng thái tranh chấp: ${disputeStatusLabel(dto.status)}`,
           metadata: dto.resolutionSummary
             ? {
                 resolutionSummary: dto.resolutionSummary,
@@ -579,8 +587,8 @@ export class DisputesService {
       this.collectDisputeWatchers(updated, currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Dispute đổi trạng thái',
-        content: `Dispute cho đơn "${updated.rental.asset.title}" đã chuyển sang ${updated.status}.`,
+        title: 'Tranh chấp đổi trạng thái',
+        content: `Tranh chấp cho đơn "${updated.rental.asset.title}" đã chuyển sang ${disputeStatusLabel(updated.status)}.`,
         referenceType: 'dispute',
         referenceId: updated.id,
       },

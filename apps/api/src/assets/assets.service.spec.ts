@@ -74,9 +74,9 @@ describe('AssetsService', () => {
 
     expect(notificationsService.createMany).toHaveBeenCalledWith(['owner-1'], {
       type: 'ASSET_MODERATED',
-      title: 'Listing bị từ chối',
+      title: 'Bài đăng bị từ chối',
       content:
-        'Tài sản "Canon R6" đã được cập nhật sang trạng thái REJECTED. Lý do: Thiếu ảnh chứng minh serial và mô tả chưa đủ rõ.',
+        'Tài sản "Canon R6" đã được cập nhật sang trạng thái đã từ chối. Lý do: Thiếu ảnh chứng minh serial và mô tả chưa đủ rõ.',
       metadata: {
         assetId: 'asset-1',
       },
@@ -107,8 +107,8 @@ describe('AssetsService', () => {
 
     expect(notificationsService.createMany).toHaveBeenCalledWith(['owner-1'], {
       type: 'ASSET_MODERATED',
-      title: 'Listing đã được duyệt',
-      content: 'Tài sản "Canon R6" đã được cập nhật sang trạng thái ACTIVE.',
+      title: 'Bài đăng đã được duyệt',
+      content: 'Tài sản "Canon R6" đã được cập nhật sang trạng thái đang hiển thị.',
       metadata: {
         assetId: 'asset-1',
       },

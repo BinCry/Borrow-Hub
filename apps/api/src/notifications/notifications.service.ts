@@ -409,7 +409,7 @@ export class NotificationsService {
         {
           type: NotificationType.AVAILABILITY_MATCH,
           title: 'Tài sản yêu thích đang rảnh cuối tuần',
-          content: `Tài sản "${favorite.asset.title}" trong wishlist của bạn hiện có vẻ đang rảnh vào cuối tuần tới.`,
+          content: `Tài sản "${favorite.asset.title}" trong danh sách yêu thích của bạn hiện có vẻ đang rảnh vào cuối tuần tới.`,
           metadata: {
             assetId: favorite.assetId,
           },

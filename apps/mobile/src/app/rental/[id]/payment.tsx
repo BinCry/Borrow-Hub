@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RentalsService } from '../../../services/rentals/rentals.service';
 import { colors } from '../../../theme/colors';
+import { getPaymentMethodLabel } from '../../../utils/status-labels';
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -141,6 +142,9 @@ export default function PaymentScreen() {
           contentContainerStyle={{ padding: 20, paddingBottom: 36 }}
         >
           <View className="items-center">
+            <Text className="mb-3 text-sm font-semibold text-text-secondary">
+              Phương thức thanh toán: {getPaymentMethodLabel(intent.paymentProvider)}
+            </Text>
             <View className="mb-4 flex-row items-center rounded-full bg-primary-soft px-4 py-2">
               <ShieldCheck size={16} color={colors.primary.DEFAULT} />
               <Text className="ml-2 font-semibold text-primary">Đối soát tự động qua SePay</Text>
@@ -167,22 +171,22 @@ export default function PaymentScreen() {
             <Text className="mb-4 text-lg font-bold text-text-primary">
               Thông tin chuyển khoản
             </Text>
-            <Text className="text-xs uppercase tracking-wider text-text-muted">Ngân hàng</Text>
+            <Text className="text-xs tracking-wider text-text-muted">Ngân hàng</Text>
             <Text className="mb-3 mt-1 font-semibold text-text-primary" selectable>
               {intent.bankAccount?.bankName}
             </Text>
-            <Text className="text-xs uppercase tracking-wider text-text-muted">Số tài khoản</Text>
+            <Text className="text-xs tracking-wider text-text-muted">Số tài khoản</Text>
             <View className="mb-3 flex-row items-center">
               <Text className="flex-1 text-lg font-bold text-primary" selectable>
                 {intent.bankAccount?.accountNumber}
               </Text>
               <Text className="text-xs font-semibold text-text-muted">Có thể sao chép</Text>
             </View>
-            <Text className="text-xs uppercase tracking-wider text-text-muted">Chủ tài khoản</Text>
+            <Text className="text-xs tracking-wider text-text-muted">Chủ tài khoản</Text>
             <Text className="mb-3 mt-1 font-semibold text-text-primary" selectable>
               {intent.bankAccount?.accountName}
             </Text>
-            <Text className="text-xs uppercase tracking-wider text-text-muted">Nội dung</Text>
+            <Text className="text-xs tracking-wider text-text-muted">Nội dung</Text>
             <View className="mt-1 flex-row items-center">
               <Text className="flex-1 text-lg font-extrabold text-primary" selectable>
                 {intent.paymentCode}
@@ -206,11 +210,14 @@ export default function PaymentScreen() {
       ) : (
         <View className="flex-1 items-center justify-center px-6">
           <CreditCard size={64} color={colors.primary.DEFAULT} />
-          <Text className="mt-5 text-2xl font-bold text-text-primary">
+          <Text className="mt-4 text-sm font-semibold text-text-secondary">
+            Phương thức thanh toán: {getPaymentMethodLabel(intent.paymentProvider)}
+          </Text>
+          <Text className="mt-3 text-2xl font-bold text-text-primary">
             Thanh toán thử nghiệm
           </Text>
           <Text className="mt-2 text-center leading-6 text-text-secondary">
-            Sandbox chỉ được bật trong môi trường phát triển và không phát sinh giao dịch thật.
+            Thanh toán thử nghiệm chỉ được bật trong môi trường phát triển và không phát sinh giao dịch thật.
           </Text>
           <Text className="mt-6 text-3xl font-extrabold text-primary">
             {currencyFormatter.format(intent.amountDue)}
@@ -225,7 +232,7 @@ export default function PaymentScreen() {
             {sandboxMutation.isPending ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text className="text-lg font-bold text-white">Xác nhận thanh toán sandbox</Text>
+              <Text className="text-lg font-bold text-white">Xác nhận thanh toán thử nghiệm</Text>
             )}
           </TouchableOpacity>
         </View>

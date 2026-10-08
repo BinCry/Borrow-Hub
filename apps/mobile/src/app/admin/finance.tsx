@@ -21,12 +21,17 @@ import {
   AdminRefundStatus,
   AdminService,
 } from '../../services/admin/admin.service';
+import { getStatusLabel, getPaymentMethodLabel } from '../../utils/status-labels';
 import { colors } from '../../theme/colors';
 
 type FinanceTab = 'payments' | 'payouts';
 
 const payoutStatuses: AdminPayoutStatus[] = ['PENDING', 'SCHEDULED', 'PAID', 'BLOCKED', 'CANCELLED'];
 const refundStatuses: AdminRefundStatus[] = ['COMPLETED', 'FAILED', 'REJECTED'];
+
+function financeLabel(status: string) {
+  return getStatusLabel(status);
+}
 
 function formatMoney(value: number, currency = 'VND') {
   return new Intl.NumberFormat('vi-VN', {
@@ -86,8 +91,8 @@ export default function AdminFinanceScreen() {
       </View>
 
       <View className="flex-row border-b border-border bg-surface p-3">
-        <TabButton label="Payments" selected={tab === 'payments'} onPress={() => setTab('payments')} />
-        <TabButton label="Payouts" selected={tab === 'payouts'} onPress={() => setTab('payouts')} />
+        <TabButton label="Thanh toán" selected={tab === 'payments'} onPress={() => setTab('payments')} />
+        <TabButton label="Chi trả" selected={tab === 'payouts'} onPress={() => setTab('payouts')} />
       </View>
 
       {activeLoading ? (
@@ -97,7 +102,7 @@ export default function AdminFinanceScreen() {
       ) : activeError ? (
         <EmptyState
           title="Không thể tải tài chính"
-          description="Kiểm tra quyền finance hoặc kết nối rồi thử lại."
+          description="Kiểm tra quyền quản lý tài chính hoặc kết nối rồi thử lại."
           buttonText="Thử lại"
           onPress={() => void activeRefetch()}
         />
@@ -158,11 +163,11 @@ function PaymentList({
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       ListHeaderComponent={
-        <Text className="mb-3 text-sm font-bold text-text-secondary">{data.length} payment</Text>
+        <Text className="mb-3 text-sm font-bold text-text-secondary">{data.length} giao dịch</Text>
       }
       ListEmptyComponent={
         <EmptyState
-          title="Chưa có payment"
+          title="Chưa có giao dịch thanh toán"
           description="Các giao dịch thanh toán sẽ xuất hiện tại đây."
         />
       }
@@ -188,7 +193,7 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {
-      Alert.alert('Không thể tạo refund', 'Kiểm tra số tiền, trạng thái payment hoặc quyền finance.');
+      Alert.alert('Không thể tạo khoản hoàn tiền', 'Kiểm tra số tiền, trạng thái giao dịch hoặc quyền tài chính.');
     },
   });
   const refundStatusMutation = useMutation({
@@ -199,7 +204,7 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {
-      Alert.alert('Không thể cập nhật refund', 'Chỉ refund PENDING mới cập nhật được.');
+      Alert.alert('Không thể cập nhật khoản hoàn tiền', 'Chỉ khoản hoàn tiền đang chờ mới có thể cập nhật.');
     },
   });
 
@@ -209,7 +214,7 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
       Alert.alert('Thiếu thông tin', 'Nhập số tiền hoàn và lý do.');
       return;
     }
-    Alert.alert('Tạo refund?', `${formatMoney(amount, payment.currency)} sẽ được ghi nhận.`, [
+    Alert.alert('Tạo khoản hoàn tiền?', `${formatMoney(amount, payment.currency)} sẽ được ghi nhận.`, [
       { text: 'Hủy', style: 'cancel' },
       { text: 'Tạo', onPress: () => refundMutation.mutate() },
     ]);
@@ -231,22 +236,22 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
                 {payment.payer?.fullName ?? payment.payerId} → {payment.rental.owner.fullName}
               </Text>
             </View>
-            <StatusBadge label={payment.status} tone={payment.status === 'SUCCESS' ? 'success' : payment.status === 'FAILED' ? 'danger' : 'muted'} />
+            <StatusBadge label={financeLabel(payment.status)} tone={payment.status === 'SUCCESS' ? 'success' : payment.status === 'FAILED' ? 'danger' : 'muted'} />
           </View>
           <InfoLine label="Số tiền" value={formatMoney(payment.amount, payment.currency)} />
-          <InfoLine label="Provider" value={payment.provider} />
-          <InfoLine label="Paid at" value={formatDate(payment.paidAt)} />
+          <InfoLine label="Phương thức thanh toán" value={getPaymentMethodLabel(payment.provider)} />
+          <InfoLine label="Thanh toán lúc" value={formatDate(payment.paidAt)} />
         </View>
       </View>
 
       <View className="mt-4 rounded-xl bg-surface-secondary p-3">
-        <Text className="mb-2 text-xs font-extrabold uppercase text-text-secondary">
-          Refunds
+        <Text className="mb-2 text-xs font-extrabold text-text-secondary">
+          Khoản hoàn tiền
         </Text>
         {payment.refunds.length ? (
           payment.refunds.map((refund) => (
             <View key={refund.id} className="mb-3 rounded-xl border border-border bg-surface p-3">
-              <InfoLine label={formatMoney(refund.amount, payment.currency)} value={refund.status} />
+              <InfoLine label={formatMoney(refund.amount, payment.currency)} value={financeLabel(refund.status)} />
               <Text className="mt-1 text-sm text-text-secondary">{refund.reason}</Text>
               {refund.status === 'PENDING' ? (
                 <View className="mt-3 flex-row flex-wrap gap-2">
@@ -257,7 +262,7 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
                       disabled={refundStatusMutation.isPending}
                       onPress={() => refundStatusMutation.mutate({ refundId: refund.id, status })}
                     >
-                      <Text className="text-xs font-extrabold text-white">{status}</Text>
+                      <Text className="text-xs font-extrabold text-white">{financeLabel(status)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -265,13 +270,13 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
             </View>
           ))
         ) : (
-          <Text className="text-sm text-text-secondary">Chưa có refund.</Text>
+          <Text className="text-sm text-text-secondary">Chưa có khoản hoàn tiền.</Text>
         )}
       </View>
 
       <View className="mt-4 border-t border-border pt-4">
-        <Text className="mb-2 text-xs font-extrabold uppercase text-text-secondary">
-          Tạo refund
+        <Text className="mb-2 text-xs font-extrabold text-text-secondary">
+          Tạo khoản hoàn tiền
         </Text>
         <TextInput
           className="mb-3 min-h-12 rounded-xl border border-border bg-background px-4 text-text-primary"
@@ -298,7 +303,7 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
           {refundMutation.isPending ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text className="font-extrabold text-white">Tạo refund</Text>
+            <Text className="font-extrabold text-white">Tạo khoản hoàn tiền</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -322,12 +327,12 @@ function PayoutList({
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       ListHeaderComponent={
-        <Text className="mb-3 text-sm font-bold text-text-secondary">{data.length} payout</Text>
+        <Text className="mb-3 text-sm font-bold text-text-secondary">{data.length} khoản chi trả</Text>
       }
       ListEmptyComponent={
         <EmptyState
-          title="Chưa có payout"
-          description="Các khoản chi trả cho owner sẽ xuất hiện tại đây."
+          title="Chưa có khoản chi trả"
+          description="Các khoản chi trả cho chủ tài sản sẽ xuất hiện tại đây."
         />
       }
       renderItem={({ item }) => <PayoutCard payout={item} />}
@@ -344,7 +349,7 @@ function PayoutCard({ payout }: { payout: AdminPayout }) {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {
-      Alert.alert('Không thể cập nhật payout', 'Kiểm tra quyền finance rồi thử lại.');
+      Alert.alert('Không thể cập nhật khoản chi trả', 'Kiểm tra quyền tài chính rồi thử lại.');
     },
   });
 
@@ -355,18 +360,18 @@ function PayoutCard({ payout }: { payout: AdminPayout }) {
           <Text className="text-base font-extrabold text-text-primary">
             {payout.rental.asset.title}
           </Text>
-          <Text className="mt-1 text-sm text-text-secondary">
-            Owner: {payout.owner?.fullName ?? payout.ownerId}
+            <Text className="mt-1 text-sm text-text-secondary">
+            Chủ tài sản: {payout.owner?.fullName ?? payout.ownerId}
           </Text>
         </View>
-        <StatusBadge label={payout.status} tone={payout.status === 'PAID' ? 'success' : payout.status === 'BLOCKED' || payout.status === 'CANCELLED' ? 'danger' : 'muted'} />
+        <StatusBadge label={financeLabel(payout.status)} tone={payout.status === 'PAID' ? 'success' : payout.status === 'BLOCKED' || payout.status === 'CANCELLED' ? 'danger' : 'muted'} />
       </View>
 
       <View className="mt-4 rounded-xl bg-surface-secondary p-3">
-        <InfoLine label="Gross" value={formatMoney(payout.grossAmount)} />
-        <InfoLine label="Commission" value={formatMoney(payout.commissionAmount)} />
-        <InfoLine label="Net" value={formatMoney(payout.netAmount)} />
-        <InfoLine label="Paid at" value={formatDate(payout.paidAt)} />
+        <InfoLine label="Tổng tiền" value={formatMoney(payout.grossAmount)} />
+        <InfoLine label="Hoa hồng" value={formatMoney(payout.commissionAmount)} />
+        <InfoLine label="Thực nhận" value={formatMoney(payout.netAmount)} />
+        <InfoLine label="Chi trả lúc" value={formatDate(payout.paidAt)} />
       </View>
 
       <View className="mt-4 flex-row flex-wrap gap-2">
@@ -377,7 +382,7 @@ function PayoutCard({ payout }: { payout: AdminPayout }) {
             disabled={mutation.isPending}
             onPress={() => mutation.mutate(status)}
           >
-            <Text className="text-xs font-extrabold text-white">{status}</Text>
+            <Text className="text-xs font-extrabold text-white">{financeLabel(status)}</Text>
           </TouchableOpacity>
         ))}
       </View>

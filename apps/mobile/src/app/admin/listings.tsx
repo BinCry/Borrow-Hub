@@ -231,7 +231,7 @@ export default function AdminListingsScreen() {
                   item,
                   {
                     status: 'ACTIVE',
-                    reason: 'Approved from RentLoop admin mobile.',
+                    reason: 'Đã được quản trị viên duyệt.',
                   },
                   'Duyệt bài đăng?',
                   `"${item.title}" sẽ được hiển thị trên marketplace.`,
@@ -242,7 +242,7 @@ export default function AdminListingsScreen() {
                   item,
                   {
                     status: 'REJECTED',
-                    reason: reason.trim() || 'Rejected from RentLoop admin mobile.',
+                    reason: reason.trim() || 'Đã bị quản trị viên từ chối.',
                   },
                   'Từ chối bài đăng?',
                   `"${item.title}" sẽ bị chuyển sang trạng thái từ chối.`,
@@ -366,7 +366,7 @@ function ListingCard({
               {asset.owner?.fullName ?? 'Chủ sở hữu'}
             </Text>
             <Text className="mt-0.5 text-sm text-text-secondary">
-              Trust score {asset.owner?.trustScore ?? 0}
+              Điểm uy tín {asset.owner?.trustScore ?? 0}
             </Text>
           </View>
           <View className="ml-3 flex-row items-center">

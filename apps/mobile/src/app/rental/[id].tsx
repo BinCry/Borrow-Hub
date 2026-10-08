@@ -219,7 +219,7 @@ export default function RentalDetailScreen() {
 
         {rental.status === 'RETURN_PENDING' && isOwner ? (
           <ActionButton
-            label="Report damage / dispute"
+            label="Báo hư hỏng / tranh chấp"
             icon={AlertCircle}
             tone="danger"
             disabled={false}
@@ -228,7 +228,7 @@ export default function RentalDetailScreen() {
         ) : null}
         {rental.status === 'OVERDUE' && isOwner ? (
           <ActionButton
-            label="Report asset not returned"
+            label="Báo chưa trả tài sản"
             icon={AlertCircle}
             tone="danger"
             disabled={false}
@@ -237,7 +237,7 @@ export default function RentalDetailScreen() {
         ) : null}
         {rental.status === 'DISPUTED' && (isOwner || isRenter) ? (
           <ActionButton
-            label="View and respond to dispute"
+            label="Xem và phản hồi tranh chấp"
             icon={AlertCircle}
             tone="danger"
             disabled={false}
@@ -246,7 +246,7 @@ export default function RentalDetailScreen() {
         ) : null}
 
         <View className="mt-4 rounded-2xl border border-border bg-surface p-4">
-          <Text className="mb-3 text-xs font-extrabold uppercase text-text-secondary">
+          <Text className="mb-3 text-xs font-extrabold text-text-secondary">
             Thao tác
           </Text>
           {rental.status === 'PENDING_OWNER' && isOwner ? (
@@ -407,7 +407,7 @@ function Timeline({ status }: { status: RentalStatus }) {
 
   return (
     <View className="mt-4 rounded-2xl border border-border bg-surface p-4">
-      <Text className="mb-4 text-xs font-extrabold uppercase text-text-secondary">
+      <Text className="mb-4 text-xs font-extrabold text-text-secondary">
         Tiến trình
       </Text>
       {steps.map((step, index) => {
@@ -458,7 +458,7 @@ function Section({
         <View className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-primary-soft">
           <Icon size={18} color={colors.primary.DEFAULT} />
         </View>
-        <Text className="text-xs font-extrabold uppercase text-text-secondary">{title}</Text>
+        <Text className="text-xs font-extrabold text-text-secondary">{title}</Text>
       </View>
       {children}
     </View>
@@ -483,7 +483,7 @@ function PartyLine({ label, name }: { label: string; name: string }) {
         <UserRound size={19} color={colors.primary.DEFAULT} />
       </View>
       <View className="min-w-0 flex-1">
-        <Text className="text-xs font-bold uppercase text-text-secondary">{label}</Text>
+        <Text className="text-xs font-bold text-text-secondary">{label}</Text>
         <Text className="mt-0.5 font-extrabold text-text-primary">{name}</Text>
       </View>
     </View>

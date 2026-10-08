@@ -24,6 +24,7 @@ import {
   AdminDisputeStatus,
   AdminService,
 } from '../../../services/admin/admin.service';
+import { getStatusLabel } from '../../../utils/status-labels';
 import { colors } from '../../../theme/colors';
 
 type DisputeFilter = AdminDisputeStatus | 'ALL';
@@ -193,7 +194,7 @@ function DisputeCard({ dispute, onPress }: { dispute: AdminDispute; onPress: () 
                 {dispute.rental.asset.title}
               </Text>
               <Text className="mt-1 text-sm text-text-secondary" numberOfLines={2}>
-                {dispute.reason}: {dispute.description}
+                {getStatusLabel(dispute.reason)}: {dispute.description}
               </Text>
             </View>
             <StatusBadge status={dispute.status} />

@@ -102,7 +102,7 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="p-5 pb-10">
-        <Text className="mb-3 ml-1 text-xs font-extrabold uppercase tracking-widest text-text-secondary">
+        <Text className="mb-3 ml-1 text-xs font-extrabold tracking-widest text-text-secondary">
           Tài khoản và bảo mật
         </Text>
         <View className="mb-7 overflow-hidden rounded-2xl border border-border bg-surface">
@@ -124,7 +124,7 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text className="mb-3 ml-1 text-xs font-extrabold uppercase tracking-widest text-text-secondary">
+        <Text className="mb-3 ml-1 text-xs font-extrabold tracking-widest text-text-secondary">
           Hỗ trợ
         </Text>
         <View className="mb-7 overflow-hidden rounded-2xl border border-border bg-surface">
@@ -141,7 +141,7 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text className="mb-3 ml-1 text-xs font-extrabold uppercase tracking-widest text-danger">
+        <Text className="mb-3 ml-1 text-xs font-extrabold tracking-widest text-danger">
           Vùng nguy hiểm
         </Text>
         <TouchableOpacity

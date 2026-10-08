@@ -25,6 +25,14 @@ import {
   UpdateSupportTicketStatusDto,
 } from './support.dto';
 
+const supportStatusLabels: Record<SupportTicketStatus, string> = {
+  OPEN: 'mới mở',
+  IN_PROGRESS: 'đang xử lý',
+  WAITING_USER: 'chờ người dùng phản hồi',
+  RESOLVED: 'đã giải quyết',
+  CLOSED: 'đã đóng',
+};
+
 const RESOLVED_SUPPORT_STATUSES: SupportTicketStatus[] = [
   SupportTicketStatus.RESOLVED,
   SupportTicketStatus.CLOSED,
@@ -125,8 +133,8 @@ export class SupportService {
             actorId: currentUser.id,
             eventType: SupportTicketEventType.ASSIGNED,
             content: dto.assignedToId
-              ? `Assigned ticket to ${dto.assignedToId}`
-              : 'Cleared assignee',
+              ? `Đã phân công phiếu hỗ trợ cho ${dto.assignedToId}`
+              : 'Đã bỏ phân công xử lý',
             metadata: {
               previousAssignedToId: ticket.assignedToId,
               assignedToId: dto.assignedToId ?? null,
@@ -152,8 +160,8 @@ export class SupportService {
         .filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Support ticket updated',
-        content: `Support ticket ${updated.id} has a new assignee update.`,
+        title: 'Phiếu hỗ trợ đã được cập nhật',
+        content: `Phiếu hỗ trợ ${updated.id} đã được cập nhật người phụ trách.`,
         referenceType: 'support_ticket',
         referenceId: updated.id,
       },
@@ -181,7 +189,7 @@ export class SupportService {
           create: {
             actorId: currentUser.id,
             eventType: SupportTicketEventType.STATUS_CHANGED,
-            content: `Status changed from ${ticket.status} to ${dto.status}`,
+            content: `Trạng thái đã chuyển từ ${supportStatusLabels[ticket.status]} sang ${supportStatusLabels[dto.status]}`,
             metadata: {
               previousStatus: ticket.status,
               nextStatus: dto.status,
@@ -207,8 +215,8 @@ export class SupportService {
         .filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'Support ticket status changed',
-        content: `Support ticket ${updated.id} is now ${updated.status}.`,
+        title: 'Trạng thái phiếu hỗ trợ đã thay đổi',
+        content: `Phiếu hỗ trợ ${updated.id} hiện ${supportStatusLabels[updated.status]}.`,
         referenceType: 'support_ticket',
         referenceId: updated.id,
       },
@@ -248,8 +256,8 @@ export class SupportService {
         .filter((userId) => userId !== currentUser.id),
       {
         type: NotificationType.SYSTEM,
-        title: 'New support ticket note',
-        content: `${currentUser.fullName} added a note to support ticket ${ticket.id}.`,
+        title: 'Phiếu hỗ trợ có ghi chú mới',
+        content: `${currentUser.fullName} đã thêm ghi chú vào phiếu hỗ trợ ${ticket.id}.`,
         referenceType: 'support_ticket',
         referenceId: ticket.id,
       },

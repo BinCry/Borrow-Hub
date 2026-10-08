@@ -83,7 +83,7 @@ export default function QrScreen() {
       ) : (
         <View className="flex-1 items-center justify-center px-6">
           <View className="w-full items-center rounded-3xl border border-border bg-white p-8 shadow-sm">
-            <Text className="mb-6 text-xs font-bold uppercase tracking-widest text-text-secondary">
+            <Text className="mb-6 text-xs font-bold tracking-widest text-text-secondary">
               Mã xác nhận dùng một lần
             </Text>
             <Text accessibilityLiveRegion="polite" className="mb-4 font-bold text-text-primary">

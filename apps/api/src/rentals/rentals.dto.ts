@@ -194,6 +194,12 @@ export class MarkAssetNotReturnedDto {
   @IsString()
   @MaxLength(1000)
   description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  evidenceIds?: string[];
 }
 
 export class RentalListQueryDto {

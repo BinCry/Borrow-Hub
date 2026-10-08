@@ -45,15 +45,15 @@ export default function AdminReviewsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {
-      Alert.alert('Không thể kiểm duyệt', 'Kiểm tra quyền moderator rồi thử lại.');
+      Alert.alert('Không thể kiểm duyệt', 'Kiểm tra quyền kiểm duyệt rồi thử lại.');
     },
   });
 
   const confirmModerate = (review: AdminReview) => {
     const nextStatus: AdminReviewStatus = review.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED';
     Alert.alert(
-      nextStatus === 'HIDDEN' ? 'Ẩn review?' : 'Hiện lại review?',
-      `Review ${review.rating} sao sẽ chuyển sang trạng thái ${nextStatus}.`,
+      nextStatus === 'HIDDEN' ? 'Ẩn đánh giá?' : 'Hiện lại đánh giá?',
+      `Đánh giá ${review.rating} sao sẽ chuyển sang trạng thái ${nextStatus === 'HIDDEN' ? 'đã ẩn' : 'đang hiển thị'}.`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
@@ -76,7 +76,7 @@ export default function AdminReviewsScreen() {
           <ChevronLeft size={28} color={colors.text.primary} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-lg font-bold text-text-primary">
-          Kiểm duyệt review
+          Kiểm duyệt đánh giá
         </Text>
         <TouchableOpacity
           accessibilityLabel="Tải lại"
@@ -93,7 +93,7 @@ export default function AdminReviewsScreen() {
         </View>
       ) : reviewsQuery.isError ? (
         <EmptyState
-          title="Không thể tải review"
+          title="Không thể tải đánh giá"
           description="Kiểm tra kết nối hoặc quyền kiểm duyệt rồi thử lại."
           buttonText="Thử lại"
           onPress={() => void reviewsQuery.refetch()}
@@ -111,13 +111,13 @@ export default function AdminReviewsScreen() {
           }
           ListHeaderComponent={
             <Text className="mb-3 text-sm font-bold text-text-secondary">
-              {reviewsQuery.data?.length ?? 0} review
+              {reviewsQuery.data?.length ?? 0} đánh giá
             </Text>
           }
           ListEmptyComponent={
             <EmptyState
-              title="Chưa có review"
-              description="Review của người dùng sẽ xuất hiện tại đây."
+              title="Chưa có đánh giá"
+              description="Đánh giá của người dùng sẽ xuất hiện tại đây."
               buttonText="Tải lại"
               onPress={() => void reviewsQuery.refetch()}
             />
@@ -163,7 +163,7 @@ function ReviewCard({
           <Text className="mt-3 text-base font-extrabold text-text-primary">
             {review.reviewer?.fullName ?? 'Người đánh giá'} → {review.reviewee?.fullName ?? 'Người nhận'}
           </Text>
-          <Text className="mt-1 text-sm text-text-secondary">Rental: {review.rentalId}</Text>
+          <Text className="mt-1 text-sm text-text-secondary">Mã đơn thuê: {review.rentalId}</Text>
         </View>
         <StatusBadge status={review.status} />
       </View>
@@ -188,7 +188,7 @@ function ReviewCard({
           <>
             <EyeOff size={18} color="white" />
             <Text className="ml-2 font-extrabold text-white">
-              {hidden ? 'Hiện lại review' : 'Ẩn review'}
+              {hidden ? 'Hiện lại đánh giá' : 'Ẩn đánh giá'}
             </Text>
           </>
         )}

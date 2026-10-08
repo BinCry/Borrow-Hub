@@ -21,6 +21,7 @@ import {
   AdminService,
   UpdateReportStatusPayload,
 } from '../../services/admin/admin.service';
+import { getStatusLabel } from '../../utils/status-labels';
 import { colors } from '../../theme/colors';
 
 type ReportFilter = AdminReportStatus | 'ALL';
@@ -36,10 +37,10 @@ const filters: { value: ReportFilter; label: string }[] = [
 
 const actions: { value: AdminReportAction; label: string }[] = [
   { value: 'NONE', label: 'Không hành động' },
-  { value: 'WARN_REPORTED_USER', label: 'Cảnh báo user' },
-  { value: 'SUSPEND_REPORTED_USER', label: 'Khóa user' },
+  { value: 'WARN_REPORTED_USER', label: 'Cảnh báo người dùng' },
+  { value: 'SUSPEND_REPORTED_USER', label: 'Khóa người dùng' },
   { value: 'HIDE_ASSET', label: 'Ẩn tài sản' },
-  { value: 'HIDE_REVIEW', label: 'Ẩn review' },
+  { value: 'HIDE_REVIEW', label: 'Ẩn đánh giá' },
   { value: 'HIDE_CHAT_MESSAGE', label: 'Ẩn tin nhắn' },
 ];
 
@@ -78,7 +79,7 @@ export default function AdminReportsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
     onError: () => {
-      Alert.alert('Không thể xử lý report', 'Kiểm tra quyền hoặc hành động có tương thích target không.');
+      Alert.alert('Không thể xử lý báo cáo', 'Kiểm tra quyền hoặc hành động có phù hợp với đối tượng báo cáo không.');
     },
   });
 
@@ -93,7 +94,7 @@ export default function AdminReportsScreen() {
           <ChevronLeft size={28} color={colors.text.primary} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-lg font-bold text-text-primary">
-          Kiểm duyệt report
+          Kiểm duyệt báo cáo
         </Text>
         <TouchableOpacity
           accessibilityLabel="Tải lại"
@@ -126,7 +127,7 @@ export default function AdminReportsScreen() {
         </View>
       ) : reportsQuery.isError ? (
         <EmptyState
-          title="Không thể tải report"
+          title="Không thể tải báo cáo"
           description="Kiểm tra kết nối hoặc quyền kiểm duyệt rồi thử lại."
           buttonText="Thử lại"
           onPress={() => void reportsQuery.refetch()}
@@ -144,13 +145,13 @@ export default function AdminReportsScreen() {
           }
           ListHeaderComponent={
             <Text className="mb-3 text-sm font-bold text-text-secondary">
-              {reportsQuery.data?.length ?? 0} report
+              {reportsQuery.data?.length ?? 0} báo cáo
             </Text>
           }
           ListEmptyComponent={
             <EmptyState
-              title="Không có report"
-              description="Report phù hợp bộ lọc sẽ xuất hiện tại đây."
+              title="Không có báo cáo"
+              description="Báo cáo phù hợp bộ lọc sẽ xuất hiện tại đây."
               buttonText="Tải lại"
               onPress={() => void reportsQuery.refetch()}
             />
@@ -216,11 +217,11 @@ function ReportCard({
       actionNote: trimmed || undefined,
       resolutionSummary:
         status === 'RESOLVED' || status === 'REJECTED' || status === 'CLOSED'
-          ? trimmed || `Report closed as ${status} from RentLoop admin mobile.`
+          ? trimmed || `Báo cáo đã được xử lý: ${statusLabels[status]}.`
           : undefined,
     };
 
-    Alert.alert('Cập nhật report?', `Report sẽ chuyển sang ${statusLabels[status]}.`, [
+    Alert.alert('Cập nhật báo cáo?', `Báo cáo sẽ chuyển sang ${statusLabels[status]}.`, [
       { text: 'Hủy', style: 'cancel' },
       {
         text: 'Xác nhận',
@@ -240,9 +241,9 @@ function ReportCard({
           <View className="flex-row items-start justify-between">
             <View className="min-w-0 flex-1 pr-3">
               <Text className="text-base font-extrabold text-text-primary">
-                {report.targetType} / {report.reason}
+                {getStatusLabel(report.targetType)} / {report.reason}
               </Text>
-              <Text className="mt-1 text-sm text-text-secondary">Target: {report.targetId}</Text>
+              <Text className="mt-1 text-sm text-text-secondary">Đối tượng: {report.targetId}</Text>
             </View>
             <StatusBadge status={report.status} />
           </View>
@@ -262,7 +263,7 @@ function ReportCard({
 
       {!terminal ? (
         <View className="mt-4 border-t border-border pt-4">
-          <Text className="mb-2 text-xs font-extrabold uppercase text-text-secondary">
+          <Text className="mb-2 text-xs font-extrabold text-text-secondary">
             Hành động khi resolve
           </Text>
           <View className="flex-row flex-wrap gap-2">
@@ -301,7 +302,7 @@ function ReportCard({
               onPress={() => confirmUpdate('UNDER_REVIEW')}
             />
             <ActionButton
-              label="Resolve"
+              label="Giải quyết"
               tone="success"
               disabled={isUpdating}
               onPress={() => confirmUpdate('RESOLVED')}

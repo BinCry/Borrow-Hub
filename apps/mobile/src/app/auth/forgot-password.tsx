@@ -182,7 +182,7 @@ export default function ForgotPasswordScreen() {
                       contentFit="contain"
                     />
                   </View>
-                  <Text className="ml-2.5 text-[11px] font-semibold uppercase tracking-[2.2px] text-primary-dark">
+                  <Text className="ml-2.5 text-[11px] font-semibold tracking-[2.2px] text-primary-dark">
                     RentLoop
                   </Text>
                 </View>
@@ -207,14 +207,14 @@ export default function ForgotPasswordScreen() {
                   {developmentResetToken ? (
                     <View className="mt-5 rounded-2xl border border-warning/30 bg-warning/10 p-4">
                       <Text className="font-bold text-text-primary">
-                        Development mode: SMTP is not configured
+                        Chế độ phát triển: chưa cấu hình gửi email
                       </Text>
                       <Text selectable className="mt-2 text-sm leading-5 text-text-secondary">
-                        Reset token: {developmentResetToken}
+                        Mã đặt lại mật khẩu: {developmentResetToken}
                       </Text>
                       {developmentResetCode ? (
                         <Text selectable className="mt-2 text-sm font-bold leading-5 text-text-primary">
-                          Verification code: {developmentResetCode}
+                          Mã xác nhận: {developmentResetCode}
                         </Text>
                       ) : null}
                       <Pressable
@@ -226,7 +226,7 @@ export default function ForgotPasswordScreen() {
                           })
                         }
                       >
-                        <Text className="font-bold text-white">Open reset page</Text>
+                        <Text className="font-bold text-white">Mở trang đặt lại mật khẩu</Text>
                       </Pressable>
                       {developmentResetCode ? (
                         <Pressable
@@ -238,7 +238,7 @@ export default function ForgotPasswordScreen() {
                             })
                           }
                         >
-                          <Text className="font-bold text-primary-dark">Test with verification code</Text>
+                          <Text className="font-bold text-primary-dark">Thử bằng mã xác nhận</Text>
                         </Pressable>
                       ) : null}
                     </View>
