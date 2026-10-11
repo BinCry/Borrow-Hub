@@ -4,7 +4,7 @@ import { useAssets } from '../../hooks/useAssets';
 import { AssetCard } from '../../components/AssetCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Search, Bell, SlidersHorizontal } from 'lucide-react-native';
+import { Search, Bell, SlidersHorizontal, Sparkles } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -98,6 +98,18 @@ export default function HomeScreen() {
              buttonText="Thử lại"
              onPress={() => refetch()}
           />
+        <TouchableOpacity
+          accessibilityLabel="Mở demo AI xử lý tranh chấp"
+          className="mt-3 flex-row items-center rounded-xl border border-primary/20 bg-white/80 px-3 py-3"
+          onPress={() => router.push('/ai-dispute-demo' as never)}
+        >
+          <View className="rounded-lg bg-primary-soft p-2"><Sparkles size={17} color={colors.primary.DEFAULT} /></View>
+          <View className="ml-3 flex-1">
+            <Text className="font-extrabold text-text-primary">AI hỗ trợ xử lý tranh chấp</Text>
+            <Text className="mt-0.5 text-xs text-text-secondary">Đối chiếu ảnh trước/sau và chờ admin duyệt</Text>
+          </View>
+          <Text className="text-sm font-extrabold text-primary">Mở demo</Text>
+        </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -132,7 +144,7 @@ export default function HomeScreen() {
                 />
                 <View className="absolute inset-0 p-5 justify-end">
                   <Text className="text-white font-extrabold text-xl mb-1">Thuê dễ dàng, dùng thông minh</Text>
-                  <Text className="text-white/90 text-sm font-medium">Đừng quên trả đồ đúng hạn nhé!  </Text>
+                  <Text className="text-white/90 text-sm font-medium">Đừng quên trả đồ đúng hạn nhé! </Text>
                 </View>
               </View>
               

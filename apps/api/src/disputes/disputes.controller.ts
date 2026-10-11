@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { RoleName } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -31,6 +32,25 @@ export class DisputesController {
     @Body() dto: CreateDisputeDto,
   ) {
     return this.disputesService.create(currentUser, dto);
+  }
+
+  @Post('ai-analyze')
+  @UseInterceptors(
+    FilesInterceptor('images', 2, {
+      limits: { files: 2, fileSize: 15 * 1024 * 1024 },
+    }),
+  )
+  analyzeDamageImages(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @UploadedFiles()
+    files: Array<{
+      originalname: string;
+      mimetype: string;
+      size: number;
+      buffer: Buffer;
+    }>,
+  ) {
+    return this.disputesService.analyzeDamageImages(currentUser, files ?? []);
   }
 
   @Roles(

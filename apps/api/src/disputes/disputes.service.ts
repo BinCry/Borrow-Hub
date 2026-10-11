@@ -4,7 +4,9 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   AnalyticsEventType,
   DisputeEventType,
@@ -84,7 +86,218 @@ export class DisputesService {
     private readonly analyticsService: AnalyticsService,
     private readonly notificationsService: NotificationsService,
     private readonly trustScoreService: TrustScoreService,
+    private readonly configService: ConfigService,
   ) {}
+
+  async analyzeDamageImages(
+    _currentUser: AuthenticatedUser,
+    files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>,
+  ) {
+    if (files.length !== 2) {
+      throw new BadRequestException('Exactly two images are required: before and after rental');
+    }
+
+    if (files.some((file) => !file.mimetype.startsWith('image/'))) {
+      throw new BadRequestException('Only image files are supported');
+    }
+
+    const provider = this.configService.get<string>('AI_PROVIDER') ?? 'gemini';
+    if (provider === 'gemini') {
+      return this.analyzeDamageImagesWithGemini(files);
+    }
+    if (provider !== 'openai') {
+      throw new BadRequestException(`Unsupported AI_PROVIDER: ${provider}`);
+    }
+
+    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+    if (!apiKey) {
+      throw new ServiceUnavailableException('OPENAI_API_KEY is not configured on the API server');
+    }
+
+    const imageData = files.map(
+      (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+    );
+    const model = this.configService.get<string>('OPENAI_VISION_MODEL') ?? 'gpt-4o-mini';
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        input: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'input_text',
+                text: [
+                  'Bạn là AI hỗ trợ phân tích tranh chấp tài sản cho nền tảng cho thuê.',
+                  'Ảnh 1 là tình trạng trước khi thuê, ảnh 2 là tình trạng sau khi thuê.',
+                  'Hãy so sánh cùng một tài sản, chỉ kết luận hư hỏng mới khi có bằng chứng hình ảnh rõ ràng.',
+                  'Không được tự quyết định tranh chấp; chỉ đưa ra đề xuất để admin xem xét.',
+                  'Nếu ảnh không cùng tài sản, góc chụp quá khác hoặc không đủ rõ, hãy đặt damaged=false và nêu hạn chế.',
+                ].join(' '),
+              },
+              { type: 'input_image', image_url: imageData[0], detail: 'high' },
+              { type: 'input_image', image_url: imageData[1], detail: 'high' },
+            ],
+          },
+        ],
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'damage_analysis',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                damaged: { type: 'boolean' },
+                confidence: { type: 'number', minimum: 0, maximum: 1 },
+                severity: { type: 'string', enum: ['NONE', 'LOW', 'MEDIUM', 'HIGH'] },
+                summary: { type: 'string' },
+                findings: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      area: { type: 'string' },
+                      issue: { type: 'string' },
+                      confidence: { type: 'number', minimum: 0, maximum: 1 },
+                    },
+                    required: ['area', 'issue', 'confidence'],
+                  },
+                },
+                recommendedAction: { type: 'string' },
+                suggestedCompensation: { type: 'integer', minimum: 0 },
+                limitations: { type: 'array', items: { type: 'string' } },
+              },
+              required: [
+                'damaged',
+                'confidence',
+                'severity',
+                'summary',
+                'findings',
+                'recommendedAction',
+                'suggestedCompensation',
+                'limitations',
+              ],
+            },
+          },
+        },
+      }),
+    });
+
+    const payload = (await response.json()) as {
+      output_text?: string;
+      error?: { message?: string };
+    };
+    if (!response.ok || !payload.output_text) {
+      throw new ServiceUnavailableException(
+        payload.error?.message ?? 'The vision model did not return an analysis',
+      );
+    }
+
+    try {
+      return { model, ...JSON.parse(payload.output_text) };
+    } catch {
+      throw new ServiceUnavailableException('The vision model returned an invalid analysis');
+    }
+  }
+
+  private async analyzeDamageImagesWithGemini(
+    files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>,
+  ) {
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    if (!apiKey) {
+      throw new ServiceUnavailableException('GEMINI_API_KEY is not configured on the API server');
+    }
+
+    const model = this.configService.get<string>('GEMINI_VISION_MODEL') ?? 'gemini-2.5-flash';
+    const prompt = [
+      'Bạn là AI hỗ trợ phân tích tranh chấp tài sản cho nền tảng cho thuê.',
+      'Ảnh 1 là tình trạng trước khi thuê, ảnh 2 là tình trạng sau khi thuê.',
+      'Hãy so sánh cùng một tài sản, chỉ kết luận hư hỏng mới khi có bằng chứng hình ảnh rõ ràng.',
+      'Không được tự quyết định tranh chấp; chỉ đưa ra đề xuất để admin xem xét.',
+      'Nếu ảnh không cùng tài sản, góc chụp quá khác hoặc không đủ rõ, hãy đặt damaged=false và nêu hạn chế.',
+      'Chỉ trả về JSON đúng theo schema được yêu cầu.',
+    ].join(' ');
+    const parts = [
+      { text: prompt },
+      ...files.map((file) => ({
+        inlineData: {
+          mimeType: file.mimetype,
+          data: file.buffer.toString('base64'),
+        },
+      })),
+    ];
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'OBJECT',
+              properties: {
+                damaged: { type: 'BOOLEAN' },
+                confidence: { type: 'NUMBER' },
+                severity: { type: 'STRING', enum: ['NONE', 'LOW', 'MEDIUM', 'HIGH'] },
+                summary: { type: 'STRING' },
+                findings: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      area: { type: 'STRING' },
+                      issue: { type: 'STRING' },
+                      confidence: { type: 'NUMBER' },
+                    },
+                    required: ['area', 'issue', 'confidence'],
+                  },
+                },
+                recommendedAction: { type: 'STRING' },
+                suggestedCompensation: { type: 'INTEGER' },
+                limitations: { type: 'ARRAY', items: { type: 'STRING' } },
+              },
+              required: [
+                'damaged',
+                'confidence',
+                'severity',
+                'summary',
+                'findings',
+                'recommendedAction',
+                'suggestedCompensation',
+                'limitations',
+              ],
+            },
+          },
+        }),
+      },
+    );
+    const payload = (await response.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      error?: { message?: string };
+    };
+    const outputText = payload.candidates?.[0]?.content?.parts?.find((part) => part.text)?.text;
+    if (!response.ok || !outputText) {
+      throw new ServiceUnavailableException(
+        payload.error?.message ?? 'Gemini did not return an analysis',
+      );
+    }
+
+    try {
+      return { model, provider: 'gemini', ...JSON.parse(outputText) };
+    } catch {
+      throw new ServiceUnavailableException('Gemini returned an invalid analysis');
+    }
+  }
 
   async create(currentUser: AuthenticatedUser, dto: CreateDisputeDto) {
     const rental = await this.prisma.rentalRequest.findUnique({

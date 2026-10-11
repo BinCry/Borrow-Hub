@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   DisputeStatus,
   PayoutStatus,
@@ -119,6 +120,7 @@ describe('DisputesService', () => {
       analyticsService as never,
       notificationsService as never,
       trustScoreService as never,
+      new ConfigService(),
     );
   });
 

@@ -314,5 +314,10 @@ export function validateEnv(raw: Record<string, unknown>) {
     ...storageConfig,
     ...sepayConfig,
     ...mailConfig,
+    OPENAI_API_KEY: getString(raw, 'OPENAI_API_KEY'),
+    OPENAI_VISION_MODEL: getString(raw, 'OPENAI_VISION_MODEL') ?? 'gpt-4o-mini',
+    AI_PROVIDER: getString(raw, 'AI_PROVIDER') ?? 'gemini',
+    GEMINI_API_KEY: getString(raw, 'GEMINI_API_KEY'),
+    GEMINI_VISION_MODEL: getString(raw, 'GEMINI_VISION_MODEL') ?? 'gemini-2.5-flash',
   };
 }
