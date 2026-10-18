@@ -82,7 +82,7 @@ export default function ChatScreen() {
           </TouchableOpacity>
           <View className="flex-1">
             <Text className="text-lg font-bold text-text-primary" numberOfLines={1}>
-              {otherUser?.fullName ?? conversation?.rental.asset.title ?? 'Cuộc trò chuyện'}
+              {otherUser?.fullName ?? conversation?.rental?.asset.title ?? 'Cuộc trò chuyện'}
             </Text>
             <View className="mt-0.5 flex-row items-center">
               <ShieldCheck size={12} color={colors.success} />

@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCircle2, ChevronLeft, CreditCard, ShieldCheck, RefreshCw } from 'lucide-react-native';
+import { CheckCircle2, ChevronLeft, CreditCard, RefreshCw } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RentalsService } from '../../../services/rentals/rentals.service';
 import { colors } from '../../../theme/colors';
-import { getPaymentMethodLabel } from '../../../utils/status-labels';
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -45,7 +44,7 @@ export default function PaymentScreen() {
       router.back();
     },
     onError: () => {
-      Alert.alert('Thanh toán thất bại', 'Không thể xử lý thanh toán thử nghiệm.');
+      Alert.alert('Thanh toán thất bại', 'Không thể kiểm tra thanh toán. Vui lòng thử lại.');
     },
   });
 
@@ -71,6 +70,12 @@ export default function PaymentScreen() {
       );
     }
   }, [intentQuery.data, queryClient, router]);
+
+  useEffect(() => {
+    if (intentQuery.isError) {
+      void queryClient.invalidateQueries({ queryKey: ['rentals', 'list'] });
+    }
+  }, [intentQuery.isError, queryClient]);
 
   const intent = intentQuery.data;
   const remaining = intent?.expiresAt
@@ -136,106 +141,33 @@ export default function PaymentScreen() {
             <Text className="font-bold text-white">Về chi tiết đơn thuê</Text>
           </TouchableOpacity>
         </View>
-      ) : intent.paymentProvider === 'SEPAY' ? (
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ padding: 20, paddingBottom: 36 }}
-        >
-          <View className="items-center">
-            <Text className="mb-3 text-sm font-semibold text-text-secondary">
-              Phương thức thanh toán: {getPaymentMethodLabel(intent.paymentProvider)}
-            </Text>
-            <View className="mb-4 flex-row items-center rounded-full bg-primary-soft px-4 py-2">
-              <ShieldCheck size={16} color={colors.primary.DEFAULT} />
-              <Text className="ml-2 font-semibold text-primary">Đối soát tự động qua SePay</Text>
-            </View>
-            <Text className="text-center text-3xl font-extrabold text-text-primary">
-              {currencyFormatter.format(intent.amountDue)}
-            </Text>
-            <Text className="mt-2 text-text-secondary">
-              Thời gian còn lại: {now === 0 ? '--:--' : formatRemaining(remaining)}
-            </Text>
-          </View>
-
-          {intent.qrUrl ? (
-            <View className="mx-auto my-6 overflow-hidden rounded-3xl border border-border bg-white p-3 shadow-sm">
-              <Image
-                source={{ uri: intent.qrUrl }}
-                style={{ width: 280, height: 280 }}
-                contentFit="contain"
-              />
-            </View>
-          ) : null}
-
-          <View className="rounded-2xl border border-border bg-surface p-5">
-            <Text className="mb-4 text-lg font-bold text-text-primary">
-              Thông tin chuyển khoản
-            </Text>
-            <Text className="text-xs tracking-wider text-text-muted">Ngân hàng</Text>
-            <Text className="mb-3 mt-1 font-semibold text-text-primary" selectable>
-              {intent.bankAccount?.bankName}
-            </Text>
-            <Text className="text-xs tracking-wider text-text-muted">Số tài khoản</Text>
-            <View className="mb-3 flex-row items-center">
-              <Text className="flex-1 text-lg font-bold text-primary" selectable>
-                {intent.bankAccount?.accountNumber}
-              </Text>
-              <Text className="text-xs font-semibold text-text-muted">Có thể sao chép</Text>
-            </View>
-            <Text className="text-xs tracking-wider text-text-muted">Chủ tài khoản</Text>
-            <Text className="mb-3 mt-1 font-semibold text-text-primary" selectable>
-              {intent.bankAccount?.accountName}
-            </Text>
-            <Text className="text-xs tracking-wider text-text-muted">Nội dung</Text>
-            <View className="mt-1 flex-row items-center">
-              <Text className="flex-1 text-lg font-extrabold text-primary" selectable>
-                {intent.paymentCode}
-              </Text>
-              <Text className="text-xs font-semibold text-text-muted">Mã chuyển khoản</Text>
-            </View>
-          </View>
-
-          <Text className="mt-5 text-center leading-5 text-text-secondary">
-            Giữ nguyên số tiền và nội dung chuyển khoản. Trạng thái đơn sẽ tự cập nhật sau khi ngân hàng xác nhận.
-          </Text>
-          <TouchableOpacity
-            className="mt-5 min-h-14 flex-row items-center justify-center rounded-xl border border-primary bg-primary-soft"
-            disabled={isCheckingPayment}
-            onPress={() => void checkPayment()}
-          >
-            {isCheckingPayment ? <ActivityIndicator color={colors.primary.DEFAULT} /> : <RefreshCw size={18} color={colors.primary.DEFAULT} />}
-            <Text className="ml-2 flex-1 text-center font-bold text-primary">Tôi đã chuyển khoản, kiểm tra trạng thái</Text>
-          </TouchableOpacity>
-        </ScrollView>
       ) : (
-        <View className="flex-1 items-center justify-center px-6">
-          <CreditCard size={64} color={colors.primary.DEFAULT} />
-          <Text className="mt-4 text-sm font-semibold text-text-secondary">
-            Phương thức thanh toán: {getPaymentMethodLabel(intent.paymentProvider)}
-          </Text>
-          <Text className="mt-3 text-2xl font-bold text-text-primary">
-            Thanh toán thử nghiệm
-          </Text>
-          <Text className="mt-2 text-center leading-6 text-text-secondary">
-            Thanh toán thử nghiệm chỉ được bật trong môi trường phát triển và không phát sinh giao dịch thật.
-          </Text>
-          <Text className="mt-6 text-3xl font-extrabold text-primary">
+        <ScrollView className="flex-1" contentContainerStyle={{ alignItems: 'center', padding: 20, paddingBottom: 36 }}>
+          <Text className="mt-2 text-lg font-bold text-text-primary">Thanh toán đơn thuê</Text>
+          <Text className="mt-2 text-sm text-text-secondary">Số tiền cần thanh toán</Text>
+          <Text className="mt-2 text-3xl font-extrabold text-primary">
             {currencyFormatter.format(intent.amountDue)}
           </Text>
+          <View className="mt-5 w-full overflow-hidden rounded-3xl border border-border bg-white p-2">
+            <Image
+              source={require('../../../../assets/images/qr-vietqr-sepay.png')}
+              style={{ width: '100%', aspectRatio: 540 / 660 }}
+              contentFit="contain"
+              accessibilityLabel="Mã QR SePay"
+            />
+          </View>
+          <Text className="mt-4 text-center text-sm text-text-secondary">
+            Thời gian còn lại: {now === 0 ? '--:--' : formatRemaining(remaining)}
+          </Text>
           <TouchableOpacity
-            className={`mt-8 min-h-14 w-full items-center justify-center rounded-xl bg-primary ${
-              sandboxMutation.isPending ? 'opacity-70' : ''
-            }`}
-            disabled={sandboxMutation.isPending}
-            onPress={() => sandboxMutation.mutate()}
+            className="mt-6 min-h-14 w-full flex-row items-center justify-center rounded-xl bg-primary px-4"
+            onPress={() => intent.paymentProvider === 'SEPAY' ? void checkPayment() : sandboxMutation.mutate()}
+            disabled={sandboxMutation.isPending || isCheckingPayment}
           >
-            {sandboxMutation.isPending ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="text-lg font-bold text-white">Xác nhận thanh toán thử nghiệm</Text>
-            )}
+            {sandboxMutation.isPending || isCheckingPayment ? <ActivityIndicator color="white" /> : <RefreshCw size={18} color="white" />}
+            <Text className="ml-2 text-center font-bold text-white">Kiểm tra thanh toán</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       )}
     </SafeAreaView>
   );

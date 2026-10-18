@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Camera, LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, LayoutDashboard, Megaphone, Heart } from 'lucide-react-native';
+import { Camera, LogOut, User, Settings, ShieldCheck, List, PlusCircle, HelpCircle, ChevronRight, LayoutDashboard, Megaphone, Heart, WalletCards } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../services/api/client';
 import { User as UserType } from '../../types/domain';
@@ -38,6 +38,7 @@ export default function ProfileScreen() {
       ['my-assets'],
       ['favorites'],
       ['rentals'],
+      ['owner'],
       ['conversations'],
       ['notifications'],
       ['messages'],
@@ -71,6 +72,9 @@ export default function ProfileScreen() {
         queryClient.invalidateQueries({ queryKey: ['my-assets'] }),
         queryClient.invalidateQueries({ queryKey: ['public-profile'] }),
         queryClient.invalidateQueries({ queryKey: ['favorites'] }),
+        queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+        queryClient.invalidateQueries({ queryKey: ['rentals'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin'] }),
       ]);
       Alert.alert('Đã cập nhật ảnh đại diện', 'Ảnh đại diện mới đã được lưu.');
     } catch {
@@ -225,6 +229,13 @@ export default function ProfileScreen() {
                   <View className="flex-row items-center">
                     <List size={22} color={colors.primary.DEFAULT} className="mr-3" />
                     <Text className="font-semibold text-text-primary text-base">Quản lý bài đăng</Text>
+                  </View>
+                  <ChevronRight size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+                <TouchableOpacity className="px-5 py-4 flex-row justify-between items-center border-t border-gray-100" onPress={() => router.push('/profile/earnings' as any)}>
+                  <View className="flex-row items-center">
+                    <WalletCards size={22} color={colors.primary.DEFAULT} className="mr-3" />
+                    <Text className="font-semibold text-text-primary text-base">Doanh thu cho thuê</Text>
                   </View>
                   <ChevronRight size={20} color="#9CA3AF" />
                 </TouchableOpacity>

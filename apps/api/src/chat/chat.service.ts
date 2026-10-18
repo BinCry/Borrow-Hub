@@ -55,6 +55,12 @@ export class ChatService {
     currentUser: AuthenticatedUser,
     dto: CreateConversationDto,
   ) {
+    if (Boolean(dto.rentalId) === Boolean(dto.recipientId)) {
+      throw new BadRequestException('Provide either rentalId or recipientId');
+    }
+    if (dto.recipientId) {
+      return this.createDirectConversation(currentUser, dto.recipientId);
+    }
     const rental = await this.prisma.rentalRequest.findUnique({
       where: { id: dto.rentalId },
       include: {
@@ -99,7 +105,9 @@ export class ChatService {
     );
 
     const messages = await this.prisma.message.findMany({
-      where: { conversation: { rental: participantPairWhere(conversation.rental) } },
+      where: conversation.rental
+        ? { conversation: { rental: participantPairWhere(conversation.rental) } }
+        : { conversationId: conversation.id },
       include: {
         conversation: { select: { rentalId: true } },
         sender: {
@@ -254,7 +262,7 @@ export class ChatService {
         metadata: {
           conversationId: conversation.id,
           rentalId: conversation.rentalId,
-          assetId: conversation.rental.asset.id,
+          assetId: conversation.rental?.asset.id ?? null,
         },
         referenceType: 'conversation',
         referenceId: conversation.id,
@@ -312,6 +320,8 @@ export class ChatService {
       throw new ForbiddenException('You cannot access this conversation');
     }
 
+    if (!conversation.rental) return conversation;
+
     const threads = await this.prisma.conversation.findMany({
       where: { rental: participantPairWhere(conversation.rental) },
       include: this.conversationInclude(),
@@ -321,6 +331,27 @@ export class ChatService {
 
   private conversationInclude() {
     return conversationInclude;
+  }
+
+  private async createDirectConversation(currentUser: AuthenticatedUser, recipientId: string) {
+    if (recipientId === currentUser.id) {
+      throw new BadRequestException('You cannot message yourself');
+    }
+    const recipient = await this.prisma.user.findUnique({ where: { id: recipientId }, select: { status: true } });
+    if (!recipient || recipient.status !== 'ACTIVE') {
+      throw new NotFoundException('User is unavailable');
+    }
+    const pair = [currentUser.id, recipientId].sort();
+    const conversation = await this.prisma.conversation.upsert({
+      where: { directKey: JSON.stringify(pair) },
+      update: {},
+      create: {
+        directKey: JSON.stringify(pair),
+        members: { create: pair.map((userId) => ({ userId })) },
+      },
+      include: this.conversationInclude(),
+    });
+    return conversation;
   }
 
   private isStaff(currentUser: AuthenticatedUser) {

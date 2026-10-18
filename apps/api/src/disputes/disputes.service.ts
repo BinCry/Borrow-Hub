@@ -3,10 +3,14 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import sharp from 'sharp';
 import {
   AnalyticsEventType,
   DisputeEventType,
@@ -23,9 +27,11 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 import { TrustScoreService } from '../trust-score/trust-score.service';
 import {
   AcceptDamageReportDto,
+  AnalyzeDisputeImagesDto,
   AssignDisputeDto,
   CreateDisputeDto,
   DisputeQueryDto,
@@ -79,7 +85,11 @@ const ALLOWED_DISPUTE_TRANSITIONS: Record<DisputeStatus, DisputeStatus[]> = {
 };
 
 @Injectable()
-export class DisputesService {
+export class DisputesService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(DisputesService.name);
+  private analysisTimer?: NodeJS.Timeout;
+  private isProcessingAnalyses = false;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
@@ -87,10 +97,21 @@ export class DisputesService {
     private readonly notificationsService: NotificationsService,
     private readonly trustScoreService: TrustScoreService,
     private readonly configService: ConfigService,
+    private readonly storageService: StorageService,
   ) {}
 
+  onModuleInit() {
+    void this.processAutomaticAnalyses();
+    this.analysisTimer = setInterval(() => void this.processAutomaticAnalyses(), 20_000);
+    this.analysisTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.analysisTimer) clearInterval(this.analysisTimer);
+  }
+
   async analyzeDamageImages(
-    _currentUser: AuthenticatedUser,
+    _currentUser: AuthenticatedUser | null,
     files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>,
   ) {
     if (files.length !== 2) {
@@ -104,6 +125,9 @@ export class DisputesService {
     const provider = this.configService.get<string>('AI_PROVIDER') ?? 'gemini';
     if (provider === 'gemini') {
       return this.analyzeDamageImagesWithGemini(files);
+    }
+    if (provider === 'groq') {
+      return this.analyzeDamageImagesWithGroq(files);
     }
     if (provider !== 'openai') {
       throw new BadRequestException(`Unsupported AI_PROVIDER: ${provider}`);
@@ -134,7 +158,7 @@ export class DisputesService {
                 type: 'input_text',
                 text: [
                   'Bạn là AI hỗ trợ phân tích tranh chấp tài sản cho nền tảng cho thuê.',
-                  'Ảnh 1 là tình trạng trước khi thuê, ảnh 2 là tình trạng sau khi thuê.',
+                  'Ảnh 1 là ảnh sản phẩm do chủ đăng trong bài, ảnh 2 là ảnh bằng chứng sau khi thuê. Ảnh bài đăng không chứng minh chắc tình trạng lúc bàn giao.',
                   'Hãy so sánh cùng một tài sản, chỉ kết luận hư hỏng mới khi có bằng chứng hình ảnh rõ ràng.',
                   'Không được tự quyết định tranh chấp; chỉ đưa ra đề xuất để admin xem xét.',
                   'Nếu ảnh không cùng tài sản, góc chụp quá khác hoặc không đủ rõ, hãy đặt damaged=false và nêu hạn chế.',
@@ -216,10 +240,10 @@ export class DisputesService {
       throw new ServiceUnavailableException('GEMINI_API_KEY is not configured on the API server');
     }
 
-    const model = this.configService.get<string>('GEMINI_VISION_MODEL') ?? 'gemini-2.5-flash';
+    const model = this.configService.get<string>('GEMINI_VISION_MODEL') ?? 'gemini-3.8-flash';
     const prompt = [
       'Bạn là AI hỗ trợ phân tích tranh chấp tài sản cho nền tảng cho thuê.',
-      'Ảnh 1 là tình trạng trước khi thuê, ảnh 2 là tình trạng sau khi thuê.',
+      'Ảnh 1 là ảnh sản phẩm do chủ đăng trong bài, ảnh 2 là ảnh bằng chứng sau khi thuê. Ảnh bài đăng không chứng minh chắc tình trạng lúc bàn giao.',
       'Hãy so sánh cùng một tài sản, chỉ kết luận hư hỏng mới khi có bằng chứng hình ảnh rõ ràng.',
       'Không được tự quyết định tranh chấp; chỉ đưa ra đề xuất để admin xem xét.',
       'Nếu ảnh không cùng tài sản, góc chụp quá khác hoặc không đủ rõ, hãy đặt damaged=false và nêu hạn chế.',
@@ -296,6 +320,102 @@ export class DisputesService {
       return { model, provider: 'gemini', ...JSON.parse(outputText) };
     } catch {
       throw new ServiceUnavailableException('Gemini returned an invalid analysis');
+    }
+  }
+
+  private async analyzeDamageImagesWithGroq(
+    files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>,
+  ) {
+    const apiKey = this.configService.get<string>('GROQ_API_KEY');
+    if (!apiKey) {
+      throw new ServiceUnavailableException('GROQ_API_KEY is not configured on the API server');
+    }
+
+    const model = this.configService.get<string>('GROQ_VISION_MODEL') ?? 'meta-llama/llama-4-scout-17b-16e-instruct';
+    const imageData = files.map((file) => ({
+      type: 'image_url',
+      image_url: {
+        url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+      },
+    }));
+    const schema = {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        damaged: { type: 'boolean' },
+        confidence: { type: 'number', minimum: 0, maximum: 1 },
+        severity: { type: 'string', enum: ['NONE', 'LOW', 'MEDIUM', 'HIGH'] },
+        summary: { type: 'string' },
+        findings: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              area: { type: 'string' },
+              issue: { type: 'string' },
+              confidence: { type: 'number', minimum: 0, maximum: 1 },
+            },
+            required: ['area', 'issue', 'confidence'],
+          },
+        },
+        recommendedAction: { type: 'string' },
+        suggestedCompensation: { type: 'integer', minimum: 0 },
+        limitations: { type: 'array', items: { type: 'string' } },
+      },
+      required: [
+        'damaged',
+        'confidence',
+        'severity',
+        'summary',
+        'findings',
+        'recommendedAction',
+        'suggestedCompensation',
+        'limitations',
+      ],
+    };
+    const prompt = [
+      'Bạn là AI hỗ trợ phân tích tranh chấp tài sản cho nền tảng cho thuê.',
+      'Ảnh đầu tiên là ảnh sản phẩm do chủ đăng trong bài, ảnh thứ hai là ảnh bằng chứng sau khi thuê. Ảnh bài đăng không chứng minh chắc tình trạng lúc bàn giao.',
+      'Hãy so sánh cùng một tài sản, chỉ kết luận hư hỏng mới khi có bằng chứng hình ảnh rõ ràng.',
+      'Không tự quyết định tranh chấp; chỉ đưa ra đề xuất để admin xem xét.',
+      'Nếu ảnh không cùng tài sản, góc chụp quá khác hoặc không đủ rõ, đặt damaged=false và nêu hạn chế.',
+      'Chỉ trả về JSON theo schema.',
+    ].join(' ');
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        messages: [{
+          role: 'user',
+          content: [{ type: 'text', text: prompt }, ...imageData],
+        }],
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'damage_analysis', strict: true, schema },
+        },
+      }),
+    });
+    const payload = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+      error?: { message?: string };
+    };
+    const outputText = payload.choices?.[0]?.message?.content;
+    if (!response.ok || !outputText) {
+      throw new ServiceUnavailableException(
+        payload.error?.message ?? 'Groq did not return an analysis',
+      );
+    }
+
+    try {
+      return { model, provider: 'groq', ...JSON.parse(outputText) };
+    } catch {
+      throw new ServiceUnavailableException('Groq returned an invalid analysis');
     }
   }
 
@@ -456,6 +576,147 @@ export class DisputesService {
 
   async getById(disputeId: string, currentUser: AuthenticatedUser) {
     return this.findAccessibleDispute(disputeId, currentUser);
+  }
+
+  async analyzeForDispute(
+    disputeId: string,
+    currentUser: AuthenticatedUser,
+    dto: AnalyzeDisputeImagesDto,
+  ) {
+    this.assertDisputeManager(currentUser);
+    await this.findAccessibleDispute(disputeId, currentUser);
+    return this.analyzeSelectedImages(disputeId, dto, currentUser.id);
+  }
+
+  private async analyzeSelectedImages(
+    disputeId: string,
+    dto: AnalyzeDisputeImagesDto,
+    actorId: string | null,
+  ) {
+    const dispute = await this.prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: this.disputeInclude(),
+    });
+    if (!dispute) throw new NotFoundException('Dispute not found');
+    this.ensureMutable(dispute.status);
+
+    const before = dispute.rental.asset.images.find((image) => image.id === dto.assetImageId);
+    const after = dispute.evidences.find((item) => item.evidenceId === dto.evidenceId)?.evidence;
+    if (!before?.fileKey || !after?.fileKey || after.type !== 'PHOTO') {
+      throw new BadRequestException('Select a listing image and a dispute photo stored in the app');
+    }
+
+    const imageBuffers = await Promise.all([
+      this.storageService.readAssetImage(before.fileKey),
+      this.storageService.readAssetImage(after.fileKey),
+    ]);
+    const files = await Promise.all(imageBuffers.map(async (buffer, index) => {
+      if (buffer.length > 15 * 1024 * 1024) {
+        throw new BadRequestException('Image exceeds the size limit');
+      }
+      try {
+        const normalized = await sharp(buffer)
+          .rotate()
+          .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 85 })
+          .toBuffer();
+        return {
+          originalname: index === 0 ? 'listing-before.jpg' : 'dispute-after.jpg',
+          mimetype: 'image/jpeg',
+          size: normalized.length,
+          buffer: normalized,
+        };
+      } catch {
+        throw new BadRequestException('One of the selected files is not a readable image');
+      }
+    }));
+
+    const analysis = await this.analyzeDamageImages(null, files);
+    const current = await this.prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: this.disputeInclude(),
+    });
+    if (!current) throw new NotFoundException('Dispute not found');
+    this.ensureMutable(current.status);
+
+    await this.prisma.disputeEvent.create({
+      data: {
+        disputeId,
+        actorId,
+        eventType: DisputeEventType.NOTE,
+        content: 'AI đã so sánh ảnh trước và sau, đưa ra đề xuất để quản trị viên xem xét.',
+        metadata: JSON.parse(JSON.stringify({
+          kind: 'AI_DAMAGE_ANALYSIS',
+          assetImageId: before.id,
+          evidenceId: after.id,
+          result: analysis,
+        })) as Prisma.InputJsonValue,
+      },
+    });
+
+    return this.prisma.dispute.findUniqueOrThrow({
+      where: { id: disputeId },
+      include: this.disputeInclude(),
+    });
+  }
+
+  private async processAutomaticAnalyses() {
+    if (this.isProcessingAnalyses) return;
+    this.isProcessingAnalyses = true;
+    try {
+      const disputes = await this.prisma.dispute.findMany({
+        where: { reason: 'RETURN_ISSUE', status: { in: ACTIVE_DISPUTE_STATUSES } },
+        include: this.disputeInclude(),
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      for (const dispute of disputes) {
+        const before = dispute.rental.asset.images.find((image) => image.isCover && image.fileKey)
+          ?? dispute.rental.asset.images.find((image) => image.fileKey);
+        const after = [...dispute.evidences]
+          .filter((item) => item.evidence.type === 'PHOTO' && item.evidence.fileKey)
+          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())[0];
+        if (!before || !after) continue;
+
+        const matchingEvents = dispute.events.filter((event) => {
+          const metadata = event.metadata as Record<string, unknown> | null;
+          return metadata?.assetImageId === before.id && metadata?.evidenceId === after.evidenceId;
+        });
+        if (matchingEvents.some((event) => (event.metadata as Record<string, unknown> | null)?.kind === 'AI_DAMAGE_ANALYSIS')) continue;
+
+        const failed = matchingEvents.filter((event) => (event.metadata as Record<string, unknown> | null)?.kind === 'AI_ANALYSIS_FAILED');
+        if (failed.length >= 3) continue;
+        const lastFailed = failed.at(-1);
+        if (lastFailed && Date.now() - lastFailed.createdAt.getTime() < failed.length * 60_000) continue;
+
+        try {
+          await this.analyzeSelectedImages(dispute.id, {
+            assetImageId: before.id,
+            evidenceId: after.evidenceId,
+          }, null);
+        } catch (error) {
+          this.logger.warn(`AI analysis failed for dispute ${dispute.id}: ${error instanceof Error ? error.message : String(error)}`);
+          await this.prisma.disputeEvent.create({
+            data: {
+              disputeId: dispute.id,
+              eventType: DisputeEventType.NOTE,
+              content: 'AI chưa thể phân tích ảnh. Hệ thống sẽ thử lại; admin vẫn có thể xem bằng chứng.',
+              metadata: {
+                kind: 'AI_ANALYSIS_FAILED',
+                assetImageId: before.id,
+                evidenceId: after.evidenceId,
+                attempt: failed.length + 1,
+              },
+            },
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Cannot process dispute analyses: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.isProcessingAnalyses = false;
+    }
   }
 
   async respond(
@@ -982,7 +1243,7 @@ export class DisputesService {
     return {
       rental: {
         include: {
-          asset: true,
+          asset: { include: { images: { orderBy: { sortOrder: 'asc' as const } } } },
           owner: {
             select: {
               id: true,

@@ -136,6 +136,11 @@ export const RentalsService = {
     return mapRental(response.data);
   },
 
+  async confirmDemoPayment(id: string): Promise<Rental> {
+    const response = await apiClient.post<ApiRental>(`/rentals/${id}/pay-demo/confirm`, {});
+    return mapRental(response.data);
+  },
+
   async reportIssue(id: string, payload: ReportIssuePayload): Promise<unknown> {
     const response = await apiClient.post(`/rentals/${id}/report-issue`, payload);
     return response.data;

@@ -334,8 +334,8 @@ export default function RentalDetailScreen() {
         </Section>
 
         <Section title="Người liên quan" icon={UserRound}>
-          <PartyLine label="Chủ tài sản" name={rental.owner?.fullName ?? rental.ownerId} />
-          <PartyLine label="Người thuê" name={rental.renter?.fullName ?? rental.renterId} />
+          <PartyLine label="Chủ tài sản" name={rental.owner?.fullName ?? rental.ownerId} userId={rental.ownerId} />
+          <PartyLine label="Người thuê" name={rental.renter?.fullName ?? rental.renterId} userId={rental.renterId} />
         </Section>
 
         <Section title="Thông tin kỹ thuật" icon={Clock}>
@@ -476,11 +476,11 @@ function InfoLine({ label, value, strong = false }: { label: string; value: stri
   );
 }
 
-function PartyLine({ label, name }: { label: string; name: string }) {
+function PartyLine({ label, name, userId }: { label: string; name: string; userId: string }) {
   return (
     <View className="mb-3 flex-row items-center rounded-xl bg-surface-secondary p-3">
       <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
-        <UserRound size={19} color={colors.primary.DEFAULT} />
+        <UserAvatar userId={userId} />
       </View>
       <View className="min-w-0 flex-1">
         <Text className="text-xs font-bold text-text-secondary">{label}</Text>
@@ -540,3 +540,4 @@ function ActionButton({
     </TouchableOpacity>
   );
 }
+import { UserAvatar } from '../../components/UserAvatar';

@@ -20,6 +20,7 @@ import { apiClient } from '../../../services/api/client';
 import { Dispute, DisputesService } from '../../../services/disputes/disputes.service';
 import { RentalsService } from '../../../services/rentals/rentals.service';
 import { getStatusLabel } from '../../../utils/status-labels';
+import { parseThousandsVnd } from '../../../utils/money-input';
 
 type Mode = 'damage' | 'not-returned' | undefined;
 
@@ -52,6 +53,7 @@ export default function RentalDisputeScreen() {
   });
   const [description, setDescription] = useState('');
   const [estimate, setEstimate] = useState('');
+  const parsedEstimate = parseThousandsVnd(estimate);
   const [response, setResponse] = useState('');
   const [evidenceImages, setEvidenceImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
 
@@ -88,7 +90,7 @@ export default function RentalDisputeScreen() {
       if (mode === 'damage') {
         return RentalsService.reportIssue(rentalId, {
           description: description.trim(),
-          ...(estimate.trim() ? { repairEstimate: Number(estimate) } : {}),
+          ...(estimate.trim() && parsedEstimate !== null ? { repairEstimate: parsedEstimate } : {}),
           ...(evidenceIds.length ? { evidenceIds } : {}),
         });
       }
@@ -147,15 +149,28 @@ export default function RentalDisputeScreen() {
           />
           <EvidencePicker images={evidenceImages} setImages={setEvidenceImages} />
           {isDamage ? (
-            <TextInput
-              className="mt-3 rounded-xl border border-border bg-surface px-4 py-3 text-text-primary"
-              keyboardType="numeric"
-              placeholder="Chi phí sửa chữa (không bắt buộc)"
-              value={estimate}
-              onChangeText={setEstimate}
-            />
+            <View>
+              <Text className="mt-3 text-sm font-semibold text-text-primary">Chi phí sửa chữa dự kiến (nghìn VND, không bắt buộc)</Text>
+              <TextInput
+                className="mt-3 rounded-xl border border-border bg-surface px-4 py-3 text-text-primary"
+                keyboardType="decimal-pad"
+                placeholder="Chi phí sửa chữa (nghìn VND, không bắt buộc)"
+                value={estimate}
+                onChangeText={setEstimate}
+              />
+              {estimate.trim() ? <Text className="mt-1 text-xs text-text-secondary">
+                {parsedEstimate === null ? 'Nhập số hợp lệ, tối đa 3 chữ số sau dấu phẩy.' : `Tương đương ${parsedEstimate.toLocaleString('vi-VN')}đ`}
+              </Text> : null}
+            </View>
           ) : null}
-          <PrimaryButton label="Gửi tranh chấp" disabled={!description.trim() || issueMutation.isPending} onPress={() => issueMutation.mutate()} />
+          <PrimaryButton label="Gửi tranh chấp" disabled={!description.trim() || issueMutation.isPending}
+            onPress={() => {
+              if (isDamage && estimate.trim() && parsedEstimate === null) {
+                Alert.alert('Chi phí không hợp lệ', 'Nhập chi phí sửa chữa theo nghìn VND.');
+                return;
+              }
+              issueMutation.mutate();
+            }} />
         </ScrollView>
       </SafeAreaView>
     );

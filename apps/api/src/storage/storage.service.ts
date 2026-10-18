@@ -28,6 +28,11 @@ export class StorageService {
     });
   }
 
+  readAssetImage(key: string) {
+    const normalizedKey = key.startsWith('assets/') ? key : `assets/${key}`;
+    return this.assetProvider.readFile(normalizedKey);
+  }
+
   uploadSensitiveDocument(key: string, buffer: Buffer, mimeType: string) {
     return this.sensitiveProvider.uploadFile(`secure/${key}`, buffer, {
       contentType: mimeType,

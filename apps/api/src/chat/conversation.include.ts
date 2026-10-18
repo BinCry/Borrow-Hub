@@ -33,7 +33,9 @@ type Conversation = Prisma.ConversationGetPayload<{ include: typeof conversation
 export function groupConversations(conversations: Conversation[]) {
   const groups = new Map<string, Conversation[]>();
   for (const conversation of conversations) {
-    const key = JSON.stringify([conversation.rental.ownerId, conversation.rental.renterId].sort());
+    const key = conversation.rental
+      ? JSON.stringify([conversation.rental.ownerId, conversation.rental.renterId].sort())
+      : `direct:${conversation.id}`;
     groups.set(key, [...(groups.get(key) ?? []), conversation]);
   }
   return [...groups.values()].map((threads) => {

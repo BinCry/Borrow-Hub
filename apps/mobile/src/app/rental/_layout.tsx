@@ -5,6 +5,7 @@ export default function RentalLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="[id]" />
       <Stack.Screen name="[id]/payment" />
+      <Stack.Screen name="[id]/payment-demo-confirm" />
       <Stack.Screen name="[id]/contract" />
       <Stack.Screen name="[id]/handover" />
       <Stack.Screen name="[id]/qr" />

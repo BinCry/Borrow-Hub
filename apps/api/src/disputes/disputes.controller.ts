@@ -6,6 +6,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-request.interface';
 import {
   AcceptDamageReportDto,
+  AnalyzeDisputeImagesDto,
   AssignDisputeDto,
   CreateDisputeDto,
   DisputeQueryDto,
@@ -51,6 +52,16 @@ export class DisputesController {
     }>,
   ) {
     return this.disputesService.analyzeDamageImages(currentUser, files ?? []);
+  }
+
+  @Roles(RoleName.DISPUTE_OFFICER, RoleName.CUSTOMER_SUPPORT, RoleName.ADMIN, RoleName.SUPER_ADMIN)
+  @Post(':disputeId/ai-analyze')
+  analyzeForDispute(
+    @Param('disputeId') disputeId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: AnalyzeDisputeImagesDto,
+  ) {
+    return this.disputesService.analyzeForDispute(disputeId, currentUser, dto);
   }
 
   @Roles(

@@ -680,6 +680,37 @@ export class RentalsService {
     );
   }
 
+  async confirmDemoPayment(rentalId: string, currentUser: AuthenticatedUser) {
+    if (
+      this.configService?.get<string>('NODE_ENV') === 'production' ||
+      !this.configService?.get<boolean>('PAYMENT_DEMO_ENABLED')
+    ) {
+      throw new ForbiddenException('Demo payment confirmation is disabled');
+    }
+
+    const rental = await this.findAccessibleRental(rentalId, currentUser);
+    if (rental.status !== RentalStatus.AWAITING_PAYMENT) {
+      throw new ConflictException('Rental is not awaiting payment');
+    }
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        rentalId,
+        provider: PaymentProvider.SANDBOX,
+        status: PaymentStatus.PENDING,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!payment) {
+      throw new NotFoundException('Demo payment QR is unavailable or expired');
+    }
+
+    return this.settleVerifiedPayment(payment.id, `demo-scan:${payment.id}`, {
+      sandbox: true,
+      confirmedBy: currentUser.id,
+      confirmationType: 'qr-scan-demo',
+    });
+  }
+
   async settleVerifiedPayment(
     paymentId: string,
     providerTransactionId: string,
@@ -2107,6 +2138,12 @@ export class RentalsService {
   }
 
   private getConfiguredPaymentProvider() {
+    if (
+      this.configService?.get<boolean>('PAYMENT_DEMO_ENABLED') &&
+      this.configService?.get<string>('NODE_ENV') !== 'production'
+    ) {
+      return PaymentProvider.SANDBOX;
+    }
     return this.configService?.get<boolean>('SEPAY_ENABLED')
       ? PaymentProvider.SEPAY
       : PaymentProvider.SANDBOX;

@@ -24,6 +24,6 @@ test('uses delivery-specific wording rather than handover event wording', () => 
 
 test('localizes payment methods', () => {
   expect(getPaymentMethodLabel('SEPAY')).toBe('Chuyển khoản ngân hàng');
-  expect(getPaymentMethodLabel('SANDBOX')).toBe('Thanh toán thử nghiệm');
+  expect(getPaymentMethodLabel('SANDBOX')).toBe('Thanh toán qua QR');
   expect(getPaymentMethodLabel('BANK_TRANSFER')).toBe('Chuyển khoản ngân hàng');
 });

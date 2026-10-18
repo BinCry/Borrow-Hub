@@ -1,11 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, ShieldCheck, User } from 'lucide-react-native';
 import { apiClient } from '../../services/api/client';
 import { colors } from '../../theme/colors';
+import { ChatService } from '../../services/chat/chat.service';
+import { useAuthStore } from '../../store/authStore';
 
 type PublicProfile = {
   id: string;
@@ -37,6 +39,22 @@ export default function PublicProfileScreen() {
     enabled: Boolean(id),
   });
   const profile = profileQuery.data;
+  const queryClient = useQueryClient();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => (await apiClient.get<{ id: string }>('/auth/me')).data,
+    enabled: isAuthenticated,
+  });
+  const consultation = useMutation({
+    mutationFn: () => ChatService.startConsultation(id),
+    onSuccess: (conversation) => {
+      queryClient.setQueryData(['conversations', conversation.id], conversation);
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      router.push(`/chat/${conversation.id}`);
+    },
+    onError: () => Alert.alert('Không thể mở cuộc trò chuyện', 'Vui lòng thử lại sau.'),
+  });
   const verificationStatus = profile?.verificationStatus
     ?? (profile?.isVerified === true ? 'VERIFIED' : profile?.isVerified === false ? 'NOT_STARTED' : undefined);
   const verificationLabel = verificationStatus === 'VERIFIED'
@@ -74,6 +92,15 @@ export default function PublicProfileScreen() {
             {profile.avatarUrl ? <Image source={{ uri: profile.avatarUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <User size={42} color={colors.primary.DEFAULT} />}
           </View>
           <Text className="mt-4 text-2xl font-extrabold text-text-primary">{profile.fullName}</Text>
+          {meQuery.data?.id !== profile.id ? (
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Nhắn tin tư vấn"
+              disabled={consultation.isPending || (isAuthenticated && !meQuery.data)}
+              className="mt-4 min-h-12 justify-center rounded-xl bg-primary px-6"
+              onPress={() => isAuthenticated ? consultation.mutate() : router.push('/auth/login')}>
+              {consultation.isPending ? <ActivityIndicator color="white" /> :
+                <Text className="font-bold text-white">Nhắn tin tư vấn</Text>}
+            </TouchableOpacity>
+          ) : null}
           <View className="mt-2 flex-row items-center rounded-full bg-primary-soft px-3 py-1.5">
             <ShieldCheck size={16} color={colors.success} />
             <Text className="ml-1.5 font-semibold text-success">Điểm uy tín {profile.trustScore ?? 0}</Text>

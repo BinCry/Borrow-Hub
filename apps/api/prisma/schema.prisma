@@ -814,10 +814,11 @@ model Review {
 
 model Conversation {
   id        String               @id @default(cuid())
-  rentalId  String               @unique @map("rental_id")
+  rentalId  String?              @unique @map("rental_id")
+  directKey String?              @unique @map("direct_key")
   createdAt DateTime             @default(now()) @map("created_at")
   updatedAt DateTime             @updatedAt @map("updated_at")
-  rental    RentalRequest        @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  rental    RentalRequest?       @relation(fields: [rentalId], references: [id], onDelete: Cascade)
   members   ConversationMember[]
   messages  Message[]
 

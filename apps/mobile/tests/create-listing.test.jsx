@@ -12,6 +12,7 @@ const mockRouter = {
 
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
+  useLocalSearchParams: () => ({}),
 }));
 
 jest.mock('expo-image-picker', () => ({
@@ -68,23 +69,13 @@ test('blocks listing creation until identity is verified', async () => {
 });
 
 test('verified users can upload images and create a listing', async () => {
-  apiClient.get
-    .mockResolvedValueOnce({
-      data: {
-        id: 'user-1',
-        fullName: 'Demo User',
-        verificationStatus: 'VERIFIED',
-      },
-    })
-    .mockResolvedValueOnce({
-      data: [
-        {
-          id: 'cat-camera',
-          name: 'Camera',
-          children: [],
-        },
-      ],
-    });
+  apiClient.get.mockResolvedValueOnce({
+    data: {
+      id: 'user-1',
+      fullName: 'Demo User',
+      verificationStatus: 'VERIFIED',
+    },
+  });
   apiClient.post
     .mockResolvedValueOnce({
       data: {
@@ -106,7 +97,7 @@ test('verified users can upload images and create a listing', async () => {
 
   renderCreateListing();
 
-  expect(await screen.findByText('Camera')).toBeTruthy();
+  expect(await screen.findByText('Giá/ngày (nghìn VND)')).toBeTruthy();
 
   await act(async () => {
     fireEvent.press(screen.getByLabelText('Chọn ảnh tài sản'));
@@ -119,17 +110,17 @@ test('verified users can upload images and create a listing', async () => {
     screen.getByPlaceholderText('Tình trạng, phụ kiện đi kèm và lưu ý khi sử dụng'),
     'Máy hoạt động tốt, có pin và thẻ nhớ đi kèm.',
   );
-  fireEvent.press(screen.getByText('Camera'));
-  fireEvent.changeText(screen.getByPlaceholderText('150000'), '150000');
-  fireEvent.changeText(screen.getByPlaceholderText('5000000'), '5000000');
-  fireEvent.changeText(screen.getByPlaceholderText('Hồ Chí Minh'), 'Hồ Chí Minh');
-  fireEvent.changeText(screen.getByPlaceholderText('Quận 1'), 'Quận 1');
+  fireEvent.changeText(screen.getByPlaceholderText('150'), '150');
+  fireEvent.changeText(screen.getByPlaceholderText('5000'), '5000');
+  fireEvent.press(screen.getByText('Chọn tỉnh/thành phố'));
+  fireEvent.press(screen.getByText('Hồ Chí Minh'));
+  fireEvent.press(screen.getByText('Chọn quận/huyện'));
+  fireEvent.press(screen.getByText('Quận 1'));
 
   fireEvent.press(screen.getByText('Gửi duyệt bài đăng'));
 
   await waitFor(() => {
     expect(apiClient.post).toHaveBeenCalledWith('/assets', expect.objectContaining({
-      categoryId: 'cat-camera',
       pricePerDay: 150000,
       estimatedValue: 5000000,
       deliveryOptions: ['PICKUP'],

@@ -328,7 +328,7 @@ export class FinanceService {
     return this.prisma.payout.findMany({
       where: {
         ...(query.status ? { status: query.status } : {}),
-        ...(this.isStaff(currentUser)
+        ...(this.isStaff(currentUser) && query.scope !== 'owner'
           ? {}
           : {
               ownerId: currentUser.id,

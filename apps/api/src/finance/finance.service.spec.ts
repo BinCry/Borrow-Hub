@@ -98,6 +98,18 @@ describe('FinanceService', () => {
     );
   });
 
+  it('keeps the owner earnings view scoped to the current owner even for staff', async () => {
+    await service.listMyPayouts(adminUser, { scope: 'owner' });
+    expect(prisma.payout.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { ownerId: adminUser.id },
+    }));
+
+    await service.listMyPayouts(adminUser, {});
+    expect(prisma.payout.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: {},
+    }));
+  });
+
   it('notifies the owner when a payout is marked as paid', async () => {
     prisma.payout.update.mockResolvedValue({
       ...payout,

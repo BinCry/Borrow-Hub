@@ -53,6 +53,13 @@ describe('validateEnv', () => {
     expect(result.APP_URL).toBe('https://api.rentloop.vn');
     expect(result.REDIS_URL).toBe('redis://redis:6379');
     expect(result.CACHE_TTL_MS).toBe(60000);
+    expect(result.PAYMENT_DEMO_ENABLED).toBe(false);
+  });
+
+  it('rejects demo payment mode in production', () => {
+    expect(() =>
+      validateEnv({ ...validEnv, PAYMENT_DEMO_ENABLED: 'true' }),
+    ).toThrow('PAYMENT_DEMO_ENABLED must be false in production');
   });
 
   it('rejects invalid redis urls', () => {

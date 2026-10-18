@@ -1,8 +1,9 @@
 import { colors } from '../theme/colors';
+import { UserAvatar } from './UserAvatar';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Asset } from '../types/domain';
-import { MapPin, Star, User, ShieldCheck } from 'lucide-react-native';
+import { MapPin, Star, ShieldCheck } from 'lucide-react-native';
 import { Link, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/api/client';
@@ -51,11 +52,7 @@ export function AssetCard({ asset, adminPreview = false }: AssetCardProps) {
         })}
       >
         <View className="mr-3 h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary-soft">
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={{ width: 40, height: 40 }} contentFit="cover" recyclingKey={avatarUrl} />
-          ) : (
-            <User size={20} color={colors.primary.DEFAULT} />
-          )}
+          <UserAvatar userId={asset.ownerId} avatarUrl={avatarUrl} />
         </View>
         <View className="flex-1">
           <Text className="font-bold text-text-primary" numberOfLines={1}>{ownerName}</Text>

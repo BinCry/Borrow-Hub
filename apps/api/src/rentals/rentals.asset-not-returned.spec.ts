@@ -204,7 +204,7 @@ describe('RentalsService asset not returned', () => {
       type: 'SYSTEM',
       title: 'Chủ tài sản báo chưa nhận lại tài sản',
       content:
-        'Chủ tài sản đã đánh dấu "Canon R6" là chưa được hoàn trả và mở dispute xử lý.',
+        'Chủ tài sản đã đánh dấu "Canon R6" là chưa được hoàn trả và mở tranh chấp để xử lý.',
       metadata: {
         disputeId: 'dispute-1',
         rentalId: rental.id,

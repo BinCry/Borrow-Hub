@@ -381,14 +381,15 @@ export class AssetsService {
   async create(currentUser: AuthenticatedUser, dto: CreateAssetDto) {
     this.assertNonAdminListingUser(currentUser);
     this.assertVerifiedUser(currentUser);
-    await this.ensureCategoryExists(dto.categoryId);
+    const categoryId = dto.categoryId ?? (await this.getDefaultCategoryId());
+    await this.ensureCategoryExists(categoryId);
     this.assertDuration(dto.minimumDurationDays, dto.maximumDurationDays);
     this.assertAvailabilityWindows(dto.availability);
 
     const asset = await this.prisma.asset.create({
       data: {
         ownerId: currentUser.id,
-        categoryId: dto.categoryId,
+        categoryId,
         title: dto.title,
         description: dto.description,
         brand: dto.brand,
@@ -1175,6 +1176,20 @@ export class AssetsService {
     }
 
     return category;
+  }
+
+  private async getDefaultCategoryId() {
+    const category = await this.prisma.category.findFirst({
+      where: { status: 'ACTIVE', parentId: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException('No active asset category is configured');
+    }
+
+    return category.id;
   }
 
   private async ensureAssetExists(assetId: string) {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Ban, ChevronLeft, PlusCircle, RefreshCcw, ShieldCheck, UserCheck } from 'lucide-react-native';
+import { Ban, ChevronLeft, PlusCircle, RefreshCcw } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -264,11 +264,7 @@ function UserRow({
     <View className="mb-3 rounded-2xl border border-border bg-surface p-4">
       <View className="flex-row">
         <View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-primary-soft">
-          {staff ? (
-            <ShieldCheck size={23} color={colors.primary.DEFAULT} />
-          ) : (
-            <UserCheck size={23} color={colors.primary.DEFAULT} />
-          )}
+          <UserAvatar userId={user.id} size={48} />
         </View>
         <View className="min-w-0 flex-1">
           <Text className="text-base font-extrabold text-text-primary">{user.fullName}</Text>
@@ -351,3 +347,4 @@ function Badge({ label, tone }: { label: string; tone: 'primary' | 'success' | '
     </View>
   );
 }
+import { UserAvatar } from '../../components/UserAvatar';

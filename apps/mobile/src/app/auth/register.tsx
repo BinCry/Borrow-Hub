@@ -415,10 +415,13 @@ export default function RegisterScreen() {
                           secureTextEntry={!isPasswordVisible}
                           autoCapitalize="none"
                           autoCorrect={false}
-                          autoComplete="new-password"
-                          textContentType="newPassword"
-                          passwordRules="minlength: 8; required: lower; required: digit;"
-                          importantForAutofill="yes"
+                          // Keep this field fully user-editable. On iOS, combining
+                          // `newPassword` with `passwordRules` can make the native
+                          // strong-password suggestion take ownership of the value
+                          // after it is accepted, leaving the field apparently locked.
+                          autoComplete="off"
+                          textContentType="password"
+                          importantForAutofill="no"
                           returnKeyType="done"
                           onSubmitEditing={handleSubmit(onSubmit)}
                           selectionColor={colors.primary.DEFAULT}

@@ -8,8 +8,13 @@ import {
 } from 'class-validator';
 
 export class CreateConversationDto {
+  @IsOptional()
   @IsString()
-  rentalId!: string;
+  rentalId?: string;
+
+  @IsOptional()
+  @IsString()
+  recipientId?: string;
 }
 
 export class SendMessageDto {

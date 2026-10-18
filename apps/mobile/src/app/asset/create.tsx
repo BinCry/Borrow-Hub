@@ -28,16 +28,17 @@ import type { User } from '../../types/domain';
 import { useAsset } from '../../hooks/useAssets';
 import { AssetsService } from '../../services/assets/assets.service';
 import { vietnamLocations } from '../../data/vietnamLocations';
+import { parseThousandsVnd } from '../../utils/money-input';
 
 const createAssetSchema = z.object({
   title: z.string().trim().min(5, 'Tiêu đề phải có ít nhất 5 ký tự').max(120),
   description: z.string().trim().min(5, 'Mô tả phải có ít nhất 5 ký tự').max(3000),
   pricePerDay: z.string().refine(
-    (value) => Number.isInteger(Number(value)) && Number(value) > 0,
+    (value) => /^\d+$/.test(value) && (parseThousandsVnd(value) ?? 0) > 0,
     'Giá thuê phải là số nguyên dương',
   ),
   estimatedValue: z.string().refine(
-    (value) => Number.isInteger(Number(value)) && Number(value) > 0,
+    (value) => /^\d+$/.test(value) && (parseThousandsVnd(value) ?? 0) > 0,
     'Giá trị phải là số nguyên dương',
   ),
   city: z.string().trim().min(2, 'Hãy nhập tỉnh/thành phố').max(100),
@@ -145,10 +146,6 @@ export default function CreateListingScreen() {
         throw new Error('IMAGE_REQUIRED');
       }
 
-      const categories = flattenCategories((await apiClient.get<Category[]>('/categories')).data);
-      const electronics = categories.find((category) => category.slug === 'electronics');
-      if (!electronics) throw new Error('ELECTRONICS_UNAVAILABLE');
-
       const uploadedImages = await Promise.all(
         selectedImages.map(async (asset) => {
           if (isEditing && asset.uri.startsWith('http')) {
@@ -167,9 +164,8 @@ export default function CreateListingScreen() {
 
       const payload = {
         ...data,
-        categoryId: electronics.id,
-        pricePerDay: Number(data.pricePerDay),
-        estimatedValue: Number(data.estimatedValue),
+        pricePerDay: parseThousandsVnd(data.pricePerDay)!,
+        estimatedValue: parseThousandsVnd(data.estimatedValue)!,
         minimumDurationDays: 1,
         maximumDurationDays: 30,
         deliveryOptions: ['PICKUP'],
@@ -213,8 +209,10 @@ export default function CreateListingScreen() {
     reset({
       title: current.title,
       description: current.description,
-      pricePerDay: String(current.pricePerDay),
-      estimatedValue: String(current.estimatedValue ?? current.pricePerDay),
+      pricePerDay: String(Math.round(current.pricePerDay / 1_000)),
+      estimatedValue: String(
+        Math.round((current.estimatedValue ?? current.pricePerDay) / 1_000),
+      ),
       city: current.location.city,
       district: current.location.district,
       condition: current.condition,
@@ -386,13 +384,16 @@ export default function CreateListingScreen() {
             )}
           />
 
+          <Text className="mb-2 text-xs text-text-secondary">
+            Nhập giá theo đơn vị nghìn VND (ví dụ: 150 = 150.000 đ)
+          </Text>
           <View className="flex-row items-start gap-3">
             <View className="min-w-0 flex-1">
               <FormInput
                 control={control}
                 name="pricePerDay"
-                label="Giá/ngày (VND)"
-                placeholder="150000"
+                label="Giá/ngày (nghìn VND)"
+                placeholder="150"
                 error={errors.pricePerDay?.message}
                 keyboardType="number-pad"
               />
@@ -401,8 +402,8 @@ export default function CreateListingScreen() {
               <FormInput
                 control={control}
                 name="estimatedValue"
-                label="Giá trị (VND)"
-                placeholder="5000000"
+                label="Giá trị (nghìn VND)"
+                placeholder="5000"
                 error={errors.estimatedValue?.message}
                 keyboardType="number-pad"
               />

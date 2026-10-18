@@ -121,9 +121,7 @@ export default function MessagesScreen() {
                 onPress={() => router.push(`/chat/${item.id}`)}
               >
                 <View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-primary-soft">
-                  <Text className="text-lg font-bold text-primary">
-                    {(otherUser?.fullName ?? 'B').charAt(0).toUpperCase()}
-                  </Text>
+                  <UserAvatar userId={otherUser?.id} avatarUrl={otherUser?.avatarUrl} size={48} />
                 </View>
                 <View className="flex-1">
                   <View className="mb-1 flex-row justify-between">
@@ -135,7 +133,7 @@ export default function MessagesScreen() {
                     </Text>
                   </View>
                   <Text className="text-text-secondary" numberOfLines={1}>
-                    {lastMessage?.content || `Trao đổi về ${item.rental.asset.title}`}
+                    {lastMessage?.content || (item.rental ? `Trao đổi về ${item.rental.asset.title}` : 'Nhắn tin tư vấn trước khi thuê')}
                   </Text>
                   <Text className="mt-1 text-xs text-text-muted" numberOfLines={1}>
                     Trao đổi và cập nhật các đơn thuê
@@ -149,3 +147,4 @@ export default function MessagesScreen() {
     </SafeAreaView>
   );
 }
+import { UserAvatar } from '../../components/UserAvatar';

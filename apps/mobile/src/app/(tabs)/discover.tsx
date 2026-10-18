@@ -10,6 +10,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useFocusEffect } from 'expo-router';
 import { vietnamLocations } from '../../data/vietnamLocations';
 import type { AssetSearchFilters } from '../../services/assets/assets.service';
+import { parseThousandsVnd } from '../../utils/money-input';
 
 type FilterDraft = {
   condition: AssetCondition | '';
@@ -60,8 +61,8 @@ export function DiscoverContent({ adminPreview = false }: { adminPreview?: boole
     city: filters.city || undefined,
     district: filters.district || undefined,
     deliveryMethod: filters.deliveryMethod || undefined,
-    minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
-    maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
+    minPrice: filters.minPrice ? parseThousandsVnd(filters.minPrice) ?? undefined : undefined,
+    maxPrice: filters.maxPrice ? parseThousandsVnd(filters.maxPrice) ?? undefined : undefined,
     sort: filters.sort,
   }), [debouncedSearch, filters]);
 
@@ -120,9 +121,10 @@ export function DiscoverContent({ adminPreview = false }: { adminPreview?: boole
               {conditionOptions.map((option) => <Chip key={option.value} label={option.label} selected={filters.condition === option.value} onPress={() => setFilters((current) => ({ ...current, condition: current.condition === option.value ? '' : option.value }))} />)}
             </View>
 
+            <Text className="mb-2 font-bold text-text-primary">Khoảng giá/ngày (nghìn VND)</Text>
             <View className="mb-4 flex-row gap-3">
-              <TextInput className="min-h-12 flex-1 rounded-xl border border-border bg-background px-3 text-text-primary" placeholder="Giá thấp nhất" placeholderTextColor={colors.text.muted} keyboardType="number-pad" value={filters.minPrice} onChangeText={(value) => setFilters((current) => ({ ...current, minPrice: value.replace(/[^0-9]/g, '') }))} />
-              <TextInput className="min-h-12 flex-1 rounded-xl border border-border bg-background px-3 text-text-primary" placeholder="Giá cao nhất" placeholderTextColor={colors.text.muted} keyboardType="number-pad" value={filters.maxPrice} onChangeText={(value) => setFilters((current) => ({ ...current, maxPrice: value.replace(/[^0-9]/g, '') }))} />
+              <TextInput className="min-h-12 flex-1 rounded-xl border border-border bg-background px-3 text-text-primary" placeholder="Giá thấp nhất (nghìn VND)" placeholderTextColor={colors.text.muted} keyboardType="number-pad" value={filters.minPrice} onChangeText={(value) => setFilters((current) => ({ ...current, minPrice: value.replace(/[^0-9]/g, '') }))} />
+              <TextInput className="min-h-12 flex-1 rounded-xl border border-border bg-background px-3 text-text-primary" placeholder="Giá cao nhất (nghìn VND)" placeholderTextColor={colors.text.muted} keyboardType="number-pad" value={filters.maxPrice} onChangeText={(value) => setFilters((current) => ({ ...current, maxPrice: value.replace(/[^0-9]/g, '') }))} />
             </View>
 
             <Text className="mb-2 font-bold text-text-primary">Khu vực</Text>

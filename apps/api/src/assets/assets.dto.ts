@@ -75,8 +75,9 @@ export class AssetAvailabilityDto {
 }
 
 export class CreateAssetDto {
+  @IsOptional()
   @IsString()
-  categoryId!: string;
+  categoryId?: string;
 
   @IsString()
   title!: string;

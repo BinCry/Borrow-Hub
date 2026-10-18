@@ -9,15 +9,35 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { apiClient } from '../../services/api/client';
+import { useAuthStore } from '../../store/authStore';
+import { useRentals } from '../../hooks/useRentals';
 import { colors } from '../../theme/colors';
+import { getRentalStatusPresentation } from '../../utils/status-mappers';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { data, isLoading, isError, refetch, isRefetching } = useAssets({ limit: 10 });
+  const renterRentals = useRentals('renter', isAuthenticated);
+  const ownerRentals = useRentals('owner', isAuthenticated);
+  const recentRentals = useMemo(() => {
+    const rentals = new Map<string, { rental: NonNullable<typeof renterRentals.data>['data'][number]; isOwner: boolean }>();
+    for (const rental of renterRentals.data?.data ?? []) {
+      rentals.set(rental.id, { rental, isOwner: false });
+    }
+    for (const rental of ownerRentals.data?.data ?? []) {
+      rentals.set(rental.id, { rental, isOwner: true });
+    }
+    return [...rentals.values()]
+      .sort((a, b) => new Date(b.rental.createdAt).getTime() - new Date(a.rental.createdAt).getTime())
+      .slice(0, 1);
+  }, [ownerRentals.data, renterRentals.data]);
   const notificationsQuery = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => (await apiClient.get<{ readAt?: string | null }[]>('/notifications')).data,
+    enabled: isAuthenticated,
     refetchInterval: 30_000,
   });
   const unreadCount = (notificationsQuery.data ?? []).filter((item) => !item.readAt).length;
@@ -53,7 +73,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             accessibilityLabel="Mở thông báo"
             className="w-10 h-10 bg-white/80 border border-primary/15 rounded-full items-center justify-center"
-            onPress={() => router.push('/notifications' as never)}
+            onPress={() => router.push(isAuthenticated ? '/notifications' : '/auth/login')}
           >
             <View>
               <Bell size={20} color={colors.primary.dark} />
@@ -99,7 +119,7 @@ export default function HomeScreen() {
              onPress={() => refetch()}
           />
         <TouchableOpacity
-          accessibilityLabel="Mở demo AI xử lý tranh chấp"
+          accessibilityLabel="Mở AI xử lý tranh chấp"
           className="mt-3 flex-row items-center rounded-xl border border-primary/20 bg-white/80 px-3 py-3"
           onPress={() => router.push('/ai-dispute-demo' as never)}
         >
@@ -108,7 +128,7 @@ export default function HomeScreen() {
             <Text className="font-extrabold text-text-primary">AI hỗ trợ xử lý tranh chấp</Text>
             <Text className="mt-0.5 text-xs text-text-secondary">Đối chiếu ảnh trước/sau và chờ admin duyệt</Text>
           </View>
-          <Text className="text-sm font-extrabold text-primary">Mở demo</Text>
+          <Text className="text-sm font-extrabold text-primary">Xem ngay</Text>
         </TouchableOpacity>
         </View>
       ) : (
@@ -147,6 +167,39 @@ export default function HomeScreen() {
                   <Text className="text-white/90 text-sm font-medium">Đừng quên trả đồ đúng hạn nhé! </Text>
                 </View>
               </View>
+
+              {isAuthenticated && recentRentals.length > 0 ? (
+                <View className="mb-6">
+                  <View className="mb-3 flex-row items-center justify-between">
+                    <Text className="text-xl font-extrabold text-text-primary">Đơn thuê gần đây</Text>
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/rentals')}>
+                      <Text className="font-semibold text-primary">Xem tất cả</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {recentRentals.map(({ rental, isOwner }) => {
+                    const status = getRentalStatusPresentation(rental.status, isOwner);
+                    return (
+                      <TouchableOpacity
+                        key={rental.id}
+                        className="mb-2 flex-row items-center rounded-xl border border-border bg-surface p-3"
+                        onPress={() => router.push(`/rental/${rental.id}`)}
+                      >
+                        <View className="flex-1">
+                          <Text className="font-bold text-text-primary" numberOfLines={1}>
+                            {rental.asset?.title ?? 'Đơn thuê'}
+                          </Text>
+                          <Text className="mt-1 text-xs text-text-secondary">
+                            {isOwner ? `Người thuê: ${rental.renter?.fullName ?? '—'}` : `Chủ tài sản: ${rental.owner?.fullName ?? '—'}`}
+                          </Text>
+                        </View>
+                        <View className="ml-3 rounded-md px-2 py-1" style={{ backgroundColor: status.colorHex }}>
+                          <Text className="text-xs font-bold text-white">{status.label}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : null}
               
               <Text className="text-xl font-extrabold text-text-primary tracking-tight">Dành cho bạn</Text>
             </View>

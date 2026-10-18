@@ -98,6 +98,14 @@ export class RentalsController {
     return this.rentalsService.recordPayment(rentalId, currentUser, dto);
   }
 
+  @Post(':rentalId/pay-demo/confirm')
+  confirmDemoPayment(
+    @Param('rentalId') rentalId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.rentalsService.confirmDemoPayment(rentalId, currentUser);
+  }
+
   @Post(':rentalId/sign')
   signContract(
     @Param('rentalId') rentalId: string,

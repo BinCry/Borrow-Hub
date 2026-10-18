@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAsset } from '../../hooks/useAssets';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { ChevronLeft, MapPin, Star, ShieldCheck, Heart, User, AlertCircle, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, MapPin, Star, ShieldCheck, Heart, AlertCircle, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { apiClient } from '../../services/api/client';
 import { useAuthStore } from '../../store/authStore';
@@ -268,11 +268,7 @@ export default function AssetDetailScreen() {
           {/* Owner Profile */}
           <View className="flex-row items-center mb-8 pb-6 border-b border-border bg-surfaceSecondary rounded-2xl p-4">
             <View className="w-14 h-14 rounded-full bg-primary-soft items-center justify-center mr-4 overflow-hidden border border-gray-200">
-              {asset.owner?.avatarUrl ? (
-                <Image source={{ uri: asset.owner.avatarUrl }} style={{ width: '100%', height: '100%' }} />
-              ) : (
-                <User size={28} color={colors.primary.DEFAULT} />
-              )}
+              <UserAvatar userId={asset.ownerId} avatarUrl={asset.owner?.avatarUrl} size={56} />
             </View>
             <View className="flex-1">
               <Text className="text-text-primary font-extrabold text-lg">{asset.owner?.fullName || 'Chủ sở hữu'}</Text>
@@ -379,3 +375,4 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
+import { UserAvatar } from '../../components/UserAvatar';

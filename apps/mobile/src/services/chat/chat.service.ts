@@ -15,16 +15,19 @@ export interface ChatMessage {
 
 export interface Conversation {
   id: string;
-  rentalId: string;
+  rentalId: string | null;
   updatedAt: string;
   rental: {
     asset: { id: string; title: string };
-  };
+  } | null;
   members: { userId: string; user: User }[];
   messages: ChatMessage[];
 }
 
 export const ChatService = {
+  async startConsultation(recipientId: string) {
+    return (await apiClient.post<Conversation>('/chat/conversations', { recipientId })).data;
+  },
   async listMine() {
     const response = await apiClient.get<Conversation[]>(
       '/chat/conversations/my',

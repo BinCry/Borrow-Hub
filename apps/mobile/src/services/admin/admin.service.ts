@@ -199,6 +199,19 @@ export type AdminDisputeEventType =
   | 'RESOLVED'
   | 'NOTE';
 
+export type AiDisputeAnalysis = {
+  damaged: boolean;
+  confidence: number;
+  severity: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
+  summary: string;
+  findings: { area: string; issue: string; confidence: number }[];
+  recommendedAction: string;
+  suggestedCompensation: number;
+  limitations: string[];
+  provider?: string;
+  model?: string;
+};
+
 type AdminDisputeUser = {
   id: string;
   fullName: string;
@@ -228,6 +241,7 @@ export type AdminDispute = {
       id: string;
       title: string;
       pricePerDay?: number;
+      images: { id: string; url: string; isCover: boolean; sortOrder: number }[];
     };
     owner: AdminDisputeUser;
     renter: AdminDisputeUser;

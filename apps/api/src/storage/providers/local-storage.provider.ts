@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
-import { mkdir, unlink, writeFile } from 'fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'path';
 import { IStorageProvider, UploadOptions } from '../storage.interface';
 
@@ -81,6 +81,14 @@ export class LocalStorageProvider implements IStorageProvider {
       .digest('hex');
 
     return `${this.baseUrl}/files/signed?key=${encodeURIComponent(normalizedKey)}&expires=${expires}&signature=${signature}`;
+  }
+
+  async readFile(key: string): Promise<Buffer> {
+    const normalizedKey = normalizeStorageKey(key);
+    if (!normalizedKey.startsWith('assets/')) {
+      throw new BadRequestException('Only asset images can be read here');
+    }
+    return readFile(this.resolveStoragePath(normalizedKey));
   }
 
   async deleteFile(key: string): Promise<void> {

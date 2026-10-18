@@ -8,7 +8,6 @@ import {
   MapPin,
   RefreshCcw,
   Trash2,
-  UserRound,
   XCircle,
 } from 'lucide-react-native';
 import { useState } from 'react';
@@ -359,7 +358,7 @@ function ListingCard({
 
         <View className="mt-4 flex-row items-center rounded-xl border border-border p-3">
           <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
-            <UserRound size={20} color={colors.primary.DEFAULT} />
+            <UserAvatar userId={asset.owner?.id} />
           </View>
           <View className="min-w-0 flex-1">
             <Text className="font-extrabold text-text-primary">
@@ -511,3 +510,4 @@ function InfoLine({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
+import { UserAvatar } from '../../components/UserAvatar';

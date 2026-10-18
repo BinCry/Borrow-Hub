@@ -115,11 +115,23 @@ describe('RentalsService recordPayment', () => {
   const trustScoreService = {
     recalculateUserTrustScore: jest.fn(),
   };
+  const configService = {
+    get: jest.fn<unknown, [string]>((key: string) => {
+      if (key === 'NODE_ENV') return 'development';
+      if (key === 'PAYMENT_DEMO_ENABLED') return false;
+      return undefined;
+    }),
+  };
 
   let service: RentalsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'NODE_ENV') return 'development';
+      if (key === 'PAYMENT_DEMO_ENABLED') return false;
+      return undefined;
+    });
     prisma.rentalRequest.findUnique.mockImplementation(
       ({ select }: { select?: { status?: boolean } }) =>
         select?.status ? { status: RentalStatus.AWAITING_PAYMENT } : rental,
@@ -145,6 +157,42 @@ describe('RentalsService recordPayment', () => {
       notificationsService as never,
       riskService as never,
       trustScoreService as never,
+      configService as never,
+    );
+  });
+
+  it('allows the other rental participant to confirm a pending demo QR', async () => {
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'NODE_ENV') return 'development';
+      if (key === 'PAYMENT_DEMO_ENABLED') return true;
+      return undefined;
+    });
+    prisma.payment.findFirst.mockResolvedValue(pendingPayment);
+
+    await service.confirmDemoPayment(rental.id, ownerUser);
+
+    expect(prisma.payment.update).toHaveBeenCalledWith({
+      where: { id: pendingPayment.id },
+      data: expect.objectContaining({
+        status: PaymentStatus.SUCCESS,
+        metadata: {
+          sandbox: true,
+          confirmedBy: ownerUser.id,
+          confirmationType: 'qr-scan-demo',
+        },
+      }),
+    });
+  });
+
+  it('never confirms demo payments in production', async () => {
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'NODE_ENV') return 'production';
+      if (key === 'PAYMENT_DEMO_ENABLED') return true;
+      return undefined;
+    });
+
+    await expect(service.confirmDemoPayment(rental.id, ownerUser)).rejects.toThrow(
+      'Demo payment confirmation is disabled',
     );
   });
 

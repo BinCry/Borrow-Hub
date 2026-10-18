@@ -22,6 +22,8 @@ import {
   AdminService,
 } from '../../services/admin/admin.service';
 import { getStatusLabel, getPaymentMethodLabel } from '../../utils/status-labels';
+import { parseThousandsVnd } from '../../utils/money-input';
+import { visibleFinancePayments } from '../../services/finance/payment-visibility';
 import { colors } from '../../theme/colors';
 
 type FinanceTab = 'payments' | 'payouts';
@@ -108,7 +110,7 @@ export default function AdminFinanceScreen() {
         />
       ) : tab === 'payments' ? (
         <PaymentList
-          data={paymentsQuery.data ?? []}
+          data={visibleFinancePayments(paymentsQuery.data ?? [])}
           refreshing={activeRefreshing}
           onRefresh={() => void paymentsQuery.refetch()}
         />
@@ -168,7 +170,7 @@ function PaymentList({
       ListEmptyComponent={
         <EmptyState
           title="Chưa có giao dịch thanh toán"
-          description="Các giao dịch thanh toán sẽ xuất hiện tại đây."
+          description="Đơn đang chờ chi trả không hiển thị tại đây. Admin có thể xử lý trong mục Chi trả."
         />
       }
       renderItem={({ item }) => <PaymentCard payment={item} />}
@@ -180,10 +182,14 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
   const queryClient = useQueryClient();
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('');
+  const refundableBalance = payment.amount - payment.refunds
+    .filter((refund) => refund.status === 'PENDING' || refund.status === 'COMPLETED')
+    .reduce((sum, refund) => sum + refund.amount, 0);
+  const parsedRefundAmount = parseThousandsVnd(refundAmount);
   const refundMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (amount: number) =>
       AdminService.createRefund(payment.id, {
-        amount: Number(refundAmount),
+        amount,
         reason: refundReason.trim(),
       }),
     onSuccess: () => {
@@ -209,14 +215,18 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
   });
 
   const createRefund = () => {
-    const amount = Number(refundAmount);
-    if (!Number.isFinite(amount) || amount <= 0 || !refundReason.trim()) {
-      Alert.alert('Thiếu thông tin', 'Nhập số tiền hoàn và lý do.');
+    const amount = parseThousandsVnd(refundAmount);
+    if (amount === null || amount <= 0 || !refundReason.trim()) {
+      Alert.alert('Thiếu thông tin', 'Nhập khoản hoàn bằng nghìn VND và lý do.');
+      return;
+    }
+    if (amount > refundableBalance) {
+      Alert.alert('Vượt số tiền có thể hoàn', `Bạn chỉ có thể hoàn tối đa ${formatMoney(refundableBalance, payment.currency)}.`);
       return;
     }
     Alert.alert('Tạo khoản hoàn tiền?', `${formatMoney(amount, payment.currency)} sẽ được ghi nhận.`, [
       { text: 'Hủy', style: 'cancel' },
-      { text: 'Tạo', onPress: () => refundMutation.mutate() },
+      { text: 'Tạo', onPress: () => refundMutation.mutate(amount) },
     ]);
   };
 
@@ -278,14 +288,21 @@ function PaymentCard({ payment }: { payment: AdminPayment }) {
         <Text className="mb-2 text-xs font-extrabold text-text-secondary">
           Tạo khoản hoàn tiền
         </Text>
+        <Text className="mb-2 text-sm font-semibold text-text-primary">Số tiền hoàn (nghìn VND)</Text>
         <TextInput
           className="mb-3 min-h-12 rounded-xl border border-border bg-background px-4 text-text-primary"
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
           onChangeText={setRefundAmount}
-          placeholder="Số tiền"
+          placeholder="Số tiền (nghìn VND)"
           placeholderTextColor={colors.text.muted}
           value={refundAmount}
         />
+        <Text className="mb-3 text-xs text-text-secondary">
+          {parsedRefundAmount !== null && parsedRefundAmount > 0
+            ? `Sẽ hoàn ${formatMoney(parsedRefundAmount, payment.currency)}. `
+            : 'Ví dụ: 150 = 150.000đ; 1,5 = 1.500đ. Không dùng dấu phân cách hàng nghìn. '}
+          Còn có thể hoàn: {formatMoney(Math.max(0, refundableBalance), payment.currency)}.
+        </Text>
         <TextInput
           className="min-h-20 rounded-xl border border-border bg-background px-4 py-3 text-text-primary"
           multiline

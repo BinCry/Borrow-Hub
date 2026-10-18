@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import sharp from 'sharp';
 import {
   DisputeStatus,
   PayoutStatus,
@@ -63,6 +64,7 @@ describe('DisputesService', () => {
     },
     dispute: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
@@ -101,6 +103,10 @@ describe('DisputesService', () => {
     recalculateUserTrustScore: jest.fn(),
   };
 
+  const storageService = {
+    readAssetImage: jest.fn(),
+  };
+
   let service: DisputesService;
 
   beforeEach(() => {
@@ -121,6 +127,7 @@ describe('DisputesService', () => {
       notificationsService as never,
       trustScoreService as never,
       new ConfigService(),
+      storageService as never,
     );
   });
 
@@ -215,5 +222,127 @@ describe('DisputesService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
 
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('compares a listing photo with a linked dispute photo and saves AI advice', async () => {
+    prisma.dispute.findUnique.mockResolvedValue({
+      ...dispute,
+      rental: {
+        ...dispute.rental,
+        asset: {
+          ...dispute.rental.asset,
+          images: [{ id: 'listing-photo', fileKey: 'assets/listing.webp' }],
+        },
+      },
+      evidences: [{
+        evidenceId: 'after-photo',
+        evidence: { id: 'after-photo', fileKey: 'assets/after.webp', type: 'PHOTO' },
+      }],
+    });
+    const image = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#ffffff' } })
+      .png()
+      .toBuffer();
+    storageService.readAssetImage.mockResolvedValue(image);
+    const analysis = {
+      damaged: false,
+      confidence: 0.6,
+      severity: 'NONE',
+      summary: 'Không đủ bằng chứng',
+      findings: [],
+      recommendedAction: 'Admin xem thêm ảnh',
+      suggestedCompensation: 0,
+      limitations: ['Ảnh bài đăng không phải ảnh lúc bàn giao'],
+    };
+    const analyze = jest.spyOn(service, 'analyzeDamageImages').mockResolvedValue(analysis as never);
+
+    await service.analyzeForDispute('dispute-1', disputeOfficer, {
+      assetImageId: 'listing-photo',
+      evidenceId: 'after-photo',
+    });
+
+    expect(storageService.readAssetImage.mock.calls).toEqual([
+      ['assets/listing.webp'],
+      ['assets/after.webp'],
+    ]);
+    expect(analyze).toHaveBeenCalledWith(null, [
+      expect.objectContaining({ originalname: 'listing-before.jpg', mimetype: 'image/jpeg' }),
+      expect.objectContaining({ originalname: 'dispute-after.jpg', mimetype: 'image/jpeg' }),
+    ]);
+    expect(prisma.disputeEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        disputeId: 'dispute-1',
+        metadata: expect.objectContaining({
+          kind: 'AI_DAMAGE_ANALYSIS',
+          assetImageId: 'listing-photo',
+          evidenceId: 'after-photo',
+          result: analysis,
+        }),
+      }),
+    });
+  });
+
+  it('automatically analyzes the cover photo against the newest dispute photo once', async () => {
+    const image = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#ffffff' } })
+      .png()
+      .toBuffer();
+    const linkedDispute = {
+      ...dispute,
+      rental: {
+        ...dispute.rental,
+        asset: { ...dispute.rental.asset, images: [
+          { id: 'listing-photo', fileKey: 'assets/listing.webp', isCover: true },
+        ] },
+      },
+      evidences: [{
+        evidenceId: 'after-photo',
+        createdAt: new Date(),
+        evidence: { id: 'after-photo', fileKey: 'assets/after.webp', type: 'PHOTO' },
+      }],
+      events: [],
+    };
+    prisma.dispute.findMany.mockResolvedValue([linkedDispute]);
+    prisma.dispute.findUnique.mockResolvedValue(linkedDispute);
+    storageService.readAssetImage.mockResolvedValue(image);
+    jest.spyOn(service, 'analyzeDamageImages').mockResolvedValue({ summary: 'Review' } as never);
+
+    await (service as any).processAutomaticAnalyses();
+
+    expect(prisma.disputeEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorId: null,
+        metadata: expect.objectContaining({
+          kind: 'AI_DAMAGE_ANALYSIS',
+          assetImageId: 'listing-photo',
+          evidenceId: 'after-photo',
+        }),
+      }),
+    });
+
+    linkedDispute.events.push({
+      metadata: { kind: 'AI_DAMAGE_ANALYSIS', assetImageId: 'listing-photo', evidenceId: 'after-photo' },
+    } as never);
+    await (service as any).processAutomaticAnalyses();
+    expect(prisma.disputeEvent.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not analyze a photo that is not linked to this dispute', async () => {
+    prisma.dispute.findUnique.mockResolvedValue({
+      ...dispute,
+      rental: {
+        ...dispute.rental,
+        asset: {
+          ...dispute.rental.asset,
+          images: [{ id: 'listing-photo', fileKey: 'assets/listing.webp' }],
+        },
+      },
+      evidences: [],
+    });
+
+    await expect(service.analyzeForDispute('dispute-1', disputeOfficer, {
+      assetImageId: 'listing-photo',
+      evidenceId: 'another-rental-photo',
+    })).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(storageService.readAssetImage).not.toHaveBeenCalled();
   });
 });

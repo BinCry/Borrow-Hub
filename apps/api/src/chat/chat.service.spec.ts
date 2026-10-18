@@ -40,10 +40,12 @@ describe('ChatService', () => {
   };
 
   const prisma = {
+    user: { findUnique: jest.fn() },
     rentalRequest: {
       findUnique: jest.fn(),
     },
     conversation: {
+      upsert: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
@@ -103,6 +105,41 @@ describe('ChatService', () => {
       undefined,
     );
     expect(prisma.conversation.create).not.toHaveBeenCalled();
+  });
+
+  it('opens a consultation without a rental using a stable pair key', async () => {
+    prisma.user.findUnique.mockResolvedValue({ status: 'ACTIVE' });
+    prisma.conversation.upsert.mockResolvedValue({ id: 'direct-1', rental: null });
+    await expect(service.createConversation(renterUser, { recipientId: 'owner-1' }))
+      .resolves.toEqual({ id: 'direct-1', rental: null });
+    expect(prisma.conversation.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { directKey: JSON.stringify(['owner-1', 'user-1']) },
+      create: expect.objectContaining({ members: { create: [{ userId: 'owner-1' }, { userId: 'user-1' }] } }),
+    }));
+    expect(prisma.rentalRequest.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('rejects self-chat and ambiguous conversation requests', async () => {
+    await expect(service.createConversation(renterUser, { recipientId: renterUser.id }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.createConversation(renterUser, { recipientId: 'owner-1', rentalId: 'rental-1' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('lists consultations alongside rental conversations without merging unrelated users', async () => {
+    const direct = { ...conversation, id: 'direct-1', rental: null, rentalId: null };
+    prisma.conversation.findMany.mockResolvedValue([conversation, direct]);
+    const result = await service.listMine(renterUser, {});
+    expect(result.map((item) => item.id).sort()).toEqual(['conversation-1', 'direct-1']);
+  });
+
+  it('restricts direct history to members and the selected conversation', async () => {
+    prisma.conversation.findUnique.mockResolvedValue({ ...conversation, rental: null, rentalId: null });
+    prisma.message.findMany.mockResolvedValue([]);
+    await expect(service.listMessages('conversation-1', renterUser)).resolves.toEqual([]);
+    expect(prisma.message.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { conversationId: 'conversation-1' } }));
+    await expect(service.listMessages('conversation-1', { ...renterUser, id: 'stranger' }))
+      .rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('does not let an unrelated user create or reuse a rental conversation', async () => {

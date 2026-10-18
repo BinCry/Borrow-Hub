@@ -102,7 +102,7 @@ export default function AiDisputeDemoScreen() {
         </TouchableOpacity>
         <View className="flex-1">
           <Text className="text-lg font-extrabold text-text-primary">AI xử lý tranh chấp</Text>
-          <Text className="text-xs font-medium text-text-secondary">Demo kiểm tra tình trạng tài sản</Text>
+          <Text className="text-xs font-medium text-text-secondary">Kiểm tra tình trạng tài sản</Text>
         </View>
         <View className="rounded-full bg-primary-soft p-2">
           <Sparkles size={18} color={colors.primary.DEFAULT} />

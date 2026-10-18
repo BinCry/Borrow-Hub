@@ -121,6 +121,27 @@ export class MinioStorageProvider implements IStorageProvider {
     );
   }
 
+  async readFile(key: string): Promise<Buffer> {
+    const normalizedKey = normalizeStorageKey(key);
+    if (!normalizedKey.startsWith('assets/')) {
+      throw new BadRequestException('Only asset images can be read here');
+    }
+    const { client, bucket } = this.getConfig();
+    const stream = await client.getObject(bucket, normalizedKey);
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of stream) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      size += buffer.length;
+      if (size > 15 * 1024 * 1024) {
+        stream.destroy();
+        throw new BadRequestException('Image exceeds the size limit');
+      }
+      chunks.push(buffer);
+    }
+    return Buffer.concat(chunks);
+  }
+
   async deleteFile(key: string): Promise<void> {
     const normalizedKey = normalizeStorageKey(key);
 

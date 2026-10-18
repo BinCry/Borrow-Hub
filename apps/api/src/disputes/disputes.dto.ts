@@ -27,6 +27,14 @@ export class CreateDisputeDto {
   evidenceIds?: string[];
 }
 
+export class AnalyzeDisputeImagesDto {
+  @IsString()
+  assetImageId!: string;
+
+  @IsString()
+  evidenceId!: string;
+}
+
 export class RespondDisputeDto {
   @IsString()
   @MaxLength(2000)

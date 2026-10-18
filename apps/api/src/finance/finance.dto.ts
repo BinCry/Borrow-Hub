@@ -16,6 +16,10 @@ export class PayoutQueryDto {
   @IsOptional()
   @IsEnum(PayoutStatus)
   status?: PayoutStatus;
+
+  @IsOptional()
+  @IsIn(['owner', 'all'])
+  scope?: 'owner' | 'all';
 }
 
 export class RefundQueryDto {

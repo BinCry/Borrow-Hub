@@ -257,6 +257,15 @@ export function validateEnv(raw: Record<string, unknown>) {
     throw new Error('NODE_ENV must be one of development, test, production');
   }
 
+  const paymentDemoEnabled = booleanWithDefault(
+    raw,
+    'PAYMENT_DEMO_ENABLED',
+    false,
+  );
+  if (nodeEnv === 'production' && paymentDemoEnabled) {
+    throw new Error('PAYMENT_DEMO_ENABLED must be false in production');
+  }
+
   const mailConfig = readMailConfig(raw, nodeEnv);
   const sepayConfig = readSepayConfig(raw, nodeEnv);
   const storageConfig = readStorageConfig(raw);
@@ -272,6 +281,7 @@ export function validateEnv(raw: Record<string, unknown>) {
 
   return {
     NODE_ENV: nodeEnv,
+    PAYMENT_DEMO_ENABLED: paymentDemoEnabled,
     HOST: getString(raw, 'HOST') ?? '0.0.0.0',
     PORT: requireInteger(raw, 'PORT', 1),
     APP_URL: requireUrl(raw, 'APP_URL'),
@@ -318,6 +328,8 @@ export function validateEnv(raw: Record<string, unknown>) {
     OPENAI_VISION_MODEL: getString(raw, 'OPENAI_VISION_MODEL') ?? 'gpt-4o-mini',
     AI_PROVIDER: getString(raw, 'AI_PROVIDER') ?? 'gemini',
     GEMINI_API_KEY: getString(raw, 'GEMINI_API_KEY'),
-    GEMINI_VISION_MODEL: getString(raw, 'GEMINI_VISION_MODEL') ?? 'gemini-2.5-flash',
+    GEMINI_VISION_MODEL: getString(raw, 'GEMINI_VISION_MODEL') ?? 'gemini-3.8-flash',
+    GROQ_API_KEY: getString(raw, 'GROQ_API_KEY'),
+    GROQ_VISION_MODEL: getString(raw, 'GROQ_VISION_MODEL') ?? 'meta-llama/llama-4-scout-17b-16e-instruct',
   };
 }

@@ -9,7 +9,6 @@ import {
   Image as ImageIcon,
   MessageSquareText,
   RefreshCcw,
-  UserRound,
 } from 'lucide-react-native';
 import { useState } from 'react';
 import {
@@ -28,6 +27,7 @@ import {
   AdminDispute,
   AdminDisputeStatus,
   AdminService,
+  AiDisputeAnalysis,
   UpdateDisputeStatusPayload,
 } from '../../../services/admin/admin.service';
 import { colors } from '../../../theme/colors';
@@ -66,6 +66,16 @@ export default function AdminDisputeDetailScreen() {
     queryKey: ['admin', 'dispute', id],
     queryFn: () => AdminService.getDispute(id),
     enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const dispute = query.state.data;
+      if (!dispute || isTerminal(dispute.status)) return false;
+      const { beforePhoto, afterPhoto } = getAnalysisPhotos(dispute);
+      if (!beforePhoto || !afterPhoto) return false;
+      const matchingEvents = getAnalysisEvents(dispute, beforePhoto.id, afterPhoto.evidence.id);
+      const report = matchingEvents.find((event) => event.metadata?.kind === 'AI_DAMAGE_ANALYSIS');
+      const finalFailure = matchingEvents.some((event) => event.metadata?.kind === 'AI_ANALYSIS_FAILED' && event.metadata?.attempt === 3);
+      return report || finalFailure ? false : 10_000;
+    },
   });
   const statusMutation = useMutation({
     mutationFn: ({ payload }: { payload: UpdateDisputeStatusPayload }) =>
@@ -198,6 +208,13 @@ function DisputeDetail({
   onClose: () => void;
 }) {
   const disabled = isUpdating || isTerminal(dispute.status);
+  const { beforePhoto, afterPhoto } = getAnalysisPhotos(dispute);
+  const analysisEvents = beforePhoto && afterPhoto
+    ? getAnalysisEvents(dispute, beforePhoto.id, afterPhoto.evidence.id)
+    : [];
+  const analysisEvent = [...analysisEvents].reverse().find((event) => event.metadata?.kind === 'AI_DAMAGE_ANALYSIS');
+  const failureEvent = [...analysisEvents].reverse().find((event) => event.metadata?.kind === 'AI_ANALYSIS_FAILED');
+  const analysis = analysisEvent?.metadata?.result as AiDisputeAnalysis | undefined;
 
   return (
     <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -252,8 +269,48 @@ function DisputeDetail({
         )}
       </Section>
 
+      <Section title="AI hỗ trợ phân tích">
+        <Text className="mb-3 leading-5 text-text-secondary">
+          Sau khi nhận tranh chấp, AI tự so sánh ảnh bài đăng với ảnh bằng chứng mới nhất và gửi đề xuất. Admin xem xét trước khi quyết định.
+        </Text>
+        <View className="flex-row gap-3">
+          {beforePhoto ? <AnalysisPhoto label="Ảnh bài đăng" uri={beforePhoto.url} /> : null}
+          {afterPhoto ? <AnalysisPhoto label="Ảnh bằng chứng" uri={afterPhoto.evidence.fileUrl} /> : null}
+        </View>
+        {!beforePhoto || !afterPhoto ? (
+          <Text className="mt-3 text-sm text-text-secondary">Chưa đủ ảnh để AI đối chiếu. Cần ảnh bài đăng và ảnh bằng chứng tranh chấp.</Text>
+        ) : null}
+        {analysis ? (
+          <View className="mt-4 rounded-xl border border-border bg-surface-secondary p-4">
+            <Text className="font-extrabold text-text-primary">Nhận xét AI</Text>
+            <Text className="mt-2 text-text-secondary">{analysis.summary}</Text>
+            <Text className="mt-2 font-bold text-text-primary">
+              {analysis.damaged ? 'Có dấu hiệu hư hỏng mới' : 'Chưa đủ bằng chứng hư hỏng mới'} · Độ tin cậy {Math.round(analysis.confidence * 100)}%
+            </Text>
+            {analysis.findings?.map((finding, index) => (
+              <Text key={`${index}-${finding.area}`} className="mt-2 text-text-secondary">• {finding.area}: {finding.issue}</Text>
+            ))}
+            <Text className="mt-3 font-extrabold text-text-primary">Đề xuất cho admin</Text>
+            <Text className="mt-1 text-text-secondary">{analysis.recommendedAction}</Text>
+            {analysis.suggestedCompensation > 0 ? (
+              <Text className="mt-2 text-text-secondary">Chi phí AI gợi ý: {analysis.suggestedCompensation.toLocaleString('vi-VN')}đ</Text>
+            ) : null}
+            {analysis.limitations?.map((limitation, index) => (
+              <Text key={index} className="mt-2 text-sm text-text-muted">Lưu ý: {limitation}</Text>
+            ))}
+            <Text className="mt-3 text-xs text-text-muted">Phân tích lúc {formatDate(analysisEvent?.createdAt)}</Text>
+          </View>
+        ) : failureEvent ? (
+          <Text className="mt-4 text-sm text-text-secondary">
+            AI chưa phân tích được hai ảnh. {failureEvent.metadata?.attempt === 3 ? 'Admin cần xem bằng chứng và xử lý trực tiếp.' : 'Hệ thống đang tự thử lại.'}
+          </Text>
+        ) : beforePhoto && afterPhoto ? (
+          <Text className="mt-4 text-sm text-text-secondary">AI đang phân tích. Báo cáo sẽ tự hiển thị tại đây.</Text>
+        ) : null}
+      </Section>
+
       <Section title="Diễn biến">
-        {dispute.events.map((event) => (
+        {dispute.events.filter((event) => event.metadata?.kind !== 'AI_ANALYSIS_FAILED_OLD_MODEL').map((event) => (
           <View key={event.id} className="mb-3 rounded-xl border border-border p-3">
             <View className="mb-1 flex-row items-center justify-between">
               <Text className="font-extrabold text-text-primary">{getStatusLabel(event.eventType)}</Text>
@@ -313,6 +370,32 @@ function DisputeDetail({
   );
 }
 
+function AnalysisPhoto({ label, uri }: {
+  label: string;
+  uri: string;
+}) {
+  return (
+    <View className="min-h-36 flex-1 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-secondary p-2">
+      <Image source={{ uri }} style={{ width: '100%', height: 100 }} contentFit="contain" />
+      <Text className="mt-2 text-center text-sm font-bold text-text-primary">{label}</Text>
+    </View>
+  );
+}
+
+function getAnalysisPhotos(dispute: AdminDispute) {
+  const beforePhoto = dispute.rental.asset.images.find((image) => image.isCover)
+    ?? dispute.rental.asset.images[0];
+  const afterPhoto = [...dispute.evidences]
+    .filter((item) => item.evidence.type === 'PHOTO')
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
+  return { beforePhoto, afterPhoto };
+}
+
+function getAnalysisEvents(dispute: AdminDispute, assetImageId: string, evidenceId: string) {
+  return dispute.events.filter((event) =>
+    event.metadata?.assetImageId === assetImageId && event.metadata?.evidenceId === evidenceId);
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View className="mt-4 rounded-2xl border border-border bg-surface p-4">
@@ -362,13 +445,13 @@ function PartyLine({
   fallback,
 }: {
   label: string;
-  user?: { fullName: string; email?: string | null };
+  user?: { id?: string; fullName: string; email?: string | null; avatarUrl?: string | null };
   fallback?: string;
 }) {
   return (
     <View className="mb-3 flex-row items-center rounded-xl bg-surface-secondary p-3">
       <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
-        <UserRound size={19} color={colors.primary.DEFAULT} />
+        <UserAvatar userId={user?.id} avatarUrl={user?.avatarUrl} />
       </View>
       <View className="min-w-0 flex-1">
         <Text className="text-xs font-bold text-text-secondary">{label}</Text>
@@ -479,3 +562,4 @@ function ActionButton({
     </TouchableOpacity>
   );
 }
+import { UserAvatar } from '../../../components/UserAvatar';

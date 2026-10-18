@@ -249,13 +249,13 @@ describe('RentalsService damage report', () => {
             {
               actorId: ownerUser.id,
               eventType: 'EVIDENCE_ATTACHED',
-              content: 'Attached 2 damage evidence item(s)',
+              content: 'Đã đính kèm 2 bằng chứng hư hỏng',
               metadata: undefined,
             },
             {
               actorId: ownerUser.id,
               eventType: 'NOTE',
-              content: 'Repair estimate submitted: 850000 VND',
+              content: 'Chi phí sửa chữa dự kiến: 850000 VND',
               metadata: undefined,
             },
           ],

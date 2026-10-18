@@ -103,7 +103,7 @@ export function getStatusLabel(status?: string | null) {
 export function getPaymentMethodLabel(method?: string | null) {
   switch (method) {
     case 'SEPAY': return 'Chuyển khoản ngân hàng';
-    case 'SANDBOX': return 'Thanh toán thử nghiệm';
+    case 'SANDBOX': return 'Thanh toán qua QR';
     default: return getStatusLabel(method);
   }
 }

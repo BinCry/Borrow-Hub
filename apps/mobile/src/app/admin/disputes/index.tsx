@@ -30,13 +30,13 @@ import { colors } from '../../../theme/colors';
 type DisputeFilter = AdminDisputeStatus | 'ALL';
 
 const filters: { value: DisputeFilter; label: string }[] = [
+  { value: 'ALL', label: 'Tất cả' },
   { value: 'OPEN', label: 'Mới mở' },
   { value: 'WAITING_RESPONSE', label: 'Chờ phản hồi' },
   { value: 'UNDER_REVIEW', label: 'Đang xử lý' },
   { value: 'RESOLVED', label: 'Đã giải quyết' },
   { value: 'REJECTED', label: 'Từ chối' },
   { value: 'CLOSED', label: 'Đã đóng' },
-  { value: 'ALL', label: 'Tất cả' },
 ];
 
 const statusLabels: Record<AdminDisputeStatus, string> = {
@@ -61,7 +61,7 @@ function formatDate(value?: string | null) {
 
 export default function AdminDisputesScreen() {
   const router = useRouter();
-  const [filter, setFilter] = useState<DisputeFilter>('OPEN');
+  const [filter, setFilter] = useState<DisputeFilter>('ALL');
   const queryStatus = filter === 'ALL' ? undefined : filter;
   const disputesQuery = useQuery({
     queryKey: ['admin', 'disputes', filter],

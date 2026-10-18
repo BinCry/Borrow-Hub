@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StatusBar, StyleSheet, Text, View } from 'react-native';
@@ -125,6 +125,8 @@ async function warmApplication(isAuthenticated: boolean) {
 }
 
 export default function RootLayout() {
+  const router = useRouter();
+  const segments = useSegments();
   const colorScheme = useColorScheme();
   const checkSession = useAuthStore((state) => state.checkSession);
   const isLoadingAuth = useAuthStore((state) => state.isLoading);
@@ -180,6 +182,18 @@ export default function RootLayout() {
     });
     return () => cancelAnimationFrame(frame);
   }, [isNavigationReady]);
+
+  useEffect(() => {
+    if (!isNavigationReady || isLoadingAuth || isAuthenticated) {
+      return;
+    }
+
+    // The public home/tabs screens are still mounted as the stack's default
+    // route. Send signed-out users to login before they can see them.
+    if (segments[0] !== 'auth') {
+      router.replace('/auth/login');
+    }
+  }, [isAuthenticated, isLoadingAuth, isNavigationReady, router, segments]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -286,7 +300,7 @@ function isChatMessage(value: unknown): value is ChatMessage {
 }
 
 function isConversation(value: unknown): value is Conversation {
-  return isObjectWithId(value) && typeof value.rentalId === 'string';
+  return isObjectWithId(value) && (typeof value.rentalId === 'string' || value.rentalId === null);
 }
 
 function isNotification(value: unknown): value is AppNotification {
